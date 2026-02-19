@@ -1,0 +1,54 @@
+import axios from "axios";
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "../lib/storage.jsx";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+export const http = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+http.interceptors.request.use((config) => {
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    if (
+      status === 401 &&
+      !originalRequest?._retry &&
+      !originalRequest?.url?.includes("/api/auth/token/refresh/")
+    ) {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        clearTokens();
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+      try {
+        const refreshRes = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, {
+          refresh: refreshToken,
+        });
+        setTokens({
+          access: refreshRes.data.access,
+          refresh: refreshRes.data.refresh || refreshToken,
+        });
+        originalRequest.headers.Authorization = `Bearer ${refreshRes.data.access}`;
+        return http(originalRequest);
+      } catch (refreshError) {
+        clearTokens();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
