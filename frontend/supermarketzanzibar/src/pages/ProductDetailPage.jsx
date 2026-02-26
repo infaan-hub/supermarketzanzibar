@@ -3,11 +3,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { toMediaUrl } from "../lib/media.jsx";
 
 function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("mobile_money");
+  const [checkoutInfo, setCheckoutInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { addToCart } = useCart();
@@ -33,15 +38,21 @@ function ProductDetailPage() {
       setError("Only customers can buy.");
       return;
     }
+    if (!termsAccepted) {
+      setError("Accept terms to continue.");
+      return;
+    }
     try {
-      await http.post("/api/customer/checkout/", {
+      const response = await http.post("/api/customer/checkout/", {
         items: [{ product: product.id, quantity: Number(qty) }],
-        payment_method: "mobile_money",
-        terms_accepted: true,
+        payment_method: paymentMethod,
+        delivery_location: deliveryLocation,
+        terms_accepted: termsAccepted,
       });
-      navigate("/customer/dashboard");
+      setCheckoutInfo(response.data);
+      setError("");
     } catch (err) {
-      setError(JSON.stringify(err.response?.data || "Buy now failed."));
+      setError(err.response?.data?.detail || "Buy now failed.");
     }
   };
 
@@ -51,7 +62,7 @@ function ProductDetailPage() {
   return (
     <section className="page-wrap">
       <div className="product-detail">
-        <img src={product.image_url || "https://placehold.co/800x520?text=No+Image"} alt={product.name} />
+        <img src={toMediaUrl(product.image) || "https://placehold.co/800x520?text=No+Image"} alt={product.name} />
         <div>
           <h2>{product.name}</h2>
           <p>{product.description || "No description available."}</p>
@@ -73,6 +84,34 @@ function ProductDetailPage() {
               Buy Now
             </button>
           </div>
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="cash">Cash</option>
+            <option value="bank_transfer">Bank Transfer</option>
+          </select>
+          <textarea
+            placeholder="Delivery location (optional)"
+            value={deliveryLocation}
+            onChange={(e) => setDeliveryLocation(e.target.value)}
+          />
+          <label className="checkbox-row">
+            <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+            I accept terms and payment process.
+          </label>
+          {checkoutInfo ? (
+            <div className="order-card checkout-result">
+              <div>
+                <h4>Order Created Successfully</h4>
+                <p>Order ID: #{checkoutInfo.sale?.id}</p>
+                <p>Control Number: {checkoutInfo.payment?.control_number}</p>
+                <p className="pending">Payment Status: {checkoutInfo.payment?.status}</p>
+                <p>Payment is pending admin confirmation. A request has been sent to admin and details were sent to your email.</p>
+              </div>
+              <button type="button" className="primary-btn" onClick={() => navigate("/customer/dashboard")}>
+                View My Orders
+              </button>
+            </div>
+          ) : null}
           {error ? <p className="error">{error}</p> : null}
         </div>
       </div>

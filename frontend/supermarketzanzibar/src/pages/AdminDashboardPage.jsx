@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
 import { http } from "../api/http.jsx";
+import { toMediaUrl } from "../lib/media.jsx";
 
 function AdminDashboardPage() {
   const [payments, setPayments] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [sales, setSales] = useState([]);
+  const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editProductForm, setEditProductForm] = useState({
+    name: "",
+    category: "",
+    price: "",
+    quantity: "",
+    description: "",
+    image: null,
+  });
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -21,14 +32,16 @@ function AdminDashboardPage() {
 
   const loadData = async () => {
     try {
-      const [paymentRes, userRes, salesRes] = await Promise.all([
-        http.get("/api/payments/"),
+      const [paymentRes, userRes, salesRes, productsRes] = await Promise.all([
+        http.get("/api/payments/admin_pending/"),
         http.get("/api/users/"),
         http.get("/api/sales/"),
+        http.get("/api/products/"),
       ]);
       setPayments(paymentRes.data);
       setDrivers(userRes.data.filter((user) => user.role === "driver"));
       setSales(salesRes.data);
+      setProducts(productsRes.data);
     } catch {
       setError("Failed to load admin data.");
     }
@@ -71,8 +84,8 @@ function AdminDashboardPage() {
     try {
       await http.post(`/api/payments/${id}/confirm/`);
       await loadData();
-    } catch {
-      setError("Payment confirmation failed.");
+    } catch (err) {
+      setError(err.response?.data?.detail || JSON.stringify(err.response?.data || "Payment confirmation failed."));
     }
   };
 
@@ -83,6 +96,57 @@ function AdminDashboardPage() {
       await loadData();
     } catch {
       setError("Assign driver failed.");
+    }
+  };
+
+  const startEditProduct = (product) => {
+    setEditingProductId(product.id);
+    setEditProductForm({
+      name: product.name || "",
+      category: product.category_name || "",
+      price: product.price || "",
+      quantity: product.quantity ?? "",
+      description: product.description || "",
+      image: null,
+    });
+  };
+
+  const cancelEditProduct = () => {
+    setEditingProductId(null);
+    setEditProductForm({
+      name: "",
+      category: "",
+      price: "",
+      quantity: "",
+      description: "",
+      image: null,
+    });
+  };
+
+  const updateProduct = async (productId) => {
+    const payload = new FormData();
+    Object.entries(editProductForm).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== "") payload.append(key, value);
+    });
+    try {
+      await http.patch(`/api/products/${productId}/`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      cancelEditProduct();
+      await loadData();
+    } catch (err) {
+      setError(JSON.stringify(err.response?.data || "Update product failed."));
+    }
+  };
+
+  const deleteProduct = async (productId) => {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      await http.delete(`/api/products/${productId}/`);
+      if (editingProductId === productId) cancelEditProduct();
+      await loadData();
+    } catch (err) {
+      setError(JSON.stringify(err.response?.data || "Delete product failed."));
     }
   };
 
@@ -111,11 +175,14 @@ function AdminDashboardPage() {
 
       <div className="panel">
         <h2>Pending Payments</h2>
+        {!payments.length ? <p className="muted">No pending payments.</p> : null}
         {payments.map((payment) => (
           <article key={payment.id} className="order-card">
             <div>
               <p>#{payment.control_number}</p>
               <p>Status: {payment.status}</p>
+              <p>Order ID: #{payment.sale_id}</p>
+              <p>Customer: {payment.customer_name || "Unknown"}</p>
             </div>
             {payment.status !== "confirmed" ? (
               <button className="primary-btn" onClick={() => confirmPayment(payment.id)} type="button">
@@ -146,6 +213,73 @@ function AdminDashboardPage() {
             </select>
           </article>
         ))}
+      </div>
+
+      <div className="panel full-span">
+        <h2>Manage Products</h2>
+        <div className="grid-products">
+          {products.map((product) => (
+            <article key={product.id} className="product-card small">
+              <img src={toMediaUrl(product.image) || "https://placehold.co/600x380?text=No+Image"} alt={product.name} />
+              <div className="card-body">
+                <h3>{product.name}</h3>
+                <p className="price">TZS {product.price}</p>
+                <div className="row">
+                  <button type="button" className="primary-btn" onClick={() => startEditProduct(product)}>
+                    Edit
+                  </button>
+                  <button type="button" className="ghost-btn" onClick={() => deleteProduct(product.id)}>
+                    Delete
+                  </button>
+                </div>
+                {editingProductId === product.id ? (
+                  <div>
+                    <input
+                      value={editProductForm.name}
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Name"
+                    />
+                    <input
+                      value={editProductForm.category}
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, category: e.target.value }))}
+                      placeholder="Category"
+                    />
+                    <input
+                      type="number"
+                      value={editProductForm.price}
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, price: e.target.value }))}
+                      placeholder="Price"
+                    />
+                    <input
+                      type="number"
+                      value={editProductForm.quantity}
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, quantity: e.target.value }))}
+                      placeholder="Quantity"
+                    />
+                    <textarea
+                      value={editProductForm.description}
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, description: e.target.value }))}
+                      placeholder="Description"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setEditProductForm((p) => ({ ...p, image: e.target.files?.[0] || null }))}
+                    />
+                    <div className="row">
+                      <button type="button" className="primary-btn" onClick={() => updateProduct(product.id)}>
+                        Save
+                      </button>
+                      <button type="button" className="ghost-btn" onClick={cancelEditProduct}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
       {error ? <p className="error full-span">{error}</p> : null}
     </section>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { toMediaUrl } from "../lib/media.jsx";
 
 function HomePage() {
   const [products, setProducts] = useState([]);
@@ -24,42 +25,56 @@ function HomePage() {
     loadProducts();
   }, []);
 
+  const openProduct = (productId) => {
+    if (!isAuthenticated) {
+      alert("Please login first to open product details.");
+      navigate("/login", { state: { from: `/products/${productId}` } });
+      return;
+    }
+    navigate(`/products/${productId}`);
+  };
+
   return (
     <section className="page-wrap">
       <div className="hero">
-        <h1>Fresh Zanzibar Products</h1>
-        <p>Browse freely. Product details, cart, and checkout require login.</p>
+        <div className="hero-content">
+          <h1>Live Minimarket Zanzibar</h1>
+          <p>Fresh groceries, pantry staples and household essentials.</p>
+          <p className="hero-desc">Touch any product to open full details, add to cart, or buy now.</p>
+          <a className="hero-cta" href="#products">
+            Shop Now
+          </a>
+        </div>
       </div>
       {loading ? <p>Loading products...</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      <div className="grid-products">
+      <h2 id="products" className="section-title">Products</h2>
+      <div className="grid-products product-grid">
         {products.map((product) => (
-          <article className="product-card" key={product.id}>
-            <img src={product.image_url || "https://placehold.co/600x380?text=No+Image"} alt={product.name} />
+          <article
+            className="product-card"
+            key={product.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => openProduct(product.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") openProduct(product.id);
+            }}
+          >
+            <div className="card-image">
+              <img src={toMediaUrl(product.image) || "https://placehold.co/600x380?text=No+Image"} alt={product.name} />
+            </div>
             <div className="card-body">
-              <h3>{product.name}</h3>
+              <h3 className="product-title">{product.name}</h3>
               <p className="muted">{product.category_name || "General"}</p>
-              <p className="price">TZS {product.price}</p>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    navigate("/login");
-                    return;
-                  }
-                  navigate(`/products/${product.id}`);
-                }}
-              >
-                Open Product Card
-              </button>
+              <p className="product-price">TZS {product.price}</p>
             </div>
           </article>
         ))}
       </div>
       {!isAuthenticated ? (
         <p className="callout">
-          New customer? <Link to="/register">Create account</Link> to use cart and buy now.
+          New customer? <Link to="/register">Create account</Link> to open products, add cart, and checkout.
         </p>
       ) : null}
     </section>

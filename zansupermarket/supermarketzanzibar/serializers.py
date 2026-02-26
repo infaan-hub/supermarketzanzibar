@@ -169,11 +169,38 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    category = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    category_id = serializers.IntegerField(source="category.id", read_only=True)
     image_url = serializers.SerializerMethodField()
+    category_name = serializers.CharField(source="category.name", read_only=True)
 
     class Meta:
         model = Product
         fields = "__all__"
+
+    def _resolve_category(self, raw_value):
+        if raw_value in (None, ""):
+            return None
+        text = str(raw_value).strip()
+        if not text:
+            return None
+        if text.isdigit():
+            category_by_id = Category.objects.filter(pk=int(text)).first()
+            if category_by_id:
+                return category_by_id
+        category, _ = Category.objects.get_or_create(name=text)
+        return category
+
+    def create(self, validated_data):
+        raw_category = validated_data.pop("category", None)
+        validated_data["category"] = self._resolve_category(raw_category)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "category" in validated_data:
+            raw_category = validated_data.pop("category")
+            validated_data["category"] = self._resolve_category(raw_category)
+        return super().update(instance, validated_data)
 
     def get_image_url(self, obj):
         if not obj.image:
@@ -196,6 +223,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
             "slug",
             "price",
             "quantity",
+            "image",
             "image_url",
             "description",
             "category_name",
@@ -225,9 +253,32 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ("control_number", "confirmed_by")
 
 
+class PaymentAdminSerializer(serializers.ModelSerializer):
+    sale_id = serializers.IntegerField(source="sale.id", read_only=True)
+    sale_status = serializers.CharField(source="sale.status", read_only=True)
+    customer_name = serializers.CharField(source="sale.user.full_name", read_only=True)
+    customer_email = serializers.EmailField(source="sale.user.email", read_only=True)
+
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "control_number",
+            "status",
+            "payment_method",
+            "created_at",
+            "sale_id",
+            "sale_status",
+            "customer_name",
+            "customer_email",
+        )
+
+
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     payment = PaymentSerializer(read_only=True)
+    payment_control_number = serializers.CharField(source="payment.control_number", read_only=True)
+    payment_status = serializers.CharField(source="payment.status", read_only=True)
 
     class Meta:
         model = Sale

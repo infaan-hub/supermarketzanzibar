@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const ROLE_CONFIG = {
@@ -13,6 +13,7 @@ function RoleLoginPage({ role }) {
   const config = ROLE_CONFIG[role];
   const auth = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +24,8 @@ function RoleLoginPage({ role }) {
     setError("");
     try {
       await auth[config.action](form);
-      navigate(config.next, { replace: true });
+      const fromPath = typeof location.state?.from === "string" ? location.state.from : null;
+      navigate(role === "customer" && fromPath ? fromPath : config.next, { replace: true });
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed.");
     } finally {

@@ -16,6 +16,7 @@ from .serializers import (
     CheckoutSerializer,
     CustomerSerializer,
     PaymentSerializer,
+    PaymentAdminSerializer,
     ProductSerializer,
     PublicProductSerializer,
     RegisterSerializer,
@@ -167,7 +168,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         if self.action == "retrieve":
             return [permissions.IsAuthenticated()]
-        if self.action in ("create",):
+        if self.action in ("create", "update", "partial_update", "destroy"):
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated(), IsAdminRole()]
 
@@ -186,6 +187,32 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.request.user.role != "admin":
             raise exceptions.PermissionDenied("Only admin or supplier can create products.")
         serializer.save()
+
+    def _assert_can_manage_product(self, product):
+        user = self.request.user
+        if user.role == "admin":
+            return
+        if user.role == "supplier":
+            supplier = Supplier.objects.filter(user=user).first()
+            if not supplier:
+                raise exceptions.PermissionDenied("Supplier profile is missing.")
+            if product.supplier_id != supplier.id:
+                raise exceptions.PermissionDenied("Suppliers can only manage their own products.")
+            return
+        raise exceptions.PermissionDenied("Only admin or supplier can manage products.")
+
+    def perform_update(self, serializer):
+        product = self.get_object()
+        self._assert_can_manage_product(product)
+        if self.request.user.role == "supplier":
+            supplier = Supplier.objects.filter(user=self.request.user).first()
+            serializer.save(supplier=supplier)
+            return
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._assert_can_manage_product(instance)
+        instance.delete()
 
 
 class SaleViewSet(viewsets.ModelViewSet):
@@ -239,6 +266,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_serializer_class(self):
+        if self.action in ("admin_pending",):
+            return PaymentAdminSerializer
+        return PaymentSerializer
+
     def get_queryset(self):
         user = self.request.user
         if user.role == "admin":
@@ -260,24 +292,37 @@ class PaymentViewSet(viewsets.ModelViewSet):
             sale.status = "payment_confirmed"
         sale.save()
 
-        subject = f"Payment Confirmed - Control #{payment.control_number}"
-        message = (
-            f"Hello {sale.user.full_name},\n\n"
-            f"Your payment is confirmed.\n"
-            f"Control Number: {payment.control_number}\n"
-            f"Order ID: {sale.id}\n"
-            f"Total: {sale.final_amount}\n"
-            f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
-            "Thank you for shopping with Zanzibar Super System."
+        customer_name = (
+            sale.user.full_name
+            if sale.user and getattr(sale.user, "full_name", None)
+            else "Customer"
         )
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email="noreply@zansupermarket.local",
-            recipient_list=[sale.user.email],
-            fail_silently=True,
-        )
+        customer_email = sale.user.email if sale.user and getattr(sale.user, "email", None) else ""
+        if customer_email:
+            subject = f"Payment Confirmed - Control #{payment.control_number}"
+            message = (
+                f"Hello {customer_name},\n\n"
+                f"Your payment is confirmed.\n"
+                f"Control Number: {payment.control_number}\n"
+                f"Order ID: {sale.id}\n"
+                f"Total: {sale.final_amount}\n"
+                f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
+                "Thank you for shopping with Zanzibar Super System."
+            )
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email="noreply@zansupermarket.local",
+                recipient_list=[customer_email],
+                fail_silently=True,
+            )
         return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
+    def admin_pending(self, request):
+        payments = self.queryset.filter(status="pending").select_related("sale", "sale__user")
+        serializer = self.get_serializer(payments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AdminCreateUserView(APIView):
@@ -308,7 +353,7 @@ class CheckoutView(APIView):
         if not items_payload:
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-        product_map = {p.id: p for p in Product.objects.filter(id__in=[item["product"] for item in items_payload], is_active=True)}
+        product_map = {p.id: p for p in Product.objects.filter(id__in=[item["product"] for item in items_payload])}
         total_amount = Decimal("0.00")
         sale_items = []
 
@@ -330,6 +375,7 @@ class CheckoutView(APIView):
             discount=Decimal("0.00"),
             final_amount=total_amount,
             payment_method=data.get("payment_method", "mobile_money"),
+            payment_confirmed=False,
             delivery_location=data.get("delivery_location", ""),
             terms_accepted=data.get("terms_accepted", False),
             status="pending_payment",
@@ -352,6 +398,48 @@ class CheckoutView(APIView):
             payment_method=data.get("payment_method", "mobile_money"),
             status="pending",
         )
+
+        items_text = "\n".join(
+            [f"- {product.name} x{qty} @ {product.price} = {product.price * qty}" for product, qty in sale_items]
+        )
+        subject = f"Order Received - Control #{payment.control_number}"
+        message = (
+            f"Hello {request.user.full_name},\n\n"
+            f"Your order was created successfully.\n"
+            f"Order ID: {sale.id}\n"
+            f"Control Number: {payment.control_number}\n"
+            f"Payment Method: {payment.payment_method}\n"
+            f"Payment Status: {payment.status}\n"
+            f"Total: {sale.final_amount}\n"
+            f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
+            f"Items:\n{items_text}\n\n"
+            "Your payment is pending admin confirmation. Thank you for shopping with Zanzibar Super System."
+        )
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email="noreply@zansupermarket.local",
+            recipient_list=[request.user.email],
+            fail_silently=True,
+        )
+
+        admin_emails = list(User.objects.filter(role="admin", is_active=True).exclude(email="").values_list("email", flat=True))
+        if admin_emails:
+            send_mail(
+                subject=f"Payment Confirmation Needed - Order #{sale.id}",
+                message=(
+                    f"A new order requires payment confirmation.\n"
+                    f"Order ID: {sale.id}\n"
+                    f"Control Number: {payment.control_number}\n"
+                    f"Customer: {request.user.full_name} ({request.user.email})\n"
+                    f"Total: {sale.final_amount}\n"
+                    f"Payment Method: {payment.payment_method}\n"
+                    f"Status: {payment.status}\n"
+                ),
+                from_email="noreply@zansupermarket.local",
+                recipient_list=admin_emails,
+                fail_silently=True,
+            )
 
         return Response(
             {
@@ -385,7 +473,7 @@ class SupplierDashboardView(APIView):
                 "supplier": SupplierSerializer(supplier).data,
                 "products_count": products.count(),
                 "low_stock_count": low_stock,
-                "products": ProductSerializer(products[:8], many=True, context={"request": request}).data,
+                "products": ProductSerializer(products, many=True, context={"request": request}).data,
             },
             status=status.HTTP_200_OK,
         )
