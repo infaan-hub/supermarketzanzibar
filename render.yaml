@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: zansupermarket-backend
+    runtime: python
+    plan: free
+    rootDir: zansupermarket
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: python manage.py migrate && gunicorn zansupermarket.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.2
+      - key: DJANGO_SETTINGS_MODULE
+        value: zansupermarket.settings
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: False
+      - key: DATABASE_URL
+        fromDatabase:
+          name: zansupermarket-db
+          property: connectionString
+      - key: DEFAULT_FROM_EMAIL
+        value: noreply@zansupermarket.com
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: MEDIA_ROOT
+        value: /var/data/media
+      - key: SECURE_SSL_REDIRECT
+        value: True
+      - key: SECURE_HSTS_SECONDS
+        value: 31536000
+    disks:
+      - name: zansupermarket-media
+        mountPath: /var/data
+        sizeGB: 1
+
+databases:
+  - name: zansupermarket-db
+    plan: free
