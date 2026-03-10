@@ -3,10 +3,34 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const ROLE_CONFIG = {
-  customer: { title: "Customer Login", action: "loginCustomer", next: "/customer/dashboard" },
-  admin: { title: "Admin Login", action: "loginAdmin", next: "/admin/dashboard" },
-  supplier: { title: "Supplier Login", action: "loginSupplier", next: "/supplier/dashboard" },
-  driver: { title: "Driver Login", action: "loginDriver", next: "/driver/dashboard" },
+  customer: {
+    title: "Customer Login",
+    eyebrow: "Welcome back",
+    description: "Sign in to continue shopping, manage your cart, and track your orders.",
+    action: "loginCustomer",
+    next: "/customer/dashboard",
+  },
+  admin: {
+    title: "Admin Login",
+    eyebrow: "System access",
+    description: "Use your admin account to manage users, products, and payment approvals.",
+    action: "loginAdmin",
+    next: "/admin/dashboard",
+  },
+  supplier: {
+    title: "Supplier Login",
+    eyebrow: "Inventory access",
+    description: "Open your supplier dashboard to add products and maintain stock details.",
+    action: "loginSupplier",
+    next: "/supplier/dashboard",
+  },
+  driver: {
+    title: "Driver Login",
+    eyebrow: "Delivery access",
+    description: "Sign in to view assigned deliveries and update drop-off status.",
+    action: "loginDriver",
+    next: "/driver/dashboard",
+  },
 };
 
 function RoleLoginPage({ role }) {
@@ -35,33 +59,48 @@ function RoleLoginPage({ role }) {
 
   return (
     <section className="auth-section">
-      <form className="auth-card" onSubmit={onSubmit}>
-        <h2>{config.title}</h2>
-        <input
-          type="text"
-          placeholder="Username"
-          value={form.username}
-          onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-          required
-        />
-        {error ? <p className="error">{error}</p> : null}
-        <button className="primary-btn" type="submit" disabled={loading}>
+      <form className="auth-card auth-card-premium" onSubmit={onSubmit}>
+        <div className="auth-copy">
+          <p className="auth-eyebrow">{config.eyebrow}</p>
+          <h2>{config.title}</h2>
+          <p className="auth-description">{config.description}</p>
+        </div>
+
+        <div className="auth-field-list">
+          <label className="auth-field">
+            <span>Username</span>
+            <input
+              type="text"
+              placeholder="Enter your username"
+              value={form.username}
+              onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+              required
+            />
+          </label>
+          <label className="auth-field">
+            <span>Password</span>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={form.password}
+              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+              required
+            />
+          </label>
+        </div>
+
+        {error ? <p className="error auth-feedback">{error}</p> : null}
+        <button className="primary-btn auth-submit" type="submit" disabled={loading}>
           {loading ? "Please wait..." : "Login"}
         </button>
+
         {role === "customer" ? (
-          <p>
+          <p className="auth-footnote">
             No account? <Link to="/register">Register</Link>
           </p>
         ) : null}
         {role === "admin" ? (
-          <p>
+          <p className="auth-footnote">
             First admin? <Link to="/admin/register">Register admin</Link>
           </p>
         ) : null}

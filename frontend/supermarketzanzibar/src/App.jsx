@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import MainNav from "./components/MainNav.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
@@ -15,11 +16,23 @@ import RoleLoginPage from "./pages/RoleLoginPage.jsx";
 import SupplierDashboardPage from "./pages/SupplierDashboardPage.jsx";
 
 function AppLayout() {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "light";
+    return window.localStorage.getItem("theme-mode") || "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("theme-mode", theme);
+  }, [theme]);
+
   return (
-    <>
-      <MainNav />
-      <Outlet />
-    </>
+    <div className="app-shell">
+      <MainNav theme={theme} onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))} />
+      <main className="app-content">
+        <Outlet />
+      </main>
+    </div>
   );
 }
 

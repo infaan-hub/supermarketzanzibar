@@ -47,7 +47,7 @@ function DriverDashboardPage() {
 
   return (
     <section className="page-wrap">
-      <h2>Driver Dashboard - Zanzibar Live Routes</h2>
+      <h2>Driver Dashboard - Zansupermarket Live Routes</h2>
       {error ? <p className="error">{error}</p> : null}
       <div className="map-card">
         <MapContainer center={[-6.1659, 39.2]} zoom={10} scrollWheelZoom className="map-box">

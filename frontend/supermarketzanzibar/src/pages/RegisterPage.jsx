@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 function RegisterPage({ mode = "customer" }) {
   const { registerCustomer, registerAdmin } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = mode === "admin";
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -44,25 +45,60 @@ function RegisterPage({ mode = "customer" }) {
 
   return (
     <section className="auth-section">
-      <form className="auth-card" onSubmit={onSubmit}>
-        <h2>{mode === "admin" ? "Admin Register" : "Customer Register"}</h2>
-        <input type="text" placeholder="Username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
-        <input type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-        <input type="text" placeholder="Full name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
-        <input type="text" placeholder="Phone" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-        <input type="text" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-        <input type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
-        <input type="password" placeholder="Password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-        <input type="password" placeholder="Confirm password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
-        {error ? <p className="error">{error}</p> : null}
-        <button className="primary-btn" type="submit" disabled={loading}>
+      <form className="auth-card auth-card-premium" onSubmit={onSubmit}>
+        <div className="auth-copy">
+          <p className="auth-eyebrow">{isAdmin ? "Secure onboarding" : "Create your account"}</p>
+          <h2>{isAdmin ? "Admin Register" : "Customer Register"}</h2>
+          <p className="auth-description">
+            {isAdmin
+              ? "Register a premium admin account for platform control, user management, and operations."
+              : "Create a polished customer account to shop faster, track orders, and manage your profile."}
+          </p>
+        </div>
+
+        <div className="auth-grid">
+          <label className="auth-field">
+            <span>Username</span>
+            <input type="text" placeholder="Choose a username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Email</span>
+            <input type="email" placeholder="name@example.com" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Full Name</span>
+            <input type="text" placeholder="Your full name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Phone</span>
+            <input type="text" placeholder="Phone number" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          </label>
+          <label className="auth-field auth-field-wide">
+            <span>Address</span>
+            <input type="text" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+          </label>
+          <label className="auth-field auth-field-wide">
+            <span>Profile Image</span>
+            <input type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
+          </label>
+          <label className="auth-field">
+            <span>Password</span>
+            <input type="password" placeholder="Create password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Confirm Password</span>
+            <input type="password" placeholder="Repeat password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
+          </label>
+        </div>
+
+        {error ? <p className="error auth-feedback">{error}</p> : null}
+        <button className="primary-btn auth-submit" type="submit" disabled={loading}>
           {loading ? "Creating..." : "Register"}
         </button>
-        <p>
+
+        <p className="auth-footnote">
           Already registered?{" "}
-          <Link to={mode === "admin" ? "/admin/login" : "/login"}>
-            Login
-          </Link>
+          <Link to={isAdmin ? "/admin/login" : "/login"}>Login</Link>
         </p>
       </form>
     </section>

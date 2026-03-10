@@ -38,7 +38,7 @@ function HomePage() {
     <section className="page-wrap">
       <div className="hero">
         <div className="hero-content">
-          <h1>Live Minimarket Zanzibar</h1>
+          <h1>Zansupermarket</h1>
           <p>Fresh groceries, pantry staples and household essentials.</p>
           <p className="hero-desc">Touch any product to open full details, add to cart, or buy now.</p>
           <a className="hero-cta" href="#products">
