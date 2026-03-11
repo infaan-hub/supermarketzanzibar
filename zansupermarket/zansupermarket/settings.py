@@ -2,11 +2,14 @@
 Django settings for zansupermarket project.
 """
 
-from datetime import timedelta
 import os
 from pathlib import Path
+from datetime import timedelta
 
-import dj_database_url
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -97,7 +100,7 @@ WSGI_APPLICATION = "zansupermarket.wsgi.application"
 
 
 database_url = os.getenv("DATABASE_URL")
-if database_url:
+if database_url and dj_database_url is not None:
     DATABASES = {
         "default": dj_database_url.parse(
             database_url,
