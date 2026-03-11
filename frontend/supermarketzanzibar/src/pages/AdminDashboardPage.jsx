@@ -155,20 +155,20 @@ function AdminDashboardPage() {
       <div className="panel">
         <h2>Create Supplier/Driver/Customer</h2>
         <form onSubmit={createUser}>
-          <input required placeholder="Username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
-          <input required placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-          <input required placeholder="Full name" value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
-          <input required placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-          <input placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-          <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
+          <input name="username" required placeholder="Username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+          <input name="email" required placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+          <input name="full_name" required placeholder="Full name" value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
+          <input name="phone" required placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          <input name="address" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+          <select name="role" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
             <option value="supplier">Supplier</option>
             <option value="driver">Driver</option>
             <option value="customer">Customer</option>
           </select>
-          <input placeholder="Company name (supplier)" value={form.company_name} onChange={(e) => setForm((p) => ({ ...p, company_name: e.target.value }))} />
-          <input type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
-          <input type="password" required placeholder="Password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-          <input type="password" required placeholder="Confirm password" value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
+          <input name="company_name" placeholder="Company name (supplier)" value={form.company_name} onChange={(e) => setForm((p) => ({ ...p, company_name: e.target.value }))} />
+          <input name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
+          <input name="password" type="password" required placeholder="Password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+          <input name="password_confirm" type="password" required placeholder="Confirm password" value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
           <button className="primary-btn" type="submit">Create User</button>
         </form>
       </div>
@@ -203,7 +203,7 @@ function AdminDashboardPage() {
               <p>Order #{sale.id}</p>
               <p>Status: {sale.status}</p>
             </div>
-            <select defaultValue="" onChange={(e) => assignDriver(sale.id, e.target.value)}>
+            <select name="driver_id" defaultValue="" onChange={(e) => assignDriver(sale.id, e.target.value)}>
               <option value="">Assign Driver</option>
               {drivers.map((driver) => (
                 <option key={driver.id} value={driver.id}>
@@ -235,33 +235,39 @@ function AdminDashboardPage() {
                 {editingProductId === product.id ? (
                   <div>
                     <input
+                      name="name"
                       value={editProductForm.name}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, name: e.target.value }))}
                       placeholder="Name"
                     />
                     <input
+                      name="category"
                       value={editProductForm.category}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, category: e.target.value }))}
                       placeholder="Category"
                     />
                     <input
+                      name="price"
                       type="number"
                       value={editProductForm.price}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, price: e.target.value }))}
                       placeholder="Price"
                     />
                     <input
+                      name="quantity"
                       type="number"
                       value={editProductForm.quantity}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, quantity: e.target.value }))}
                       placeholder="Quantity"
                     />
                     <textarea
+                      name="description"
                       value={editProductForm.description}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, description: e.target.value }))}
                       placeholder="Description"
                     />
                     <input
+                      name="image"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setEditProductForm((p) => ({ ...p, image: e.target.files?.[0] || null }))}

@@ -78,18 +78,19 @@ function CartPage() {
         ))}
       </div>
       <p className="price">Total: TZS {total.toFixed(2)}</p>
-      <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+      <select name="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
         <option value="mobile_money">Mobile Money</option>
         <option value="cash">Cash</option>
         <option value="bank_transfer">Bank Transfer</option>
       </select>
       <textarea
+        name="delivery_location"
         placeholder="Delivery location (optional)"
         value={deliveryLocation}
         onChange={(e) => setDeliveryLocation(e.target.value)}
       />
       <label className="checkbox-row">
-        <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+        <input name="terms_accepted" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
         I accept the terms and proceed to payment.
       </label>
       {error ? <p className="error">{error}</p> : null}
