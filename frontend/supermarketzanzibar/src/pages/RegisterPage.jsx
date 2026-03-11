@@ -2,6 +2,25 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
+function formatApiError(err) {
+  if (err?.code === "ECONNABORTED") {
+    return "Request timed out. Backend may be waking up on Render. Please retry in a few seconds.";
+  }
+  if (!err?.response) {
+    return "Network/CORS error. Check backend CORS and that API is online.";
+  }
+  const data = err.response.data;
+  if (typeof data === "string") return data;
+  if (data?.detail && typeof data.detail === "string") return data.detail;
+  if (typeof data === "object" && data !== null) {
+    const firstKey = Object.keys(data)[0];
+    const firstValue = data[firstKey];
+    if (Array.isArray(firstValue) && firstValue.length) return `${firstKey}: ${firstValue[0]}`;
+    if (typeof firstValue === "string") return `${firstKey}: ${firstValue}`;
+  }
+  return "Register failed.";
+}
+
 function RegisterPage({ mode = "customer" }) {
   const { registerCustomer, registerAdmin } = useAuth();
   const navigate = useNavigate();
@@ -36,8 +55,7 @@ function RegisterPage({ mode = "customer" }) {
         navigate("/login");
       }
     } catch (err) {
-      const details = err.response?.data;
-      setError(typeof details === "string" ? details : JSON.stringify(details || "Register failed."));
+      setError(formatApiError(err));
     } finally {
       setLoading(false);
     }

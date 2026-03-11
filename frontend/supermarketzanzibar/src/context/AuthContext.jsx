@@ -4,6 +4,10 @@ import { http } from "../api/http.jsx";
 import { API_BASE_URL } from "../config/apiBaseUrl.js";
 import { clearTokens, getAccessToken, setTokens } from "../lib/storage.jsx";
 const AuthContext = createContext(null);
+const authHttp = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 20000,
+});
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -22,7 +26,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginByPath = useCallback(async (path, credentials) => {
-    const loginRes = await axios.post(`${API_BASE_URL}${path}`, credentials);
+    const loginRes = await authHttp.post(path, credentials);
     setTokens({
       access: loginRes.data.access,
       refresh: loginRes.data.refresh,
@@ -37,15 +41,11 @@ export function AuthProvider({ children }) {
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
 
   const registerCustomer = useCallback(async (payload) => {
-    await axios.post(`${API_BASE_URL}/api/auth/register/`, payload, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    await authHttp.post("/api/auth/register/", payload);
   }, []);
 
   const registerAdmin = useCallback(async (payload) => {
-    await axios.post(`${API_BASE_URL}/api/auth/admin/register/`, payload, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    await authHttp.post("/api/auth/admin/register/", payload);
   }, []);
 
   const updateProfile = useCallback(async (payload) => {
