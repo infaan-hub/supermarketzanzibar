@@ -11,6 +11,11 @@ try:
 except ImportError:
     dj_database_url = None
 
+try:
+    import whitenoise  # noqa: F401
+except ImportError:
+    whitenoise = None
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -49,7 +54,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -57,6 +61,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if whitenoise is not None:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "zansupermarket.urls"
 AUTH_USER_MODEL = "supermarketzanzibar.CustomUser"
@@ -149,7 +156,11 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if whitenoise is not None
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
     },
 }
 
