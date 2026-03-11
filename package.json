@@ -1,0 +1,8 @@
+{
+  "name": "zansupermarket-root",
+  "private": true,
+  "scripts": {
+    "install:frontend": "npm --prefix frontend/supermarketzanzibar install",
+    "build": "npm --prefix frontend/supermarketzanzibar run build"
+  }
+}
