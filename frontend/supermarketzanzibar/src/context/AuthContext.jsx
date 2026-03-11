@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { http } from "../api/http.jsx";
+import { API_BASE_URL } from "../config/apiBaseUrl.js";
 import { clearTokens, getAccessToken, setTokens } from "../lib/storage.jsx";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
