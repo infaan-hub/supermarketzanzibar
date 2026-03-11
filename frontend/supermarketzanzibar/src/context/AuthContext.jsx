@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { http } from "../api/http.jsx";
 import { API_BASE_URL } from "../config/apiBaseUrl.js";
@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = Boolean(user);
 
-  const loadMe = async () => {
+  const loadMe = useCallback(async () => {
     try {
       const response = await http.get("/api/auth/me/");
       setUser(response.data);
@@ -19,9 +19,9 @@ export function AuthProvider({ children }) {
       clearTokens();
       setUser(null);
     }
-  };
+  }, []);
 
-  const loginByPath = async (path, credentials) => {
+  const loginByPath = useCallback(async (path, credentials) => {
     const loginRes = await axios.post(`${API_BASE_URL}${path}`, credentials);
     setTokens({
       access: loginRes.data.access,
@@ -29,37 +29,37 @@ export function AuthProvider({ children }) {
     });
     setUser(loginRes.data.user);
     return loginRes.data.user;
-  };
+  }, []);
 
-  const loginCustomer = (credentials) => loginByPath("/api/auth/login/", credentials);
-  const loginAdmin = (credentials) => loginByPath("/api/auth/admin/login/", credentials);
-  const loginSupplier = (credentials) => loginByPath("/api/auth/supplier/login/", credentials);
-  const loginDriver = (credentials) => loginByPath("/api/auth/driver/login/", credentials);
+  const loginCustomer = useCallback((credentials) => loginByPath("/api/auth/login/", credentials), [loginByPath]);
+  const loginAdmin = useCallback((credentials) => loginByPath("/api/auth/admin/login/", credentials), [loginByPath]);
+  const loginSupplier = useCallback((credentials) => loginByPath("/api/auth/supplier/login/", credentials), [loginByPath]);
+  const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
 
-  const registerCustomer = async (payload) => {
+  const registerCustomer = useCallback(async (payload) => {
     await axios.post(`${API_BASE_URL}/api/auth/register/`, payload, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-  };
+  }, []);
 
-  const registerAdmin = async (payload) => {
+  const registerAdmin = useCallback(async (payload) => {
     await axios.post(`${API_BASE_URL}/api/auth/admin/register/`, payload, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-  };
+  }, []);
 
-  const updateProfile = async (payload) => {
+  const updateProfile = useCallback(async (payload) => {
     const response = await http.patch("/api/auth/me/", payload, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     setUser(response.data);
     return response.data;
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearTokens();
     setUser(null);
-  };
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
     };
     init();
-  }, []);
+  }, [loadMe]);
 
   const value = useMemo(
     () => ({
@@ -88,7 +88,20 @@ export function AuthProvider({ children }) {
       reloadUser: loadMe,
       updateProfile,
     }),
-    [user, loading, isAuthenticated]
+    [
+      user,
+      loading,
+      isAuthenticated,
+      loginCustomer,
+      loginAdmin,
+      loginSupplier,
+      loginDriver,
+      registerCustomer,
+      registerAdmin,
+      logout,
+      loadMe,
+      updateProfile,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

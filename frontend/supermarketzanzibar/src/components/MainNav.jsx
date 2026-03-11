@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 
@@ -7,12 +7,7 @@ function MainNav({ theme, onToggleTheme }) {
   const { user, logout, isAuthenticated } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [location.pathname]);
 
   const onLogout = () => {
     logout();
@@ -72,7 +67,12 @@ function MainNav({ theme, onToggleTheme }) {
           {navItems
             .filter((item) => item.show)
             .map((item) => (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link-pill${isActive ? " active" : ""}`}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `nav-link-pill${isActive ? " active" : ""}`}
+                onClick={() => setSidebarOpen(false)}
+              >
                 {item.label}
               </NavLink>
             ))}
@@ -84,7 +84,12 @@ function MainNav({ theme, onToggleTheme }) {
           </button>
           {!isAuthenticated
             ? guestActions.map((action) => (
-                <NavLink key={action.to} to={action.to} className="ghost-btn">
+                <NavLink
+                  key={action.to}
+                  to={action.to}
+                  className="ghost-btn"
+                  onClick={() => setSidebarOpen(false)}
+                >
                   {action.label}
                 </NavLink>
               ))
