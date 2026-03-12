@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
@@ -79,6 +80,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
@@ -90,6 +92,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class AdminRegisterSerializer(RegisterSerializer):
+    @transaction.atomic
     def create(self, validated_data):
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
@@ -129,6 +132,7 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         company_name = validated_data.pop("company_name", "")
         validated_data.pop("password_confirm")

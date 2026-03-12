@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -64,14 +64,17 @@ class RoleLoginView(APIView):
     required_role = None
 
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        user = authenticate(request=request, username=username, password=password)
-        if not user:
-            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
-        if self.required_role and user.role != self.required_role:
-            return Response({"detail": f"Only {self.required_role} can login here."}, status=status.HTTP_403_FORBIDDEN)
-        return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
+        try:
+            username = request.data.get("username")
+            password = request.data.get("password")
+            user = authenticate(request=request, username=username, password=password)
+            if not user:
+                return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+            if self.required_role and user.role != self.required_role:
+                return Response({"detail": f"Only {self.required_role} can login here."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
+        except DatabaseError:
+            return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class CustomerLoginView(RoleLoginView):
@@ -95,10 +98,13 @@ class RegisterView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        try:
+            serializer = RegisterSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        except DatabaseError:
+            return Response({"detail": "Registration is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class AdminRegisterView(APIView):
@@ -106,12 +112,15 @@ class AdminRegisterView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-        if User.objects.filter(role="admin").exists():
-            return Response({"detail": "Admin already exists. Use /admin/login."}, status=status.HTTP_403_FORBIDDEN)
-        serializer = AdminRegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        try:
+            if User.objects.filter(role="admin").exists():
+                return Response({"detail": "Admin already exists. Use /admin/login."}, status=status.HTTP_403_FORBIDDEN)
+            serializer = AdminRegisterSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        except DatabaseError:
+            return Response({"detail": "Admin registration is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class MeView(APIView):
@@ -119,19 +128,25 @@ class MeView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
-        serializer = UserSerializer(request.user, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            serializer = UserSerializer(request.user, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except DatabaseError:
+            return Response({"detail": "Profile service is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def patch(self, request):
-        serializer = UserSerializer(
-            request.user,
-            data=request.data,
-            partial=True,
-            context={"request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            serializer = UserSerializer(
+                request.user,
+                data=request.data,
+                partial=True,
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except DatabaseError:
+            return Response({"detail": "Profile update is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -328,10 +343,13 @@ class AdminCreateUserView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-        serializer = AdminCreateUserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        try:
+            serializer = AdminCreateUserSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        except DatabaseError:
+            return Response({"detail": "User creation is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class CheckoutView(APIView):
