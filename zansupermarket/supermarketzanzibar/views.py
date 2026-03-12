@@ -164,10 +164,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
-        if self.action == "list":
+        if self.action in ("list", "retrieve"):
             return [permissions.AllowAny()]
-        if self.action == "retrieve":
-            return [permissions.IsAuthenticated()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated(), IsAdminRole()]
