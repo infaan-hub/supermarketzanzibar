@@ -11,11 +11,11 @@ function MainNav({ theme, onToggleTheme }) {
 
   const onLogout = () => {
     logout();
-    navigate("/home");
+    navigate("/");
   };
 
   const navItems = [
-    { to: "/home", label: "Home", show: true },
+    { to: "/", label: "Home", show: true },
     { to: "/cart", label: `Cart (${count})`, show: isAuthenticated },
     { to: "/profile", label: "Profile", show: isAuthenticated },
     { to: "/admin/dashboard", label: "Admin Dashboard", show: user?.role === "admin" },
@@ -45,7 +45,7 @@ function MainNav({ theme, onToggleTheme }) {
           <span />
           <span />
         </button>
-        <Link to="/home" className="brand">
+        <Link to="/" className="brand">
           Zansupermarket
         </Link>
       </header>

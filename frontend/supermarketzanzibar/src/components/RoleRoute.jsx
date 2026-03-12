@@ -7,7 +7,7 @@ function RoleRoute({ roles, children }) {
 
   if (loading) return <div className="center-screen">Loading...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (roles && !roles.includes(user?.role)) return <Navigate to="/home" replace />;
+  if (roles && !roles.includes(user?.role)) return <Navigate to="/" replace />;
   return children;
 }
 
