@@ -5,6 +5,7 @@ Django settings for zansupermarket project.
 import os
 from pathlib import Path
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 try:
     import dj_database_url
@@ -128,6 +129,8 @@ if database_url and dj_database_url is not None:
             ssl_require=not DEBUG,
         )
     }
+elif not DEBUG:
+    raise ImproperlyConfigured("DATABASE_URL must be set when DEBUG=False.")
 else:
     DATABASES = {
         "default": {
