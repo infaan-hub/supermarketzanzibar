@@ -129,14 +129,14 @@ function SupplierDashboardPage() {
       <div className="panel">
         <h2>Add Product</h2>
         <form onSubmit={createProduct}>
-          <input name="name" required placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-          <input name="category" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
-          <input name="price" required placeholder="Price" type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
-          <input name="cost_price" required placeholder="Cost Price" type="number" value={form.cost_price} onChange={(e) => setForm((p) => ({ ...p, cost_price: e.target.value }))} />
-          <input name="quantity" placeholder="Quantity" type="number" value={form.quantity} onChange={(e) => setForm((p) => ({ ...p, quantity: e.target.value }))} />
-          <input name="barcode" required placeholder="Barcode" value={form.barcode} onChange={(e) => setForm((p) => ({ ...p, barcode: e.target.value }))} />
-          <textarea name="description" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
-          <input name="image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, image: e.target.files?.[0] || null }))} />
+          <input id="supplier-create-name" name="name" required placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+          <input id="supplier-create-category" name="category" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+          <input id="supplier-create-price" name="price" required placeholder="Price" type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+          <input id="supplier-create-cost-price" name="cost_price" required placeholder="Cost Price" type="number" value={form.cost_price} onChange={(e) => setForm((p) => ({ ...p, cost_price: e.target.value }))} />
+          <input id="supplier-create-quantity" name="quantity" placeholder="Quantity" type="number" value={form.quantity} onChange={(e) => setForm((p) => ({ ...p, quantity: e.target.value }))} />
+          <input id="supplier-create-barcode" name="barcode" required placeholder="Barcode" value={form.barcode} onChange={(e) => setForm((p) => ({ ...p, barcode: e.target.value }))} />
+          <textarea id="supplier-create-description" name="description" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
+          <input id="supplier-create-image" name="image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, image: e.target.files?.[0] || null }))} />
           <button className="primary-btn" type="submit">Create Product</button>
         </form>
       </div>
@@ -159,10 +159,11 @@ function SupplierDashboardPage() {
                 </div>
                 {editingId === product.id ? (
                   <div>
-                    <input name="name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} placeholder="Name" />
-                    <input name="category" value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))} placeholder="Category" />
-                    <input name="price" type="number" value={editForm.price} onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))} placeholder="Price" />
+                    <input id={`supplier-edit-name-${product.id}`} name="name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} placeholder="Name" />
+                    <input id={`supplier-edit-category-${product.id}`} name="category" value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))} placeholder="Category" />
+                    <input id={`supplier-edit-price-${product.id}`} name="price" type="number" value={editForm.price} onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))} placeholder="Price" />
                     <input
+                      id={`supplier-edit-cost-price-${product.id}`}
                       name="cost_price"
                       type="number"
                       value={editForm.cost_price}
@@ -170,6 +171,7 @@ function SupplierDashboardPage() {
                       placeholder="Cost Price"
                     />
                     <input
+                      id={`supplier-edit-quantity-${product.id}`}
                       name="quantity"
                       type="number"
                       value={editForm.quantity}
@@ -177,12 +179,13 @@ function SupplierDashboardPage() {
                       placeholder="Quantity"
                     />
                     <textarea
+                      id={`supplier-edit-description-${product.id}`}
                       name="description"
                       value={editForm.description}
                       onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
                       placeholder="Description"
                     />
-                    <input name="image" type="file" accept="image/*" onChange={(e) => setEditForm((p) => ({ ...p, image: e.target.files?.[0] || null }))} />
+                    <input id={`supplier-edit-image-${product.id}`} name="image" type="file" accept="image/*" onChange={(e) => setEditForm((p) => ({ ...p, image: e.target.files?.[0] || null }))} />
                     <div className="row">
                       <button type="button" className="primary-btn" onClick={() => updateProduct(product.id)}>
                         Save

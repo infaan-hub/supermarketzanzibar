@@ -69,7 +69,7 @@ function ProductDetailPage() {
           <p className="price">TZS {product.price}</p>
           <p>Available stock: {product.quantity}</p>
           <div className="row">
-            <input name="quantity" type="number" min="1" max={product.quantity} value={qty} onChange={(e) => setQty(e.target.value)} />
+            <input id="product-quantity" name="quantity" type="number" min="1" max={product.quantity} value={qty} onChange={(e) => setQty(e.target.value)} />
             <button
               type="button"
               className="primary-btn"
@@ -84,19 +84,20 @@ function ProductDetailPage() {
               Buy Now
             </button>
           </div>
-          <select name="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+          <select id="product-payment-method" name="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             <option value="mobile_money">Mobile Money</option>
             <option value="cash">Cash</option>
             <option value="bank_transfer">Bank Transfer</option>
           </select>
           <textarea
+            id="product-delivery-location"
             name="delivery_location"
             placeholder="Delivery location (optional)"
             value={deliveryLocation}
             onChange={(e) => setDeliveryLocation(e.target.value)}
           />
           <label className="checkbox-row">
-            <input name="terms_accepted" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+            <input id="product-terms-accepted" name="terms_accepted" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
             I accept terms and payment process.
           </label>
           {checkoutInfo ? (

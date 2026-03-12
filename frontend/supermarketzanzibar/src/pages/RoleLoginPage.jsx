@@ -70,6 +70,7 @@ function RoleLoginPage({ role }) {
           <label className="auth-field">
             <span>Username</span>
             <input
+              id={`${role}-username`}
               name="username"
               type="text"
               placeholder="Enter your username"
@@ -81,6 +82,7 @@ function RoleLoginPage({ role }) {
           <label className="auth-field">
             <span>Password</span>
             <input
+              id={`${role}-password`}
               name="password"
               type="password"
               placeholder="Enter your password"
