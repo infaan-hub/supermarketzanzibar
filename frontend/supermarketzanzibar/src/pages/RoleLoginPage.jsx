@@ -73,6 +73,7 @@ function RoleLoginPage({ role }) {
               id={`${role}-username`}
               name="username"
               type="text"
+              autoComplete="username"
               placeholder="Enter your username"
               value={form.username}
               onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
@@ -85,6 +86,7 @@ function RoleLoginPage({ role }) {
               id={`${role}-password`}
               name="password"
               type="password"
+              autoComplete="current-password"
               placeholder="Enter your password"
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
