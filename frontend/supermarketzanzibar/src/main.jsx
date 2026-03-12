@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import "leaflet/dist/leaflet.css";
@@ -32,7 +31,5 @@ const observer = new MutationObserver((mutations) => {
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <App />,
 )
