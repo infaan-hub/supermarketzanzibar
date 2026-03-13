@@ -1,9 +1,28 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
 from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
 User = get_user_model()
+
+
+def safe_media_url(file_field, request=None):
+    if not file_field:
+        return None
+
+    try:
+        url = file_field.url
+    except (AttributeError, TypeError, ValueError, SuspiciousOperation):
+        return None
+
+    if request is not None:
+        try:
+            return request.build_absolute_uri(url)
+        except (TypeError, ValueError, SuspiciousOperation):
+            return url
+
+    return url
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -175,8 +194,9 @@ class CustomerSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     category_id = serializers.IntegerField(source="category.id", read_only=True)
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -207,17 +227,21 @@ class ProductSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
     def get_image_url(self, obj):
-        if not obj.image:
-            return None
         request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+        return safe_media_url(obj.image, request)
+
+    def get_image(self, obj):
+        request = self.context.get("request")
+        return safe_media_url(obj.image, request)
+
+    def get_category_name(self, obj):
+        return getattr(obj.category, "name", None)
 
 
 class PublicProductSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -234,12 +258,15 @@ class PublicProductSerializer(serializers.ModelSerializer):
         )
 
     def get_image_url(self, obj):
-        if not obj.image:
-            return None
         request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+        return safe_media_url(obj.image, request)
+
+    def get_image(self, obj):
+        request = self.context.get("request")
+        return safe_media_url(obj.image, request)
+
+    def get_category_name(self, obj):
+        return getattr(obj.category, "name", None)
 
 
 class SaleItemSerializer(serializers.ModelSerializer):

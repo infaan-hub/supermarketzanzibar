@@ -1,6 +1,8 @@
+import logging
 from decimal import Decimal
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
+from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
@@ -28,6 +30,8 @@ from .serializers import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, SuspiciousOperation)
 
 
 class IsAdminRole(permissions.BasePermission):
@@ -189,6 +193,54 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return PublicProductSerializer
         return ProductSerializer
+
+    def _serialize_products(self, products):
+        serializer_class = self.get_serializer_class()
+        context = self.get_serializer_context()
+        serialized_products = []
+
+        for product in products:
+            try:
+                serialized_products.append(serializer_class(product, context=context).data)
+            except PRODUCT_SERIALIZATION_ERRORS:
+                logger.exception("Skipping product %s because serialization failed.", product.pk)
+
+        return serialized_products
+
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            products = page if page is not None else queryset
+            data = self._serialize_products(products)
+
+            if page is not None:
+                return self.get_paginated_response(data)
+            return Response(data, status=status.HTTP_200_OK)
+        except DatabaseError:
+            logger.exception("Products list is temporarily unavailable because the database query failed.")
+            return Response(
+                {"detail": "Products are temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except DatabaseError:
+            logger.exception("Product detail is temporarily unavailable because the database query failed.")
+            return Response(
+                {"detail": "This product is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except PRODUCT_SERIALIZATION_ERRORS:
+            logger.exception("Product %s could not be serialized.", kwargs.get(self.lookup_field))
+            return Response(
+                {"detail": "This product is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
     def perform_create(self, serializer):
         if self.request.user.role == "supplier":
