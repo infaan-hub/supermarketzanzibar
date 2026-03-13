@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Category, Product
-from .serializers import PublicProductSerializer, safe_media_url
+from .serializers import ProductSerializer, PublicProductSerializer, safe_media_url
 
 
 class BrokenFile:
@@ -21,6 +21,9 @@ class BrokenFile:
 class SafeMediaUrlTests(TestCase):
     def test_returns_none_for_broken_media_field(self):
         self.assertIsNone(safe_media_url(BrokenFile()))
+
+    def test_product_serializer_keeps_image_field_writeable(self):
+        self.assertFalse(ProductSerializer().fields["image"].read_only)
 
 
 @override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])

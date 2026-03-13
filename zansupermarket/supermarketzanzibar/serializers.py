@@ -25,6 +25,12 @@ def safe_media_url(file_field, request=None):
     return url
 
 
+class SafeImageField(serializers.ImageField):
+    def to_representation(self, value):
+        request = self.context.get("request") if hasattr(self, "context") else None
+        return safe_media_url(value, request)
+
+
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     profile_image_url = serializers.SerializerMethodField()
@@ -194,7 +200,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     category_id = serializers.IntegerField(source="category.id", read_only=True)
-    image = serializers.SerializerMethodField()
+    image = SafeImageField(required=False, allow_null=True)
     image_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
 
@@ -230,16 +236,12 @@ class ProductSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         return safe_media_url(obj.image, request)
 
-    def get_image(self, obj):
-        request = self.context.get("request")
-        return safe_media_url(obj.image, request)
-
     def get_category_name(self, obj):
         return getattr(obj.category, "name", None)
 
 
 class PublicProductSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image = SafeImageField(read_only=True)
     image_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
 
@@ -258,10 +260,6 @@ class PublicProductSerializer(serializers.ModelSerializer):
         )
 
     def get_image_url(self, obj):
-        request = self.context.get("request")
-        return safe_media_url(obj.image, request)
-
-    def get_image(self, obj):
         request = self.context.get("request")
         return safe_media_url(obj.image, request)
 
