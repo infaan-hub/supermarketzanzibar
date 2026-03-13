@@ -1,12 +1,18 @@
+from pathlib import Path
+import shutil
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.db import DatabaseError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Category, Product
+from .models import Category, Product, Supplier
 from .serializers import ProductSerializer, PublicProductSerializer, safe_media_url
+
+User = get_user_model()
 
 
 class BrokenFile:
@@ -30,6 +36,20 @@ class SafeMediaUrlTests(TestCase):
 class ProductApiTests(APITestCase):
     def setUp(self):
         self.category = Category.objects.create(name="Groceries")
+        self.supplier_user = User.objects.create_user(
+            username="supplier-test",
+            email="supplier-test@example.com",
+            password="pass12345",
+            full_name="Supplier Test",
+            phone="255700000001",
+            role="supplier",
+        )
+        Supplier.objects.create(
+            user=self.supplier_user,
+            company_name="Supplier Test Co",
+            phone=self.supplier_user.phone,
+            address="Stone Town",
+        )
 
     def create_product(self, **overrides):
         defaults = {
@@ -93,3 +113,59 @@ class ProductApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertEqual(response.data["detail"], "This product is temporarily unavailable.")
+
+    def test_supplier_can_create_product_with_image(self):
+        media_root = Path("zansupermarket/test_media")
+        shutil.rmtree(media_root, ignore_errors=True)
+        media_root.mkdir(parents=True, exist_ok=True)
+        self.client.force_authenticate(user=self.supplier_user)
+        image_path = Path("zansupermarket/media/products/download_5.jpg")
+        image = SimpleUploadedFile(
+            "download_5.jpg",
+            image_path.read_bytes(),
+            content_type="image/jpeg",
+        )
+
+        try:
+            with override_settings(MEDIA_ROOT=str(media_root.resolve())):
+                response = self.client.post(
+                    "/api/products/",
+                    {
+                        "name": "Fresh Mango",
+                        "category": str(self.category.id),
+                        "price": "4500.00",
+                        "cost_price": "3000.00",
+                        "quantity": "8",
+                        "barcode": "fresh-mango-001",
+                        "description": "Sweet mangoes",
+                        "image": image,
+                    },
+                    format="multipart",
+                )
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["name"], "Fresh Mango")
+        self.assertTrue(response.data["image"])
+
+    def test_product_create_returns_503_when_storage_fails(self):
+        self.client.force_authenticate(user=self.supplier_user)
+
+        with patch("supermarketzanzibar.views.ProductViewSet.perform_create", side_effect=PermissionError("disk denied")):
+            response = self.client.post(
+                "/api/products/",
+                {
+                    "name": "Fresh Lemon",
+                    "category": str(self.category.id),
+                    "price": "1500.00",
+                    "cost_price": "900.00",
+                    "quantity": "5",
+                    "barcode": "fresh-lemon-001",
+                    "description": "Tangy lemons",
+                },
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(response.data["detail"], "Product image upload is temporarily unavailable.")

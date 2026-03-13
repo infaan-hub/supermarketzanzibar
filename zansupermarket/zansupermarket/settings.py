@@ -2,6 +2,7 @@
 Django settings for zansupermarket project.
 """
 
+import logging
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -19,6 +20,7 @@ except ImportError:
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+logger = logging.getLogger(__name__)
 
 
 def load_env_file(path: Path) -> None:
@@ -45,6 +47,34 @@ def env_bool(name: str, default: bool) -> bool:
 def env_list(name: str, default: str = "") -> list[str]:
     raw = os.getenv(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def ensure_writable_directory(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".write_probe"
+        probe.write_bytes(b"")
+        probe.unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False
+
+
+def resolve_media_root() -> Path:
+    configured_root = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+    fallback_root = BASE_DIR / "media"
+    candidate_paths = [configured_root]
+
+    if configured_root != fallback_root:
+        candidate_paths.append(fallback_root)
+
+    for candidate in candidate_paths:
+        if ensure_writable_directory(candidate):
+            if candidate != configured_root:
+                logger.warning("Configured MEDIA_ROOT %s is not writable. Falling back to %s.", configured_root, candidate)
+            return candidate
+
+    raise ImproperlyConfigured("No writable MEDIA_ROOT is available.")
 
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-2q_14#$vzz%3e=jll&w0l5e-)l#v3k+@t_l1+9c=q2&mfy#+0#")
@@ -182,7 +212,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+MEDIA_ROOT = resolve_media_root()
 
 STORAGES = {
     "default": {

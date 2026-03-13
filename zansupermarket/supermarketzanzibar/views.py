@@ -207,6 +207,13 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return serialized_products
 
+    def _product_storage_error_response(self, action_name):
+        logger.exception("Product %s failed because uploaded media could not be saved.", action_name)
+        return Response(
+            {"detail": "Product image upload is temporarily unavailable."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     def list(self, request, *args, **kwargs):
         try:
             queryset = self.filter_queryset(self.get_queryset())
@@ -241,6 +248,24 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {"detail": "This product is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except OSError:
+            return self._product_storage_error_response("create")
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except OSError:
+            return self._product_storage_error_response("update")
+
+    def partial_update(self, request, *args, **kwargs):
+        try:
+            return super().partial_update(request, *args, **kwargs)
+        except OSError:
+            return self._product_storage_error_response("update")
 
     def perform_create(self, serializer):
         if self.request.user.role == "supplier":
