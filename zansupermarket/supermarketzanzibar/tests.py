@@ -46,6 +46,17 @@ class MediaRootConfigurationTests(TestCase):
             with self.assertRaises(ImproperlyConfigured):
                 project_settings.resolve_media_root()
 
+    def test_collectstatic_can_use_fallback_media_root_during_build(self):
+        with (
+            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
+            patch.object(project_settings, "DEBUG", False),
+            patch.object(project_settings, "ensure_writable_directory", return_value=False),
+            patch.object(project_settings.sys, "argv", ["manage.py", "collectstatic"]),
+        ):
+            resolved_root = project_settings.resolve_media_root()
+
+        self.assertEqual(resolved_root, project_settings.BASE_DIR / "media")
+
 
 @override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])
 class ProductApiTests(APITestCase):

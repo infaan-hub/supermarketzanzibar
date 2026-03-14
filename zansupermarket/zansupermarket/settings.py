@@ -4,6 +4,7 @@ Django settings for zansupermarket project.
 
 import logging
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
@@ -65,10 +66,18 @@ def resolve_media_root() -> Path:
     configured_root = Path(configured_media_root or str(BASE_DIR / "media"))
     fallback_root = BASE_DIR / "media"
     candidate_paths = [configured_root]
+    current_command = sys.argv[1] if len(sys.argv) > 1 else ""
 
     if configured_media_root and not DEBUG:
         if ensure_writable_directory(configured_root):
             return configured_root
+        if current_command == "collectstatic":
+            logger.warning(
+                "Configured MEDIA_ROOT %s is not writable during collectstatic. Using %s for the build step.",
+                configured_root,
+                fallback_root,
+            )
+            return fallback_root
         raise ImproperlyConfigured(
             f"Configured MEDIA_ROOT {configured_root} is not writable. "
             "Production media storage must use the mounted persistent disk."
