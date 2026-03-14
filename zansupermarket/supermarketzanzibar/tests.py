@@ -320,10 +320,25 @@ class CustomerOrderApiTests(APITestCase):
             role="customer",
         )
         self.customer = Customer.objects.create(user=self.customer_user, phone=self.customer_user.phone)
+        self.supplier_user = User.objects.create_user(
+            username="supplier-order-test",
+            email="supplier-order-test@example.com",
+            password="pass12345",
+            full_name="Supplier Order Test",
+            phone="255700000011",
+            role="supplier",
+        )
+        self.supplier = Supplier.objects.create(
+            user=self.supplier_user,
+            company_name="Supplier Order Test Co",
+            phone=self.supplier_user.phone,
+            address="Stone Town",
+        )
         self.product = Product.objects.create(
             name="Biscuits",
             slug="biscuits",
             category=self.category,
+            supplier=self.supplier,
             price="3200.00",
             cost_price="2200.00",
             quantity=15,
@@ -413,6 +428,114 @@ class CustomerOrderApiTests(APITestCase):
         self.assertIn(b"PAID PRODUCTS", response.content)
         self.assertIn(b"ABOUT US", response.content)
         self.assertIn(b"CONTACT US", response.content)
+
+    def test_supplier_dashboard_includes_pending_payments_for_own_products(self):
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=False,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="pending_payment",
+        )
+        sale.items.create(product=self.product, quantity=1, price=Decimal("3200.00"), total=Decimal("3200.00"))
+        Payment.objects.create(sale=sale, payment_method="mobile_money", status="pending")
+        self.client.force_authenticate(user=self.supplier_user)
+
+        response = self.client.get("/api/supplier/dashboard/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pending_payments_count"], 1)
+        self.assertEqual(response.data["pending_payments"][0]["sale_id"], sale.id)
+        self.assertEqual(response.data["pending_payments"][0]["items"][0]["product_name"], "Biscuits")
+
+    def test_supplier_can_confirm_pending_payment_for_own_product(self):
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=False,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="pending_payment",
+        )
+        sale.items.create(product=self.product, quantity=1, price=Decimal("3200.00"), total=Decimal("3200.00"))
+        payment = Payment.objects.create(sale=sale, payment_method="mobile_money", status="pending")
+        self.client.force_authenticate(user=self.supplier_user)
+
+        response = self.client.post(f"/api/payments/{payment.id}/confirm/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payment.refresh_from_db()
+        sale.refresh_from_db()
+        self.assertEqual(payment.status, "confirmed")
+        self.assertEqual(payment.confirmed_by, self.supplier_user)
+        self.assertTrue(sale.payment_confirmed)
+        self.assertEqual(sale.status, "payment_confirmed")
+
+    def test_supplier_cannot_confirm_pending_payment_for_other_supplier_product(self):
+        other_supplier_user = User.objects.create_user(
+            username="other-supplier",
+            email="other-supplier@example.com",
+            password="pass12345",
+            full_name="Other Supplier",
+            phone="255700000012",
+            role="supplier",
+        )
+        other_supplier = Supplier.objects.create(
+            user=other_supplier_user,
+            company_name="Other Supplier Co",
+            phone=other_supplier_user.phone,
+            address="Paje",
+        )
+        other_product = Product.objects.create(
+            name="Juice",
+            slug="juice",
+            category=self.category,
+            supplier=other_supplier,
+            price="2500.00",
+            cost_price="1700.00",
+            quantity=8,
+            barcode="juice-001",
+            description="Fresh juice",
+        )
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("2500.00"),
+            final_amount=Decimal("2500.00"),
+            payment_method="mobile_money",
+            payment_confirmed=False,
+            delivery_location="Kiembe Samaki",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="pending_payment",
+        )
+        sale.items.create(product=other_product, quantity=1, price=Decimal("2500.00"), total=Decimal("2500.00"))
+        payment = Payment.objects.create(sale=sale, payment_method="mobile_money", status="pending")
+        self.client.force_authenticate(user=self.supplier_user)
+
+        response = self.client.post(f"/api/payments/{payment.id}/confirm/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, "pending")
 
     def test_admin_pending_payments_include_customer_order_details(self):
         admin_user = User.objects.create_user(

@@ -939,6 +939,15 @@ class IsSupplierRole(permissions.BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.role == "supplier")
 
 
+class IsAdminOrSupplierRole(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("admin", "supplier")
+        )
+
+
 class IsDriverRole(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role == "driver")
@@ -1264,9 +1273,37 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(sale__user=user)
         return self.queryset.none()
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
+    def _supplier_reviewable_payments(self, user):
+        supplier = Supplier.objects.filter(user=user).first()
+        if not supplier:
+            return self.queryset.none()
+        return (
+            self.queryset.filter(sale__items__product__supplier=supplier)
+            .select_related("sale", "sale__user", "confirmed_by")
+            .prefetch_related("sale__items__product")
+            .distinct()
+        )
+
+    def _payment_for_confirmation(self, user, pk):
+        if user.role == "admin":
+            return self.queryset.filter(pk=pk).first()
+        if user.role == "supplier":
+            return self._supplier_reviewable_payments(user).filter(pk=pk).first()
+        return None
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminOrSupplierRole])
     def confirm(self, request, pk=None):
-        payment = self.get_object()
+        payment = self._payment_for_confirmation(request.user, pk)
+        if not payment:
+            return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+        if payment.status == "confirmed":
+            return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
+        if payment.status != "pending":
+            return Response(
+                {"detail": "Only pending payments can be confirmed."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         payment.status = "confirmed"
         payment.confirmed_by = request.user
         payment.save()
@@ -1423,7 +1460,7 @@ class CheckoutView(APIView):
                 f"Address: {customer_address or 'Not provided'}\n"
                 f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
                 f"Items:\n{items_text}\n\n"
-                "Your payment is pending admin confirmation. Thank you for shopping with Zanzibar Super System."
+                "Your payment is pending confirmation. Thank you for shopping with Zanzibar Super System."
             )
             recipient_email = customer_email or request.user.email or ""
             if recipient_email:
@@ -1512,11 +1549,23 @@ class SupplierDashboardView(APIView):
             return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
         products = Product.objects.filter(supplier=supplier)
         low_stock = products.filter(quantity__lte=5).count()
+        pending_payments = (
+            Payment.objects.filter(status="pending", sale__items__product__supplier=supplier)
+            .select_related("sale", "sale__user")
+            .prefetch_related("sale__items__product")
+            .distinct()
+        )
         return Response(
             {
                 "supplier": SupplierSerializer(supplier).data,
                 "products_count": products.count(),
                 "low_stock_count": low_stock,
+                "pending_payments_count": pending_payments.count(),
+                "pending_payments": PaymentAdminSerializer(
+                    pending_payments,
+                    many=True,
+                    context={"request": request},
+                ).data,
                 "products": ProductSerializer(products, many=True, context={"request": request}).data,
             },
             status=status.HTTP_200_OK,

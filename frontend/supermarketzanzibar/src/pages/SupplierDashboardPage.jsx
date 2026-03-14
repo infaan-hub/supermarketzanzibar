@@ -9,6 +9,7 @@ function SupplierDashboardPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState(null);
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -41,6 +42,19 @@ function SupplierDashboardPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const confirmPayment = async (paymentId) => {
+    setError("");
+    setConfirmingPaymentId(paymentId);
+    try {
+      await http.post(`/api/payments/${paymentId}/confirm/`);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.detail || JSON.stringify(err.response?.data || "Payment confirmation failed."));
+    } finally {
+      setConfirmingPaymentId(null);
+    }
+  };
 
   const createProduct = async (event) => {
     event.preventDefault();
@@ -127,6 +141,7 @@ function SupplierDashboardPage() {
         <h2>Supplier Dashboard</h2>
         <p>Products: {data?.products_count ?? 0}</p>
         <p>Low stock: {data?.low_stock_count ?? 0}</p>
+        <p>Pending payments: {data?.pending_payments_count ?? 0}</p>
         {error ? <p className="error">{error}</p> : null}
       </div>
       <div className="panel">
@@ -142,6 +157,33 @@ function SupplierDashboardPage() {
           <input name="image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, image: e.target.files?.[0] || null }))} />
           <button className="primary-btn" type="submit">Create Product</button>
         </form>
+      </div>
+      <div className="panel full-span">
+        <h2>Pending Payments</h2>
+        {!data?.pending_payments?.length ? <p className="muted">No pending payments for your products.</p> : null}
+        {data?.pending_payments?.map((payment) => (
+          <article key={payment.id} className="order-card">
+            <div>
+              <p>#{payment.control_number}</p>
+              <p>Status: {payment.status}</p>
+              <p>Order ID: #{payment.sale_id}</p>
+              <p>Customer: {payment.customer_name || "Unknown"}</p>
+              <p>Total: TZS {payment.sale_total}</p>
+              <p>Delivery: {payment.delivery_location || "Not provided"}</p>
+              <p>
+                Items: {(payment.items || []).map((item) => `${item.product_name} x${item.quantity}`).join(", ") || "Not provided"}
+              </p>
+            </div>
+            <button
+              className="primary-btn"
+              onClick={() => confirmPayment(payment.id)}
+              type="button"
+              disabled={confirmingPaymentId === payment.id}
+            >
+              {confirmingPaymentId === payment.id ? "Confirming..." : "Confirm Payment"}
+            </button>
+          </article>
+        ))}
       </div>
       <div className="panel full-span">
         <h2>Your Products</h2>
