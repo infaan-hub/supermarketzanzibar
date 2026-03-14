@@ -67,6 +67,7 @@ def resolve_media_root() -> Path:
     fallback_root = BASE_DIR / "media"
     candidate_paths = [configured_root]
     current_command = sys.argv[1] if len(sys.argv) > 1 else ""
+    strict_media_root = env_bool("STRICT_MEDIA_ROOT", False)
 
     if configured_media_root and not DEBUG:
         if ensure_writable_directory(configured_root):
@@ -77,11 +78,21 @@ def resolve_media_root() -> Path:
                 configured_root,
                 fallback_root,
             )
+        else:
+            logger.warning(
+                "Configured MEDIA_ROOT %s is not writable at runtime. Falling back to %s. "
+                "Uploads will not persist across redeploys until persistent storage is available.",
+                configured_root,
+                fallback_root,
+            )
+        if strict_media_root:
+            raise ImproperlyConfigured(
+                f"Configured MEDIA_ROOT {configured_root} is not writable. "
+                "Production media storage must use the mounted persistent disk."
+            )
+        if ensure_writable_directory(fallback_root):
             return fallback_root
-        raise ImproperlyConfigured(
-            f"Configured MEDIA_ROOT {configured_root} is not writable. "
-            "Production media storage must use the mounted persistent disk."
-        )
+        raise ImproperlyConfigured("No writable MEDIA_ROOT is available.")
 
     if configured_root != fallback_root:
         candidate_paths.append(fallback_root)

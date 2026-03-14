@@ -37,9 +37,22 @@ class SafeMediaUrlTests(TestCase):
 
 
 class MediaRootConfigurationTests(TestCase):
-    def test_production_requires_writable_configured_media_root(self):
+    def test_production_uses_fallback_media_root_when_configured_root_is_unwritable(self):
+        def writable_only_for_fallback(path):
+            return Path(path) == project_settings.BASE_DIR / "media"
+
         with (
             patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
+            patch.object(project_settings, "DEBUG", False),
+            patch.object(project_settings, "ensure_writable_directory", side_effect=writable_only_for_fallback),
+        ):
+            resolved_root = project_settings.resolve_media_root()
+
+        self.assertEqual(resolved_root, project_settings.BASE_DIR / "media")
+
+    def test_strict_media_root_requires_writable_configured_media_root(self):
+        with (
+            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media", "STRICT_MEDIA_ROOT": "true"}, clear=False),
             patch.object(project_settings, "DEBUG", False),
             patch.object(project_settings, "ensure_writable_directory", return_value=False),
         ):
@@ -47,10 +60,13 @@ class MediaRootConfigurationTests(TestCase):
                 project_settings.resolve_media_root()
 
     def test_collectstatic_can_use_fallback_media_root_during_build(self):
+        def writable_only_for_fallback(path):
+            return Path(path) == project_settings.BASE_DIR / "media"
+
         with (
             patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
             patch.object(project_settings, "DEBUG", False),
-            patch.object(project_settings, "ensure_writable_directory", return_value=False),
+            patch.object(project_settings, "ensure_writable_directory", side_effect=writable_only_for_fallback),
             patch.object(project_settings.sys, "argv", ["manage.py", "collectstatic"]),
         ):
             resolved_root = project_settings.resolve_media_root()
