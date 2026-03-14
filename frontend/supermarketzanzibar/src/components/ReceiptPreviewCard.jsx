@@ -1,10 +1,64 @@
-import { useState } from "react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import { useRef, useState } from "react";
 import productPlaceholder from "../assets/product-placeholder.svg";
-import { http } from "../api/http.jsx";
 import { applyImageFallback, saleItemImageUrl } from "../lib/media.jsx";
 import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME, STORE_SUBTITLE } from "../lib/storeInfo.js";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
+
+async function waitForReceiptAssets(node) {
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+
+  const images = Array.from(node.querySelectorAll("img"));
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise((resolve) => {
+          if (image.complete) {
+            resolve();
+            return;
+          }
+
+          const finish = () => {
+            image.removeEventListener("load", finish);
+            image.removeEventListener("error", finish);
+            resolve();
+          };
+
+          image.addEventListener("load", finish, { once: true });
+          image.addEventListener("error", finish, { once: true });
+        }),
+    ),
+  );
+}
+
+function saveReceiptCanvasAsPdf(canvas, filename) {
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 10;
+  const contentWidth = pageWidth - margin * 2;
+  const contentHeight = pageHeight - margin * 2;
+  const imageHeight = (canvas.height * contentWidth) / canvas.width;
+  const imageData = canvas.toDataURL("image/png");
+  let heightLeft = imageHeight;
+  let yPosition = margin;
+
+  pdf.addImage(imageData, "PNG", margin, yPosition, contentWidth, imageHeight, undefined, "FAST");
+  heightLeft -= contentHeight;
+
+  while (heightLeft > 0) {
+    pdf.addPage();
+    yPosition = margin - (imageHeight - heightLeft);
+    pdf.addImage(imageData, "PNG", margin, yPosition, contentWidth, imageHeight, undefined, "FAST");
+    heightLeft -= contentHeight;
+  }
+
+  pdf.save(filename);
+}
 
 function AboutIcon({ kind }) {
   if (kind === "supply") {
@@ -41,27 +95,25 @@ function AboutIcon({ kind }) {
 
 function ReceiptPreviewCard({ order }) {
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : "Not provided";
+  const receiptRef = useRef(null);
   const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
 
   const downloadReceipt = async () => {
-    if (!order.receipt_url || downloadState.loading) return;
+    if (!receiptRef.current || downloadState.loading) return;
 
     setDownloadState({ loading: true, error: "" });
 
     try {
-      const response = await http.get(order.receipt_url, { responseType: "blob" });
-      const disposition = response.headers["content-disposition"] || "";
-      const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
-      const filename = filenameMatch?.[1] || `zansupermarket-receipt-order-${order.id}.pdf`;
-      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-      const link = document.createElement("a");
+      await waitForReceiptAssets(receiptRef.current);
+      const canvas = await html2canvas(receiptRef.current, {
+        backgroundColor: "#edf6ee",
+        imageTimeout: 15000,
+        logging: false,
+        scale: Math.max(2, window.devicePixelRatio || 1),
+        useCORS: true,
+      });
 
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(blobUrl);
+      saveReceiptCanvasAsPdf(canvas, `zansupermarket-receipt-order-${order.id}.pdf`);
       setDownloadState({ loading: false, error: "" });
     } catch {
       setDownloadState({ loading: false, error: "Unable to download the receipt right now." });
@@ -69,7 +121,7 @@ function ReceiptPreviewCard({ order }) {
   };
 
   return (
-    <article className="receipt-preview-card">
+    <article ref={receiptRef} className="receipt-preview-card">
       <header className="receipt-preview-header">
         <div className="receipt-preview-brand">
           <p className="receipt-preview-kicker">Official Customer Receipt</p>
@@ -131,6 +183,7 @@ function ReceiptPreviewCard({ order }) {
               <img
                 src={saleItemImageUrl(item) || PRODUCT_PLACEHOLDER}
                 alt={item.product_name || `Product ${item.product}`}
+                crossOrigin="anonymous"
                 data-fallback-src={PRODUCT_PLACEHOLDER}
                 onError={applyImageFallback}
               />
