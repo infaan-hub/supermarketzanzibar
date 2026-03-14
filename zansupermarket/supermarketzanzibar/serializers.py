@@ -204,7 +204,25 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = (
+            "id",
+            "name",
+            "slug",
+            "category",
+            "category_id",
+            "category_name",
+            "supplier",
+            "price",
+            "cost_price",
+            "quantity",
+            "barcode",
+            "image",
+            "image_url",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
 
     def _resolve_category(self, raw_value):
         if raw_value in (None, ""):
@@ -255,6 +273,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
             "image_url",
             "description",
             "category_name",
+            "updated_at",
         )
 
     def get_image_url(self, obj):

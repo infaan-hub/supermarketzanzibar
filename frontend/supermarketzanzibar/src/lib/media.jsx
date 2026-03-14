@@ -7,6 +7,21 @@ export function toMediaUrl(path) {
   return `${API_BASE_URL}${normalized}`;
 }
 
+export function toVersionedMediaUrl(path, version) {
+  const mediaUrl = toMediaUrl(path);
+  if (!mediaUrl || !version) return mediaUrl;
+  const separator = mediaUrl.includes("?") ? "&" : "?";
+  return `${mediaUrl}${separator}v=${encodeURIComponent(version)}`;
+}
+
+export function productImageUrl(product) {
+  if (!product) return null;
+  return toVersionedMediaUrl(
+    product.image_url || product.image,
+    product.updated_at || product.created_at || product.id,
+  );
+}
+
 export function applyImageFallback(event) {
   const fallbackSrc = event.currentTarget.dataset.fallbackSrc;
   if (!fallbackSrc || event.currentTarget.src === fallbackSrc) return;

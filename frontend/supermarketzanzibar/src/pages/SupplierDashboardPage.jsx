@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
-import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
+import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
@@ -149,7 +149,7 @@ function SupplierDashboardPage() {
           {data?.products?.map((product) => (
             <article key={product.id} className="product-card small">
               <img
-                src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+                src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
                 alt={product.name}
                 data-fallback-src={PRODUCT_PLACEHOLDER}
                 onError={applyImageFallback}

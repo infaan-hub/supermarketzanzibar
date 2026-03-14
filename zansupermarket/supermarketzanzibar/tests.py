@@ -163,6 +163,47 @@ class ProductApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["name"], "Fresh Mango")
         self.assertTrue(response.data["image"])
+        self.assertTrue(response.data["image_url"])
+
+    def test_uploaded_product_image_is_in_products_and_supplier_dashboard_payloads(self):
+        media_root = Path("zansupermarket/test_media")
+        shutil.rmtree(media_root, ignore_errors=True)
+        media_root.mkdir(parents=True, exist_ok=True)
+        self.client.force_authenticate(user=self.supplier_user)
+        image_path = Path("zansupermarket/media/products/download_5.jpg")
+        image = SimpleUploadedFile(
+            "download_5.jpg",
+            image_path.read_bytes(),
+            content_type="image/jpeg",
+        )
+
+        try:
+            with override_settings(MEDIA_ROOT=str(media_root.resolve())):
+                create_response = self.client.post(
+                    "/api/products/",
+                    {
+                        "name": "Fresh Pineapple",
+                        "category": str(self.category.id),
+                        "price": "5500.00",
+                        "cost_price": "3600.00",
+                        "quantity": "9",
+                        "barcode": "fresh-pineapple-001",
+                        "description": "Sweet pineapple",
+                        "image": image,
+                    },
+                    format="multipart",
+                )
+                list_response = self.client.get("/api/products/")
+                dashboard_response = self.client.get("/api/supplier/dashboard/")
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(list_response.data[0]["image"])
+        self.assertTrue(list_response.data[0]["image_url"])
+        self.assertTrue(list_response.data[0]["updated_at"])
+        self.assertTrue(dashboard_response.data["products"][0]["image"])
+        self.assertTrue(dashboard_response.data["products"][0]["image_url"])
 
     def test_uploaded_product_image_is_served_when_debug_is_false(self):
         media_root = Path("zansupermarket/test_media")
