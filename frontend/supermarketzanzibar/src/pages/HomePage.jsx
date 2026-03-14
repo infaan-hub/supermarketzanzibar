@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
@@ -101,9 +101,11 @@ function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [productFilter, setProductFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [activeControl, setActiveControl] = useState(null);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -118,6 +120,12 @@ function HomePage() {
     };
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    if (activeControl === "search") {
+      searchInputRef.current?.focus();
+    }
+  }, [activeControl]);
 
   const openProduct = (productId) => {
     if (!isAuthenticated) {
@@ -151,6 +159,10 @@ function HomePage() {
     return matchesSearch && matchesCategory && matchesFilter;
   });
 
+  const toggleControl = (control) => {
+    setActiveControl((current) => (current === control ? null : control));
+  };
+
   return (
     <section className="page-wrap">
       <header className="home-toolbar">
@@ -165,43 +177,95 @@ function HomePage() {
           </div>
         </div>
         <div className="home-controls">
-          <label className="home-control home-control-search">
-            <span>Search</span>
-            <div className="home-control-shell">
-              <span className="home-control-icon">
+          <div className="home-control-toggles">
+            <button
+              type="button"
+              className={`home-control-toggle ${activeControl === "search" ? "active" : ""}`}
+              aria-label="Toggle search"
+              aria-expanded={activeControl === "search"}
+              onClick={() => toggleControl("search")}
+            >
+              <ControlIcon kind="search" />
+            </button>
+            <button
+              type="button"
+              className={`home-control-toggle ${activeControl === "filter" ? "active" : ""}`}
+              aria-label="Toggle filter"
+              aria-expanded={activeControl === "filter"}
+              onClick={() => toggleControl("filter")}
+            >
+              <ControlIcon kind="filter" />
+            </button>
+            <button
+              type="button"
+              className={`home-control-toggle ${activeControl === "category" ? "active" : ""}`}
+              aria-label="Toggle category"
+              aria-expanded={activeControl === "category"}
+              onClick={() => toggleControl("category")}
+            >
+              <ControlIcon kind="category" />
+            </button>
+          </div>
+          {activeControl === "search" ? (
+            <div className="home-control-panel">
+              <span className="home-control-panel-icon" aria-hidden="true">
                 <ControlIcon kind="search" />
               </span>
               <input
-                className="home-control-field"
+                ref={searchInputRef}
+                className="home-control-panel-field"
                 type="search"
                 placeholder="Search products, category, or description"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
+              <button
+                type="button"
+                className="home-control-dismiss"
+                aria-label="Close search"
+                onClick={() => setActiveControl(null)}
+              >
+                x
+              </button>
             </div>
-          </label>
-          <label className="home-control">
-            <span>Filter</span>
-            <div className="home-control-shell">
-              <span className="home-control-icon">
+          ) : null}
+          {activeControl === "filter" ? (
+            <div className="home-control-panel">
+              <span className="home-control-panel-icon" aria-hidden="true">
                 <ControlIcon kind="filter" />
               </span>
-              <select className="home-control-field" value={productFilter} onChange={(event) => setProductFilter(event.target.value)}>
+              <span className="home-control-panel-title">Filter</span>
+              <select
+                className="home-control-panel-field"
+                value={productFilter}
+                onChange={(event) => setProductFilter(event.target.value)}
+              >
                 <option value="all">All products</option>
                 <option value="in_stock">In stock</option>
                 <option value="budget">Budget picks</option>
                 <option value="premium">Premium picks</option>
               </select>
-              <span className="home-control-chevron" aria-hidden="true">▾</span>
+              <button
+                type="button"
+                className="home-control-dismiss"
+                aria-label="Close filter"
+                onClick={() => setActiveControl(null)}
+              >
+                x
+              </button>
             </div>
-          </label>
-          <label className="home-control">
-            <span>Category</span>
-            <div className="home-control-shell">
-              <span className="home-control-icon">
+          ) : null}
+          {activeControl === "category" ? (
+            <div className="home-control-panel">
+              <span className="home-control-panel-icon" aria-hidden="true">
                 <ControlIcon kind="category" />
               </span>
-              <select className="home-control-field" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              <span className="home-control-panel-title">Category</span>
+              <select
+                className="home-control-panel-field"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+              >
                 <option value="all">All categories</option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -209,9 +273,16 @@ function HomePage() {
                   </option>
                 ))}
               </select>
-              <span className="home-control-chevron" aria-hidden="true">▾</span>
+              <button
+                type="button"
+                className="home-control-dismiss"
+                aria-label="Close category"
+                onClick={() => setActiveControl(null)}
+              >
+                x
+              </button>
             </div>
-          </label>
+          ) : null}
         </div>
       </header>
       {loading ? <p>Loading products...</p> : null}

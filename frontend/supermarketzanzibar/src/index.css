@@ -344,35 +344,56 @@ img {
 
 .home-controls {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(180px, 1fr));
   gap: 0.8rem;
-  align-items: end;
 }
 
-.home-control {
-  display: grid;
-  gap: 0.35rem;
+.home-control-toggles {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
-.home-control span {
+.home-control-toggle {
+  width: 3.1rem;
+  height: 3.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  border: 1px solid rgba(49, 123, 67, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
+    rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 10px 22px rgba(31, 143, 58, 0.08);
   color: var(--accent-strong);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.home-control-search {
-  min-width: 0;
+.home-control-toggle:hover {
+  transform: translateY(-1px);
 }
 
-.home-control-shell {
+.home-control-toggle.active {
+  background: linear-gradient(180deg, #42ad5d, var(--accent));
+  color: #f6fff6;
+  border-color: rgba(21, 114, 45, 0.24);
+}
+
+.home-control-toggle svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.home-control-panel {
   display: flex;
   align-items: center;
   gap: 0.7rem;
   min-height: 3.3rem;
-  padding: 0.2rem 0.9rem;
-  border-radius: 18px;
+  padding: 0.2rem 0.95rem;
+  border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
     rgba(255, 255, 255, 0.42);
@@ -382,24 +403,33 @@ img {
     0 10px 22px rgba(31, 143, 58, 0.08);
 }
 
-.home-control-shell:focus-within {
+.home-control-panel:focus-within {
   outline: 2px solid rgba(31, 143, 58, 0.24);
   border-color: rgba(31, 143, 58, 0.3);
 }
 
-.home-control-icon {
+.home-control-panel-icon {
   width: 1.2rem;
   height: 1.2rem;
   flex: 0 0 auto;
   color: var(--accent-strong);
 }
 
-.home-control-icon svg {
+.home-control-panel-icon svg {
   width: 100%;
   height: 100%;
 }
 
-.home-control-field {
+.home-control-panel-title {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-control-panel-field {
   width: 100%;
   min-width: 0;
   margin: 0;
@@ -411,26 +441,35 @@ img {
   color: var(--ink);
 }
 
-.home-control-field:focus {
+.home-control-panel-field:focus {
   outline: none;
   border-color: transparent;
 }
 
-.home-control-field::placeholder {
+.home-control-panel-field::placeholder {
   color: var(--muted);
 }
 
-select.home-control-field {
+select.home-control-panel-field {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
 }
 
-.home-control-chevron {
+.home-control-dismiss {
+  width: 2rem;
+  height: 2rem;
   flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(31, 143, 58, 0.12);
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
 }
 
 .section-title {
@@ -464,8 +503,8 @@ select.home-control-field {
 
 .grid-products {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.9rem;
 }
 
 .product-card {
@@ -498,7 +537,7 @@ select.home-control-field {
 .card-image img,
 .product-card img {
   width: 100%;
-  height: 220px;
+  height: 190px;
   object-fit: cover;
   image-rendering: auto;
 }
@@ -508,7 +547,7 @@ select.home-control-field {
 }
 
 .card-body {
-  padding: 0.85rem;
+  padding: 0.75rem;
 }
 
 .price,
@@ -1079,6 +1118,14 @@ form {
   .product-detail,
   .two-col {
     grid-template-columns: 1fr;
+  }
+
+  .home-control-panel {
+    flex-wrap: wrap;
+  }
+
+  .home-control-panel-title {
+    width: 100%;
   }
 }
 
