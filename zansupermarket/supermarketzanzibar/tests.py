@@ -408,7 +408,11 @@ class CustomerOrderApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/pdf")
-        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(b"Payment Confirmed", response.content)
+        self.assertIn(b"PAID PRODUCTS", response.content)
+        self.assertIn(b"ABOUT US", response.content)
+        self.assertIn(b"CONTACT US", response.content)
 
     def test_admin_pending_payments_include_customer_order_details(self):
         admin_user = User.objects.create_user(

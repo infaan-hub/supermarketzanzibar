@@ -5,6 +5,7 @@ import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
+import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME } from "../lib/storeInfo.js";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
@@ -40,30 +41,6 @@ function AboutIcon({ kind }) {
     </svg>
   );
 }
-
-const ABOUT_CARDS = [
-  {
-    title: "Fresh supply",
-    icon: "supply",
-    description: "We connect Zanzibar shoppers with trusted suppliers for groceries, snacks, and daily essentials.",
-  },
-  {
-    title: "Fast discovery",
-    icon: "search",
-    description: "Search products instantly, filter by category, and open any item quickly without losing your place.",
-  },
-  {
-    title: "Simple shopping",
-    icon: "cart",
-    description: "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
-  },
-];
-
-const CONTACT_ITEMS = [
-  { label: "Phone", value: "+255 700 000 000", href: "tel:+255700000000" },
-  { label: "Email", value: "support@zansupermarket.com", href: "mailto:support@zansupermarket.com" },
-  { label: "Location", value: "Stone Town, Zanzibar", href: "#contact" },
-];
 
 function HomePage() {
   const [products, setProducts] = useState([]);
@@ -128,7 +105,7 @@ function HomePage() {
         <div className="home-toolbar-head">
           <div className="home-toolbar-copy">
             <p className="home-toolbar-kicker">Marketplace</p>
-            <h1>Zansupermarket</h1>
+            <h1>{STORE_NAME}</h1>
           </div>
         </div>
         <CatalogControls

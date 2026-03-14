@@ -1,0 +1,162 @@
+import productPlaceholder from "../assets/product-placeholder.svg";
+import { applyImageFallback, toVersionedMediaUrl } from "../lib/media.jsx";
+import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME, STORE_SUBTITLE } from "../lib/storeInfo.js";
+
+const PRODUCT_PLACEHOLDER = productPlaceholder;
+
+function AboutIcon({ kind }) {
+  if (kind === "supply") {
+    return (
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M14 19.5L24 12l10 7.5V32a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V19.5Z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
+        <path d="M19 24h10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M24 19v10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (kind === "search") {
+    return (
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="21" cy="21" r="9" stroke="currentColor" strokeWidth="2.4" />
+        <path d="M27.5 27.5L35 35" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M21 17v8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M17 21h8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M14 16h3l2.2 11.2a2 2 0 0 0 2 1.6h10.8a2 2 0 0 0 2-1.5L36 20H20.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="22" cy="34" r="2.6" fill="currentColor" />
+      <circle cx="32" cy="34" r="2.6" fill="currentColor" />
+      <path d="M31 13v6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M28 16h6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ReceiptPreviewCard({ order }) {
+  const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : "Not provided";
+
+  return (
+    <article className="receipt-preview-card">
+      <header className="receipt-preview-header">
+        <div className="receipt-preview-brand">
+          <p className="receipt-preview-kicker">Official Customer Receipt</p>
+          <h3>{STORE_NAME}</h3>
+          <p>{STORE_SUBTITLE}</p>
+        </div>
+        <div className="receipt-preview-status">
+          <span>Payment Confirmed</span>
+          <strong>Control #{order.payment_control_number || order.payment?.control_number}</strong>
+          <p>Order #{order.id}</p>
+        </div>
+      </header>
+
+      <section className="receipt-preview-panel">
+        <div className="receipt-preview-section">
+          <div className="receipt-preview-section-title">Customer & Order Details</div>
+          <div className="receipt-preview-detail-grid">
+            <div>
+              <span>Customer</span>
+              <strong>{order.customer_name || "Customer"}</strong>
+            </div>
+            <div>
+              <span>Email</span>
+              <strong>{order.customer_email || "Not provided"}</strong>
+            </div>
+            <div>
+              <span>Phone</span>
+              <strong>{order.customer_phone || "Not provided"}</strong>
+            </div>
+            <div>
+              <span>Address</span>
+              <strong>{order.customer_address || "Not provided"}</strong>
+            </div>
+            <div>
+              <span>Delivery</span>
+              <strong>{order.delivery_location || "Not provided"}</strong>
+            </div>
+            <div>
+              <span>Order Date</span>
+              <strong>{orderDate}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="receipt-preview-section receipt-preview-total-box">
+          <div className="receipt-preview-section-title">Payment</div>
+          <p className="receipt-preview-total-label">Status</p>
+          <p className="receipt-preview-status-text">Confirmed</p>
+          <p className="receipt-preview-total-label">Final Amount</p>
+          <p className="receipt-preview-total-amount">TZS {order.final_amount}</p>
+        </div>
+      </section>
+
+      <section className="receipt-preview-section">
+        <div className="receipt-preview-section-title">Paid Products</div>
+        <div className="receipt-preview-items">
+          {(order.items || []).map((item) => (
+            <article className="receipt-preview-item" key={`${order.id}-${item.id}`}>
+              <img
+                src={
+                  toVersionedMediaUrl(
+                    item.product_image_url,
+                    item.updated_at || order.updated_at || item.id,
+                  ) || PRODUCT_PLACEHOLDER
+                }
+                alt={item.product_name || `Product ${item.product}`}
+                data-fallback-src={PRODUCT_PLACEHOLDER}
+                onError={applyImageFallback}
+              />
+              <div className="receipt-preview-item-copy">
+                <h4>{item.product_name || `Product ${item.product}`}</h4>
+                <p>Quantity: {item.quantity}</p>
+                <p>Unit Price: TZS {item.price}</p>
+                <p className="product-price">Paid Total: TZS {item.total}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="receipt-preview-section">
+        <div className="receipt-preview-section-title">About Us</div>
+        <div className="receipt-preview-info-grid">
+          {ABOUT_CARDS.map((card) => (
+            <article className="receipt-preview-info-card" key={card.title}>
+              <div className="receipt-preview-info-icon">
+                <AboutIcon kind={card.icon} />
+              </div>
+              <h4>{card.title}</h4>
+              <p>{card.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="receipt-preview-section">
+        <div className="receipt-preview-section-title">Contact Us</div>
+        <div className="receipt-preview-contact-list">
+          {CONTACT_ITEMS.map((item) => (
+            <a key={item.label} className="receipt-preview-contact-item" href={item.href}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <div className="receipt-preview-actions">
+        <p>This receipt is available because the payment for this order has been confirmed.</p>
+        <a className="primary-btn" href={order.receipt_url} target="_blank" rel="noreferrer">
+          Download Receipt
+        </a>
+      </div>
+    </article>
+  );
+}
+
+export default ReceiptPreviewCard;

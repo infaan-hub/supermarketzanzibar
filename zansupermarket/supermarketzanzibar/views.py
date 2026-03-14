@@ -1,5 +1,5 @@
 import logging
-from textwrap import wrap
+from io import BytesIO
 from urllib.parse import quote
 from decimal import Decimal
 from django.contrib.auth import authenticate, get_user_model
@@ -7,6 +7,11 @@ from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
 from django.http import HttpResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import Image as ReportLabImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -36,6 +41,25 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, SuspiciousOperation)
 WHATSAPP_ORDER_NUMBER = "255711252758"
+STORE_NAME = "Zansupermarket"
+STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
+STORE_PHONE = "+255 700 000 000"
+STORE_EMAIL = "support@zansupermarket.com"
+STORE_LOCATION = "Stone Town, Zanzibar"
+RECEIPT_ABOUT_CARDS = [
+    (
+        "Fresh supply",
+        "We connect Zanzibar shoppers with trusted suppliers for groceries, snacks, and daily essentials.",
+    ),
+    (
+        "Fast discovery",
+        "Search products instantly, filter by category, and open any item quickly without losing your place.",
+    ),
+    (
+        "Simple shopping",
+        "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
+    ),
+]
 
 
 def build_whatsapp_order_url(sale, payment, sale_items):
@@ -61,116 +85,371 @@ def build_whatsapp_order_url(sale, payment, sale_items):
     return f"https://wa.me/{WHATSAPP_ORDER_NUMBER}?text={quote(message)}"
 
 
-def _pdf_escape(value):
-    text = str(value)
-    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+def _receipt_styles():
+    base_styles = getSampleStyleSheet()
+    return {
+        "title": ParagraphStyle(
+            "ReceiptTitle",
+            parent=base_styles["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=26,
+            textColor=colors.whitesmoke,
+            spaceAfter=4,
+        ),
+        "header_text": ParagraphStyle(
+            "ReceiptHeaderText",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=13,
+            textColor=colors.whitesmoke,
+        ),
+        "header_status": ParagraphStyle(
+            "ReceiptHeaderStatus",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=15,
+            leading=18,
+            alignment=2,
+            textColor=colors.whitesmoke,
+        ),
+        "section_title": ParagraphStyle(
+            "ReceiptSectionTitle",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor("#15722d"),
+            textTransform="uppercase",
+        ),
+        "label": ParagraphStyle(
+            "ReceiptLabel",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=11,
+            textColor=colors.HexColor("#668070"),
+        ),
+        "value": ParagraphStyle(
+            "ReceiptValue",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.4,
+            leading=12,
+            textColor=colors.HexColor("#213128"),
+        ),
+        "value_bold": ParagraphStyle(
+            "ReceiptValueBold",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor("#213128"),
+        ),
+        "total": ParagraphStyle(
+            "ReceiptTotal",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=14,
+            leading=17,
+            textColor=colors.HexColor("#15722d"),
+            alignment=2,
+        ),
+        "small": ParagraphStyle(
+            "ReceiptSmall",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor("#668070"),
+        ),
+        "info_title": ParagraphStyle(
+            "ReceiptInfoTitle",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor("#213128"),
+        ),
+        "info_text": ParagraphStyle(
+            "ReceiptInfoText",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=8.8,
+            leading=12,
+            textColor=colors.HexColor("#668070"),
+        ),
+    }
 
 
-def _receipt_text_lines(sale):
-    lines = [
-        "Zanzibar Supermarket Receipt",
-        f"Receipt for Order #{sale.id}",
-        f"Control Number: {sale.payment.control_number}",
-        f"Payment Status: {sale.payment.status}",
-        f"Order Date: {sale.created_at:%Y-%m-%d %H:%M}",
-        "",
-        f"Customer: {sale.customer_name_display or 'Customer'}",
-        f"Email: {sale.customer_email_display or 'Not provided'}",
-        f"Phone: {sale.customer_phone_display or 'Not provided'}",
-        f"Address: {sale.customer_address_display or 'Not provided'}",
-        f"Delivery Location: {sale.delivery_location or 'Not provided'}",
-        "",
-        "Products:",
-    ]
-
-    for item in sale.items.all():
-        lines.append(
-            f"- {item.product_name if hasattr(item, 'product_name') else item.product.name} x{item.quantity} @ TZS {item.price} = TZS {item.total}"
-        )
-
-    lines.extend(
-        [
-            "",
-            f"Subtotal: TZS {sale.total_amount}",
-            f"Discount: TZS {sale.discount}",
-            f"Tax: TZS {sale.tax}",
-            f"Final Amount: TZS {sale.final_amount}",
-            "",
-            "Thank you for shopping with Zanzibar Supermarket.",
-        ]
+def _receipt_section_header(title, width, styles):
+    header = Table(
+        [[Paragraph(title, styles["section_title"])]],
+        colWidths=[width],
     )
-    wrapped_lines = []
-    for line in lines:
-        if not line:
-            wrapped_lines.append("")
-            continue
-        wrapped_lines.extend(wrap(line, width=92) or [""])
-    return wrapped_lines
+    header.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#dcefdc")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#c4ddc4")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    return header
+
+
+def _receipt_product_image(file_field, width, height):
+    try:
+        if not file_field:
+            return None
+        if hasattr(file_field, "storage") and hasattr(file_field, "name") and not file_field.storage.exists(file_field.name):
+            return None
+        with file_field.storage.open(file_field.name, "rb") as image_file:
+            image = ReportLabImage(BytesIO(image_file.read()), width=width, height=height)
+            image.hAlign = "LEFT"
+            return image
+    except (AttributeError, OSError, TypeError, ValueError, SuspiciousOperation):
+        return None
 
 
 def build_receipt_pdf(sale):
-    lines = _receipt_text_lines(sale)
-    lines_per_page = 48
-    pages = [lines[index:index + lines_per_page] for index in range(0, len(lines), lines_per_page)] or [[]]
-    font_object_id = 3 + len(pages) * 2
-    objects = []
-
-    page_refs = " ".join(f"{3 + index * 2} 0 R" for index in range(len(pages)))
-    objects.append((1, b"<< /Type /Catalog /Pages 2 0 R >>"))
-    objects.append((2, f"<< /Type /Pages /Kids [{page_refs}] /Count {len(pages)} >>".encode("ascii")))
-
-    for index, page_lines in enumerate(pages):
-        page_object_id = 3 + index * 2
-        content_object_id = page_object_id + 1
-        commands = [
-            "BT",
-            "/F1 12 Tf",
-            "50 800 Td",
-            f"(Zanzibar Supermarket Receipt - Page {index + 1}) Tj",
-            "0 -20 Td",
-            "/F1 10 Tf",
-        ]
-        for line in page_lines:
-            commands.append(f"({_pdf_escape(line)}) Tj")
-            commands.append("0 -14 Td")
-        commands.append("ET")
-        stream = "\n".join(commands).encode("latin-1", errors="ignore")
-        page_body = (
-            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
-            f"/Resources << /Font << /F1 {font_object_id} 0 R >> >> "
-            f"/Contents {content_object_id} 0 R >>"
-        ).encode("ascii")
-        content_body = (
-            f"<< /Length {len(stream)} >>\nstream\n".encode("ascii")
-            + stream
-            + b"\nendstream"
-        )
-        objects.append((page_object_id, page_body))
-        objects.append((content_object_id, content_body))
-
-    objects.append((font_object_id, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"))
-    objects.sort(key=lambda item: item[0])
-
-    pdf = bytearray(b"%PDF-1.4\n")
-    offsets = [0]
-    for object_id, body in objects:
-        offsets.append(len(pdf))
-        pdf.extend(f"{object_id} 0 obj\n".encode("ascii"))
-        pdf.extend(body)
-        pdf.extend(b"\nendobj\n")
-
-    xref_offset = len(pdf)
-    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
-    pdf.extend(b"0000000000 65535 f \n")
-    for offset in offsets[1:]:
-        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-    pdf.extend(
-        (
-            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref_offset}\n%%EOF"
-        ).encode("ascii")
+    payment = sale.payment
+    styles = _receipt_styles()
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=14 * mm,
+        rightMargin=14 * mm,
+        topMargin=14 * mm,
+        bottomMargin=14 * mm,
+        pageCompression=0,
     )
-    return bytes(pdf)
+    page_width = A4[0] - doc.leftMargin - doc.rightMargin
+    story = []
+
+    header_table = Table(
+        [
+            [
+                Paragraph(
+                    (
+                        f"<font size='22'><b>{STORE_NAME}</b></font><br/>"
+                        f"<font size='10'>{STORE_SUBTITLE}</font><br/>"
+                        "<font size='10'>Official Customer Receipt</font>"
+                    ),
+                    styles["title"],
+                ),
+                Paragraph(
+                    f"Payment Confirmed<br/>Control #{payment.control_number}<br/>Order #{sale.id}<br/>{sale.created_at:%Y-%m-%d %H:%M}",
+                    styles["header_status"],
+                ),
+            ]
+        ],
+        colWidths=[page_width * 0.62, page_width * 0.38],
+    )
+    header_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1f8f3a")),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.whitesmoke),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 14),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+                ("TOPPADDING", (0, 0), (-1, -1), 14),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#15722d")),
+            ]
+        )
+    )
+    story.extend([header_table, Spacer(1, 10)])
+
+    detail_rows = [
+        [
+            Paragraph("Customer", styles["label"]),
+            Paragraph(sale.customer_name_display or "Customer", styles["value"]),
+            Paragraph("Email", styles["label"]),
+            Paragraph(sale.customer_email_display or "Not provided", styles["value"]),
+        ],
+        [
+            Paragraph("Phone", styles["label"]),
+            Paragraph(sale.customer_phone_display or "Not provided", styles["value"]),
+            Paragraph("Address", styles["label"]),
+            Paragraph(sale.customer_address_display or "Not provided", styles["value"]),
+        ],
+        [
+            Paragraph("Delivery", styles["label"]),
+            Paragraph(sale.delivery_location or "Not provided", styles["value"]),
+            Paragraph("Payment Method", styles["label"]),
+            Paragraph(sale.payment_method, styles["value"]),
+        ],
+    ]
+    details_table = Table(
+        detail_rows,
+        colWidths=[22 * mm, 56 * mm, 24 * mm, page_width - (22 + 56 + 24) * mm],
+    )
+    details_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    story.extend(
+        [
+            _receipt_section_header("Customer & Order Details", page_width, styles),
+            Spacer(1, 6),
+            details_table,
+            Spacer(1, 10),
+        ]
+    )
+
+    product_cards = []
+    for item in sale.items.all():
+        image_cell = _receipt_product_image(getattr(item.product, "image", None), 22 * mm, 22 * mm)
+        if image_cell is None:
+            image_cell = Paragraph("Product image unavailable", styles["small"])
+        copy = Paragraph(
+            (
+                f"<b>{item.product.name}</b><br/>"
+                f"Quantity: {item.quantity}<br/>"
+                f"Unit Price: TZS {item.price}<br/>"
+                f"Paid Total: TZS {item.total}"
+            ),
+            styles["value"],
+        )
+        total = Paragraph(f"TZS {item.total}", styles["total"])
+        item_table = Table(
+            [[image_cell, copy, total]],
+            colWidths=[28 * mm, page_width - 28 * mm - 35 * mm, 35 * mm],
+        )
+        item_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        product_cards.extend([item_table, Spacer(1, 6)])
+
+    totals_table = Table(
+        [
+            [Paragraph("Subtotal", styles["label"]), Paragraph(f"TZS {sale.total_amount}", styles["value_bold"])],
+            [Paragraph("Discount", styles["label"]), Paragraph(f"TZS {sale.discount}", styles["value_bold"])],
+            [Paragraph("Tax", styles["label"]), Paragraph(f"TZS {sale.tax}", styles["value_bold"])],
+            [Paragraph("Final Amount", styles["label"]), Paragraph(f"TZS {sale.final_amount}", styles["total"])],
+        ],
+        colWidths=[42 * mm, 45 * mm],
+        hAlign="RIGHT",
+    )
+    totals_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
+                ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    story.extend(
+        [
+            _receipt_section_header("Paid Products", page_width, styles),
+            Spacer(1, 6),
+            *product_cards,
+            Spacer(1, 4),
+            totals_table,
+            Spacer(1, 10),
+        ]
+    )
+
+    about_cards = []
+    for title, description in RECEIPT_ABOUT_CARDS:
+        about_cards.append(
+            Paragraph(f"<b>{title}</b><br/>{description}", styles["info_text"])
+        )
+    about_table = Table([about_cards], colWidths=[page_width / 3.0] * 3)
+    about_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    story.extend(
+        [
+            _receipt_section_header("About Us", page_width, styles),
+            Spacer(1, 6),
+            about_table,
+            Spacer(1, 10),
+        ]
+    )
+
+    contact_table = Table(
+        [
+            [
+                Paragraph(f"<b>Phone</b><br/>{STORE_PHONE}", styles["info_text"]),
+                Paragraph(f"<b>Email</b><br/>{STORE_EMAIL}", styles["info_text"]),
+                Paragraph(f"<b>Location</b><br/>{STORE_LOCATION}", styles["info_text"]),
+            ]
+        ],
+        colWidths=[page_width / 3.0] * 3,
+    )
+    contact_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    story.extend(
+        [
+            _receipt_section_header("Contact Us", page_width, styles),
+            Spacer(1, 6),
+            contact_table,
+            Spacer(1, 8),
+            Paragraph(
+                "This receipt is issued because your payment has been confirmed by Zansupermarket.",
+                styles["small"],
+            ),
+        ]
+    )
+
+    doc.build(story)
+    return buffer.getvalue()
 
 
 class IsAdminRole(permissions.BasePermission):
