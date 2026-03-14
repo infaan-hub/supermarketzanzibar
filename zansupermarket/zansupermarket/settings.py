@@ -61,9 +61,18 @@ def ensure_writable_directory(path: Path) -> bool:
 
 
 def resolve_media_root() -> Path:
-    configured_root = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+    configured_media_root = os.getenv("MEDIA_ROOT")
+    configured_root = Path(configured_media_root or str(BASE_DIR / "media"))
     fallback_root = BASE_DIR / "media"
     candidate_paths = [configured_root]
+
+    if configured_media_root and not DEBUG:
+        if ensure_writable_directory(configured_root):
+            return configured_root
+        raise ImproperlyConfigured(
+            f"Configured MEDIA_ROOT {configured_root} is not writable. "
+            "Production media storage must use the mounted persistent disk."
+        )
 
     if configured_root != fallback_root:
         candidate_paths.append(fallback_root)

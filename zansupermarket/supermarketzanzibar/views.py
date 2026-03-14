@@ -571,131 +571,147 @@ class AdminCreateUserView(APIView):
 class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
 
+    def _checkout_unavailable_response(self):
+        logger.exception("Customer checkout failed because the database transaction could not complete.")
+        return Response(
+            {"detail": "Unable to place this order right now. Please try again shortly."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     @transaction.atomic
     def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        try:
+            serializer = CheckoutSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
 
-        customer = Customer.objects.filter(user=request.user).first()
-        if not customer:
-            customer = Customer.objects.create(user=request.user, phone=request.user.phone)
+            customer = Customer.objects.filter(user=request.user).first()
+            if not customer:
+                customer = Customer.objects.create(user=request.user, phone=request.user.phone)
 
-        items_payload = data["items"]
-        if not items_payload:
-            return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+            items_payload = data["items"]
+            if not items_payload:
+                return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-        product_map = {p.id: p for p in Product.objects.filter(id__in=[item["product"] for item in items_payload])}
-        total_amount = Decimal("0.00")
-        sale_items = []
-        customer_full_name = data.get("customer_full_name") or request.user.full_name or request.user.username
-        customer_email = data.get("customer_email") or request.user.email or ""
-        customer_phone = data.get("customer_phone") or request.user.phone or ""
-        customer_address = data.get("customer_address") or request.user.address or ""
+            product_ids = [item["product"] for item in items_payload]
+            product_map = {
+                product.id: product
+                for product in Product.objects.select_for_update().filter(id__in=product_ids)
+            }
+            total_amount = Decimal("0.00")
+            sale_items = []
+            customer_full_name = data.get("customer_full_name") or request.user.full_name or request.user.username
+            customer_email = data.get("customer_email") or request.user.email or ""
+            customer_phone = data.get("customer_phone") or request.user.phone or ""
+            customer_address = data.get("customer_address") or request.user.address or ""
 
-        for item in items_payload:
-            product = product_map.get(item["product"])
-            if not product:
-                return Response({"detail": f"Product {item['product']} not found."}, status=status.HTTP_400_BAD_REQUEST)
-            qty = item["quantity"]
-            if product.quantity < qty:
-                return Response({"detail": f"Not enough stock for {product.name}."}, status=status.HTTP_400_BAD_REQUEST)
-            total_amount += product.price * qty
-            sale_items.append((product, qty))
+            for item in items_payload:
+                product = product_map.get(item["product"])
+                if not product:
+                    return Response({"detail": f"Product {item['product']} not found."}, status=status.HTTP_400_BAD_REQUEST)
+                qty = item["quantity"]
+                if product.quantity < qty:
+                    return Response({"detail": f"Not enough stock for {product.name}."}, status=status.HTTP_400_BAD_REQUEST)
+                total_amount += product.price * qty
+                sale_items.append((product, qty))
 
-        sale = Sale.objects.create(
-            customer=customer,
-            user=request.user,
-            total_amount=total_amount,
-            tax=Decimal("0.00"),
-            discount=Decimal("0.00"),
-            final_amount=total_amount,
-            payment_method=data.get("payment_method", "mobile_money"),
-            payment_confirmed=False,
-            delivery_location=data.get("delivery_location", ""),
-            terms_accepted=data.get("terms_accepted", False),
-            customer_full_name=customer_full_name,
-            customer_email=customer_email,
-            customer_phone=customer_phone,
-            customer_address=customer_address,
-            status="pending_payment",
-        )
+            sale = Sale.objects.create(
+                customer=customer,
+                user=request.user,
+                total_amount=total_amount,
+                tax=Decimal("0.00"),
+                discount=Decimal("0.00"),
+                final_amount=total_amount,
+                payment_method=data.get("payment_method", "mobile_money"),
+                payment_confirmed=False,
+                delivery_location=data.get("delivery_location", ""),
+                terms_accepted=data.get("terms_accepted", False),
+                customer_full_name=customer_full_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                customer_address=customer_address,
+                status="pending_payment",
+            )
 
-        for product, qty in sale_items:
-            sale_item = SaleItem.objects.create(
+            for product, qty in sale_items:
+                sale_item = SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=qty,
+                    price=product.price,
+                    total=product.price * qty,
+                )
+                product.quantity -= qty
+                product.save(update_fields=["quantity"])
+                StockMovement.objects.create(product=product, sale_item=sale_item, quantity=qty, movement_type="OUT")
+
+            payment = Payment.objects.create(
                 sale=sale,
-                product=product,
-                quantity=qty,
-                price=product.price,
-                total=product.price * qty,
-            )
-            product.quantity -= qty
-            product.save(update_fields=["quantity"])
-            StockMovement.objects.create(product=product, sale_item=sale_item, quantity=qty, movement_type="OUT")
-
-        payment = Payment.objects.create(
-            sale=sale,
-            payment_method=data.get("payment_method", "mobile_money"),
-            status="pending",
-        )
-
-        items_text = "\n".join(
-            [f"- {product.name} x{qty} @ {product.price} = {product.price * qty}" for product, qty in sale_items]
-        )
-        subject = f"Order Received - Control #{payment.control_number}"
-        message = (
-            f"Hello {customer_full_name},\n\n"
-            f"Your order was created successfully.\n"
-            f"Order ID: {sale.id}\n"
-            f"Control Number: {payment.control_number}\n"
-            f"Payment Method: {payment.payment_method}\n"
-            f"Payment Status: {payment.status}\n"
-            f"Total: {sale.final_amount}\n"
-            f"Phone: {customer_phone or 'Not provided'}\n"
-            f"Address: {customer_address or 'Not provided'}\n"
-            f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
-            f"Items:\n{items_text}\n\n"
-            "Your payment is pending admin confirmation. Thank you for shopping with Zanzibar Super System."
-        )
-        recipient_email = customer_email or request.user.email or ""
-        if recipient_email:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email="noreply@zansupermarket.local",
-                recipient_list=[recipient_email],
-                fail_silently=True,
+                payment_method=data.get("payment_method", "mobile_money"),
+                status="pending",
             )
 
-        admin_emails = list(User.objects.filter(role="admin", is_active=True).exclude(email="").values_list("email", flat=True))
-        if admin_emails:
-            send_mail(
-                subject=f"Payment Confirmation Needed - Order #{sale.id}",
-                message=(
-                    f"A new order requires payment confirmation.\n"
-                    f"Order ID: {sale.id}\n"
-                    f"Control Number: {payment.control_number}\n"
-                    f"Customer: {customer_full_name} ({customer_email or 'No email'})\n"
-                    f"Phone: {customer_phone or 'Not provided'}\n"
-                    f"Address: {customer_address or 'Not provided'}\n"
-                    f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
-                    f"Total: {sale.final_amount}\n"
-                    f"Payment Method: {payment.payment_method}\n"
-                    f"Status: {payment.status}\n"
-                ),
-                from_email="noreply@zansupermarket.local",
-                recipient_list=admin_emails,
-                fail_silently=True,
+            items_text = "\n".join(
+                [f"- {product.name} x{qty} @ {product.price} = {product.price * qty}" for product, qty in sale_items]
             )
+            subject = f"Order Received - Control #{payment.control_number}"
+            message = (
+                f"Hello {customer_full_name},\n\n"
+                f"Your order was created successfully.\n"
+                f"Order ID: {sale.id}\n"
+                f"Control Number: {payment.control_number}\n"
+                f"Payment Method: {payment.payment_method}\n"
+                f"Payment Status: {payment.status}\n"
+                f"Total: {sale.final_amount}\n"
+                f"Phone: {customer_phone or 'Not provided'}\n"
+                f"Address: {customer_address or 'Not provided'}\n"
+                f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
+                f"Items:\n{items_text}\n\n"
+                "Your payment is pending admin confirmation. Thank you for shopping with Zanzibar Super System."
+            )
+            recipient_email = customer_email or request.user.email or ""
+            if recipient_email:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email="noreply@zansupermarket.local",
+                    recipient_list=[recipient_email],
+                    fail_silently=True,
+                )
 
-        return Response(
-            {
-                "sale": SaleSerializer(sale, context={"request": request}).data,
-                "payment": PaymentSerializer(payment, context={"request": request}).data,
-                "whatsapp_url": build_whatsapp_order_url(sale, payment, sale_items),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+            admin_emails = list(
+                User.objects.filter(role="admin", is_active=True).exclude(email="").values_list("email", flat=True)
+            )
+            if admin_emails:
+                send_mail(
+                    subject=f"Payment Confirmation Needed - Order #{sale.id}",
+                    message=(
+                        f"A new order requires payment confirmation.\n"
+                        f"Order ID: {sale.id}\n"
+                        f"Control Number: {payment.control_number}\n"
+                        f"Customer: {customer_full_name} ({customer_email or 'No email'})\n"
+                        f"Phone: {customer_phone or 'Not provided'}\n"
+                        f"Address: {customer_address or 'Not provided'}\n"
+                        f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
+                        f"Total: {sale.final_amount}\n"
+                        f"Payment Method: {payment.payment_method}\n"
+                        f"Status: {payment.status}\n"
+                    ),
+                    from_email="noreply@zansupermarket.local",
+                    recipient_list=admin_emails,
+                    fail_silently=True,
+                )
+
+            return Response(
+                {
+                    "sale": SaleSerializer(sale, context={"request": request}).data,
+                    "payment": PaymentSerializer(payment, context={"request": request}).data,
+                    "whatsapp_url": build_whatsapp_order_url(sale, payment, sale_items),
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except DatabaseError:
+            return self._checkout_unavailable_response()
 
 
 class CustomerOrdersView(APIView):

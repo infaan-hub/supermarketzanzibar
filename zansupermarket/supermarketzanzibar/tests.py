@@ -5,12 +5,14 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from zansupermarket import settings as project_settings
 from .models import Category, Customer, Payment, Product, Sale, Supplier
 from .serializers import ProductSerializer, PublicProductSerializer, safe_media_url
 
@@ -32,6 +34,17 @@ class SafeMediaUrlTests(TestCase):
 
     def test_product_serializer_keeps_image_field_writeable(self):
         self.assertFalse(ProductSerializer().fields["image"].read_only)
+
+
+class MediaRootConfigurationTests(TestCase):
+    def test_production_requires_writable_configured_media_root(self):
+        with (
+            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
+            patch.object(project_settings, "DEBUG", False),
+            patch.object(project_settings, "ensure_writable_directory", return_value=False),
+        ):
+            with self.assertRaises(ImproperlyConfigured):
+                project_settings.resolve_media_root()
 
 
 @override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])
@@ -317,6 +330,28 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(sale.customer_phone, "+255711252700")
         self.assertEqual(sale.customer_address, "Mjini, Zanzibar")
         self.assertEqual(response.data["sale"]["payment_status"], "pending")
+
+    def test_checkout_returns_503_when_database_write_fails(self):
+        self.client.force_authenticate(user=self.customer_user)
+
+        with patch("supermarketzanzibar.views.Sale.objects.create", side_effect=DatabaseError("db down")):
+            response = self.client.post(
+                "/api/customer/checkout/",
+                {
+                    "items": [{"product": self.product.id, "quantity": 1}],
+                    "payment_method": "mobile_money",
+                    "customer_full_name": "Asha Mwinyi",
+                    "customer_email": "asha@example.com",
+                    "customer_phone": "+255711252700",
+                    "customer_address": "Mjini, Zanzibar",
+                    "delivery_location": "Forodhani Garden",
+                    "terms_accepted": True,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(response.data["detail"], "Unable to place this order right now. Please try again shortly.")
 
     def test_customer_can_download_pdf_receipt_after_payment_confirmation(self):
         sale = Sale.objects.create(
