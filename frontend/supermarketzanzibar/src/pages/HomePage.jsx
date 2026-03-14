@@ -6,17 +6,54 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
+
+function AboutIcon({ kind }) {
+  if (kind === "supply") {
+    return (
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M14 19.5L24 12l10 7.5V32a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V19.5Z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
+        <path d="M19 24h10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M24 19v10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (kind === "search") {
+    return (
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="21" cy="21" r="9" stroke="currentColor" strokeWidth="2.4" />
+        <path d="M27.5 27.5L35 35" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M21 17v8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M17 21h8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M14 16h3l2.2 11.2a2 2 0 0 0 2 1.6h10.8a2 2 0 0 0 2-1.5L36 20H20.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="22" cy="34" r="2.6" fill="currentColor" />
+      <circle cx="32" cy="34" r="2.6" fill="currentColor" />
+      <path d="M31 13v6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M28 16h6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const ABOUT_CARDS = [
   {
     title: "Fresh supply",
+    icon: "supply",
     description: "We connect Zanzibar shoppers with trusted suppliers for groceries, snacks, and daily essentials.",
   },
   {
     title: "Fast discovery",
+    icon: "search",
     description: "Search products instantly, filter by category, and open any item quickly without losing your place.",
   },
   {
     title: "Simple shopping",
+    icon: "cart",
     description: "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
   },
 ];
@@ -91,7 +128,6 @@ function HomePage() {
           <div className="home-toolbar-copy">
             <p className="home-toolbar-kicker">Marketplace</p>
             <h1>Zansupermarket</h1>
-            <p>Search products in real time, narrow by category, and open any item directly from the catalog.</p>
           </div>
           <div className="home-toolbar-meta">
             <span className="home-pill">{products.length} listed</span>
@@ -159,6 +195,7 @@ function HomePage() {
             <div className="card-body">
               <h3 className="product-title">{product.name}</h3>
               <p className="muted">{product.category_name || "General"}</p>
+              <p className="product-summary">{product.description || "Fresh product available now."}</p>
               <p className="product-price">TZS {product.price}</p>
             </div>
           </article>
@@ -183,7 +220,12 @@ function HomePage() {
         <div className="info-grid">
           {ABOUT_CARDS.map((card) => (
             <article key={card.title} className="info-card">
-              <p className="info-card-kicker">About us</p>
+              <div className="info-card-head">
+                <div className="info-card-icon">
+                  <AboutIcon kind={card.icon} />
+                </div>
+                <p className="info-card-kicker">About us</p>
+              </div>
               <h3>{card.title}</h3>
               <p>{card.description}</p>
             </article>
