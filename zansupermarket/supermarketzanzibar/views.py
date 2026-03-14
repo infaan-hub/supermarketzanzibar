@@ -1,5 +1,6 @@
 import logging
 from io import BytesIO
+from textwrap import wrap
 from urllib.parse import quote
 from decimal import Decimal
 from django.contrib.auth import authenticate, get_user_model
@@ -7,11 +8,6 @@ from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
 from django.http import HttpResponse
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import Image as ReportLabImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -85,7 +81,132 @@ def build_whatsapp_order_url(sale, payment, sale_items):
     return f"https://wa.me/{WHATSAPP_ORDER_NUMBER}?text={quote(message)}"
 
 
+def _pdf_escape(value):
+    text = str(value)
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _fallback_receipt_text_lines(sale):
+    lines = [
+        f"{STORE_NAME} Receipt",
+        "Payment Confirmed",
+        f"Order #{sale.id}",
+        f"Control Number: {sale.payment.control_number}",
+        f"Order Date: {sale.created_at:%Y-%m-%d %H:%M}",
+        "",
+        "Customer & Order Details",
+        f"Customer: {sale.customer_name_display or 'Customer'}",
+        f"Email: {sale.customer_email_display or 'Not provided'}",
+        f"Phone: {sale.customer_phone_display or 'Not provided'}",
+        f"Address: {sale.customer_address_display or 'Not provided'}",
+        f"Delivery Location: {sale.delivery_location or 'Not provided'}",
+        f"Payment Method: {sale.payment_method}",
+        "",
+        "Paid Products",
+    ]
+
+    for item in sale.items.all():
+        lines.append(f"- {item.product.name} x{item.quantity} @ TZS {item.price} = TZS {item.total}")
+
+    lines.extend(
+        [
+            "",
+            f"Subtotal: TZS {sale.total_amount}",
+            f"Discount: TZS {sale.discount}",
+            f"Tax: TZS {sale.tax}",
+            f"Final Amount: TZS {sale.final_amount}",
+            "",
+            "About Us",
+        ]
+    )
+
+    for title, description in RECEIPT_ABOUT_CARDS:
+        lines.append(f"- {title}: {description}")
+
+    lines.extend(
+        [
+            "",
+            "Contact Us",
+            f"- Phone: {STORE_PHONE}",
+            f"- Email: {STORE_EMAIL}",
+            f"- Location: {STORE_LOCATION}",
+        ]
+    )
+
+    wrapped_lines = []
+    for line in lines:
+        if not line:
+            wrapped_lines.append("")
+            continue
+        wrapped_lines.extend(wrap(line, width=92) or [""])
+    return wrapped_lines
+
+
+def _build_basic_receipt_pdf(sale):
+    lines = _fallback_receipt_text_lines(sale)
+    lines_per_page = 48
+    pages = [lines[index:index + lines_per_page] for index in range(0, len(lines), lines_per_page)] or [[]]
+    font_object_id = 3 + len(pages) * 2
+    objects = []
+
+    page_refs = " ".join(f"{3 + index * 2} 0 R" for index in range(len(pages)))
+    objects.append((1, b"<< /Type /Catalog /Pages 2 0 R >>"))
+    objects.append((2, f"<< /Type /Pages /Kids [{page_refs}] /Count {len(pages)} >>".encode("ascii")))
+
+    for index, page_lines in enumerate(pages):
+        page_object_id = 3 + index * 2
+        content_object_id = page_object_id + 1
+        commands = [
+            "BT",
+            "/F1 12 Tf",
+            "50 800 Td",
+            f"({STORE_NAME} Receipt - Page {index + 1}) Tj",
+            "0 -20 Td",
+            "/F1 10 Tf",
+        ]
+        for line in page_lines:
+            commands.append(f"({_pdf_escape(line)}) Tj")
+            commands.append("0 -14 Td")
+        commands.append("ET")
+        stream = "\n".join(commands).encode("latin-1", errors="ignore")
+        page_body = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Resources << /Font << /F1 {font_object_id} 0 R >> >> "
+            f"/Contents {content_object_id} 0 R >>"
+        ).encode("ascii")
+        content_body = f"<< /Length {len(stream)} >>\nstream\n".encode("ascii") + stream + b"\nendstream"
+        objects.append((page_object_id, page_body))
+        objects.append((content_object_id, content_body))
+
+    objects.append((font_object_id, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"))
+    objects.sort(key=lambda item: item[0])
+
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for object_id, body in objects:
+        offsets.append(len(pdf))
+        pdf.extend(f"{object_id} 0 obj\n".encode("ascii"))
+        pdf.extend(body)
+        pdf.extend(b"\nendobj\n")
+
+    xref_offset = len(pdf)
+    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    pdf.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF"
+        ).encode("ascii")
+    )
+    return bytes(pdf)
+
+
 def _receipt_styles():
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+
     base_styles = getSampleStyleSheet()
     return {
         "title": ParagraphStyle(
@@ -184,6 +305,9 @@ def _receipt_styles():
 
 
 def _receipt_section_header(title, width, styles):
+    from reportlab.lib import colors
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
     header = Table(
         [[Paragraph(title, styles["section_title"])]],
         colWidths=[width],
@@ -204,6 +328,8 @@ def _receipt_section_header(title, width, styles):
 
 
 def _receipt_product_image(file_field, width, height):
+    from reportlab.platypus import Image as ReportLabImage
+
     try:
         if not file_field:
             return None
@@ -218,6 +344,15 @@ def _receipt_product_image(file_field, width, height):
 
 
 def build_receipt_pdf(sale):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError:
+        logger.warning("ReportLab is unavailable. Falling back to the basic receipt PDF generator.")
+        return _build_basic_receipt_pdf(sale)
+
     payment = sale.payment
     styles = _receipt_styles()
     buffer = BytesIO()
