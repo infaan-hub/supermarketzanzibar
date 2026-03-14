@@ -1,5 +1,7 @@
+import { useState } from "react";
 import productPlaceholder from "../assets/product-placeholder.svg";
-import { applyImageFallback, toVersionedMediaUrl } from "../lib/media.jsx";
+import { http } from "../api/http.jsx";
+import { applyImageFallback, saleItemImageUrl } from "../lib/media.jsx";
 import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME, STORE_SUBTITLE } from "../lib/storeInfo.js";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
@@ -39,6 +41,32 @@ function AboutIcon({ kind }) {
 
 function ReceiptPreviewCard({ order }) {
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : "Not provided";
+  const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
+
+  const downloadReceipt = async () => {
+    if (!order.receipt_url || downloadState.loading) return;
+
+    setDownloadState({ loading: true, error: "" });
+
+    try {
+      const response = await http.get(order.receipt_url, { responseType: "blob" });
+      const disposition = response.headers["content-disposition"] || "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+      const filename = filenameMatch?.[1] || `zansupermarket-receipt-order-${order.id}.pdf`;
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      setDownloadState({ loading: false, error: "" });
+    } catch {
+      setDownloadState({ loading: false, error: "Unable to download the receipt right now." });
+    }
+  };
 
   return (
     <article className="receipt-preview-card">
@@ -101,12 +129,7 @@ function ReceiptPreviewCard({ order }) {
           {(order.items || []).map((item) => (
             <article className="receipt-preview-item" key={`${order.id}-${item.id}`}>
               <img
-                src={
-                  toVersionedMediaUrl(
-                    item.product_image_url,
-                    item.updated_at || order.updated_at || item.id,
-                  ) || PRODUCT_PLACEHOLDER
-                }
+                src={saleItemImageUrl(item) || PRODUCT_PLACEHOLDER}
                 alt={item.product_name || `Product ${item.product}`}
                 data-fallback-src={PRODUCT_PLACEHOLDER}
                 onError={applyImageFallback}
@@ -151,10 +174,11 @@ function ReceiptPreviewCard({ order }) {
 
       <div className="receipt-preview-actions">
         <p>This receipt is available because the payment for this order has been confirmed.</p>
-        <a className="primary-btn" href={order.receipt_url} target="_blank" rel="noreferrer">
-          Download Receipt
-        </a>
+        <button type="button" className="primary-btn" onClick={downloadReceipt} disabled={downloadState.loading}>
+          {downloadState.loading ? "Downloading..." : "Download Receipt PDF"}
+        </button>
       </div>
+      {downloadState.error ? <p className="error">{downloadState.error}</p> : null}
     </article>
   );
 }

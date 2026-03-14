@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import ReceiptPreviewCard from "../components/ReceiptPreviewCard.jsx";
+import { applyImageFallback, saleItemImageUrl } from "../lib/media.jsx";
+
+const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function CustomerHistoryPage() {
   const [orders, setOrders] = useState([]);
@@ -67,10 +71,19 @@ function CustomerHistoryPage() {
               </div>
               <div className="order-history-meta">
                 <p>Total: TZS {order.final_amount}</p>
-                <div className="row">
+                <div className="order-history-item-list">
                   {(order.items || []).map((item) => (
-                    <Link key={`${order.id}-${item.id}`} className="ghost-btn" to={`/products/${item.product}`}>
-                      {item.product_name || `Product ${item.product}`}
+                    <Link key={`${order.id}-${item.id}`} className="order-history-item" to={`/products/${item.product}`}>
+                      <img
+                        src={saleItemImageUrl(item) || PRODUCT_PLACEHOLDER}
+                        alt={item.product_name || `Product ${item.product}`}
+                        data-fallback-src={PRODUCT_PLACEHOLDER}
+                        onError={applyImageFallback}
+                      />
+                      <div className="order-history-item-copy">
+                        <strong>{item.product_name || `Product ${item.product}`}</strong>
+                        <span>Qty: {item.quantity}</span>
+                      </div>
                     </Link>
                   ))}
                 </div>

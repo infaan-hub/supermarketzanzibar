@@ -738,6 +738,47 @@ select.home-control-panel-field {
   justify-items: end;
 }
 
+.order-history-item-list {
+  display: grid;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.order-history-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(49, 123, 67, 0.12);
+}
+
+.order-history-item img {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.order-history-item-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.order-history-item-copy strong,
+.order-history-item-copy span {
+  display: block;
+}
+
+.order-history-item-copy span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .receipt-preview-card {
   display: grid;
   gap: 1rem;

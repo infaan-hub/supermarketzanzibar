@@ -14,12 +14,29 @@ export function toVersionedMediaUrl(path, version) {
   return `${mediaUrl}${separator}v=${encodeURIComponent(version)}`;
 }
 
-export function productImageUrl(product) {
+export function productLikeImageUrl(product) {
   if (!product) return null;
   return toVersionedMediaUrl(
-    product.image_url || product.image,
-    product.updated_at || product.created_at || product.id,
+    product.product_image_url ||
+      product.image_url ||
+      product.image ||
+      product.product?.image_url ||
+      product.product?.image,
+    product.updated_at ||
+      product.created_at ||
+      product.product?.updated_at ||
+      product.product?.created_at ||
+      product.id ||
+      product.product?.id,
   );
+}
+
+export function productImageUrl(product) {
+  return productLikeImageUrl(product);
+}
+
+export function saleItemImageUrl(item) {
+  return productLikeImageUrl(item);
 }
 
 export function applyImageFallback(event) {
