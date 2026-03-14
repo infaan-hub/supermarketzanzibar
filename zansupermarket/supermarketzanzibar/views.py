@@ -3,6 +3,7 @@ from io import BytesIO
 from textwrap import wrap
 from urllib.parse import quote
 from decimal import Decimal
+from xml.sax.saxutils import escape
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
@@ -203,35 +204,101 @@ def _build_basic_receipt_pdf(sale):
     return bytes(pdf)
 
 
-def _receipt_styles():
+def _safe_receipt_text(value, fallback="Not provided"):
+    if value in (None, ""):
+        value = fallback
+    return escape(str(value))
+
+
+def _receipt_money(value):
+    return f"TZS {value}"
+
+
+def _receipt_payment_method(value):
+    if not value:
+        return "Not provided"
+    return str(value).replace("_", " ").title()
+
+
+def _receipt_palette():
+    from reportlab.lib import colors
+
+    return {
+        "page": colors.HexColor("#edf6ee"),
+        "surface": colors.HexColor("#f8fbf8"),
+        "surface_strong": colors.HexColor("#ffffff"),
+        "surface_soft": colors.HexColor("#eef5ef"),
+        "surface_glow": colors.HexColor("#e1efe3"),
+        "border": colors.HexColor("#d7e6d7"),
+        "border_strong": colors.HexColor("#bfd8c3"),
+        "accent": colors.HexColor("#1f8f3a"),
+        "accent_dark": colors.HexColor("#15722d"),
+        "accent_soft": colors.HexColor("#dff1e2"),
+        "accent_tint": colors.HexColor("#eaf6ec"),
+        "header_pill": colors.HexColor("#3da553"),
+        "header_pill_border": colors.HexColor("#75c58a"),
+        "text": colors.HexColor("#213128"),
+        "muted": colors.HexColor("#668070"),
+        "gold_soft": colors.HexColor("#efe8ca"),
+    }
+
+
+def _receipt_styles(palette):
     from reportlab.lib import colors
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 
     base_styles = getSampleStyleSheet()
     return {
-        "title": ParagraphStyle(
-            "ReceiptTitle",
-            parent=base_styles["Heading1"],
+        "brand_kicker": ParagraphStyle(
+            "ReceiptBrandKicker",
+            parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=22,
-            leading=26,
+            fontSize=8.2,
+            leading=10,
             textColor=colors.whitesmoke,
             spaceAfter=4,
         ),
-        "header_text": ParagraphStyle(
-            "ReceiptHeaderText",
+        "brand_title": ParagraphStyle(
+            "ReceiptBrandTitle",
+            parent=base_styles["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=24,
+            leading=27,
+            textColor=colors.whitesmoke,
+            spaceAfter=3,
+        ),
+        "brand_subtitle": ParagraphStyle(
+            "ReceiptBrandSubtitle",
             parent=base_styles["BodyText"],
             fontName="Helvetica",
-            fontSize=10,
+            fontSize=10.2,
             leading=13,
             textColor=colors.whitesmoke,
         ),
-        "header_status": ParagraphStyle(
-            "ReceiptHeaderStatus",
+        "status_label": ParagraphStyle(
+            "ReceiptStatusLabel",
             parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=15,
-            leading=18,
+            fontSize=8.1,
+            leading=10,
+            alignment=2,
+            textColor=colors.whitesmoke,
+        ),
+        "status_primary": ParagraphStyle(
+            "ReceiptStatusPrimary",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=12.8,
+            leading=15,
+            alignment=2,
+            textColor=colors.whitesmoke,
+        ),
+        "status_secondary": ParagraphStyle(
+            "ReceiptStatusSecondary",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.2,
+            leading=11.5,
             alignment=2,
             textColor=colors.whitesmoke,
         ),
@@ -239,18 +306,17 @@ def _receipt_styles():
             "ReceiptSectionTitle",
             parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor("#15722d"),
-            textTransform="uppercase",
+            fontSize=9.4,
+            leading=11,
+            textColor=palette["accent_dark"],
         ),
         "label": ParagraphStyle(
             "ReceiptLabel",
             parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=9,
-            leading=11,
-            textColor=colors.HexColor("#668070"),
+            fontSize=8.1,
+            leading=10,
+            textColor=palette["muted"],
         ),
         "value": ParagraphStyle(
             "ReceiptValue",
@@ -258,24 +324,57 @@ def _receipt_styles():
             fontName="Helvetica",
             fontSize=9.4,
             leading=12,
-            textColor=colors.HexColor("#213128"),
+            textColor=palette["text"],
         ),
         "value_bold": ParagraphStyle(
             "ReceiptValueBold",
             parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor("#213128"),
+            fontSize=10.1,
+            leading=12.6,
+            textColor=palette["text"],
+        ),
+        "success": ParagraphStyle(
+            "ReceiptSuccess",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=11.8,
+            leading=14,
+            textColor=palette["accent"],
         ),
         "total": ParagraphStyle(
             "ReceiptTotal",
             parent=base_styles["BodyText"],
             fontName="Helvetica-Bold",
-            fontSize=14,
-            leading=17,
-            textColor=colors.HexColor("#15722d"),
+            fontSize=18,
+            leading=21,
+            textColor=palette["accent_dark"],
             alignment=2,
+        ),
+        "total_small": ParagraphStyle(
+            "ReceiptTotalSmall",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=12.5,
+            leading=15,
+            textColor=palette["accent_dark"],
+            alignment=2,
+        ),
+        "product_title": ParagraphStyle(
+            "ReceiptProductTitle",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=11.1,
+            leading=13.5,
+            textColor=palette["text"],
+        ),
+        "product_meta": ParagraphStyle(
+            "ReceiptProductMeta",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.1,
+            leading=12,
+            textColor=palette["muted"],
         ),
         "small": ParagraphStyle(
             "ReceiptSmall",
@@ -283,7 +382,7 @@ def _receipt_styles():
             fontName="Helvetica",
             fontSize=8.5,
             leading=11,
-            textColor=colors.HexColor("#668070"),
+            textColor=palette["muted"],
         ),
         "info_title": ParagraphStyle(
             "ReceiptInfoTitle",
@@ -291,7 +390,7 @@ def _receipt_styles():
             fontName="Helvetica-Bold",
             fontSize=10,
             leading=12,
-            textColor=colors.HexColor("#213128"),
+            textColor=palette["text"],
         ),
         "info_text": ParagraphStyle(
             "ReceiptInfoText",
@@ -299,32 +398,189 @@ def _receipt_styles():
             fontName="Helvetica",
             fontSize=8.8,
             leading=12,
-            textColor=colors.HexColor("#668070"),
+            textColor=palette["muted"],
+        ),
+        "badge": ParagraphStyle(
+            "ReceiptBadge",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=8.2,
+            leading=9,
+            alignment=1,
+            textColor=colors.whitesmoke,
+        ),
+        "placeholder": ParagraphStyle(
+            "ReceiptPlaceholder",
+            parent=base_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=7.8,
+            leading=10,
+            alignment=1,
+            textColor=palette["muted"],
         ),
     }
 
 
-def _receipt_section_header(title, width, styles):
-    from reportlab.lib import colors
-    from reportlab.platypus import Paragraph, Table, TableStyle
+def _receipt_resolve_color(palette, value):
+    return palette[value] if isinstance(value, str) else value
 
-    header = Table(
-        [[Paragraph(title, styles["section_title"])]],
-        colWidths=[width],
-    )
-    header.setStyle(
+
+def _receipt_card(content, width, palette, background="surface", border="border", paddings=(12, 12, 10, 10), stroke_width=0.8):
+    from reportlab.platypus import Table, TableStyle
+
+    left, right, top, bottom = paddings
+    cell_content = content if isinstance(content, list) else [content]
+    card = Table([[cell_content]], colWidths=[width] if width is not None else None)
+    card.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#dcefdc")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#c4ddc4")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("BACKGROUND", (0, 0), (-1, -1), _receipt_resolve_color(palette, background)),
+                ("BOX", (0, 0), (-1, -1), stroke_width, _receipt_resolve_color(palette, border)),
+                ("LEFTPADDING", (0, 0), (-1, -1), left),
+                ("RIGHTPADDING", (0, 0), (-1, -1), right),
+                ("TOPPADDING", (0, 0), (-1, -1), top),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), bottom),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
     )
+    return card
+
+
+def _receipt_section_header(title, styles, palette):
+    from reportlab.platypus import Paragraph
+
+    header = _receipt_card(
+        Paragraph(_safe_receipt_text(title), styles["section_title"]),
+        None,
+        palette,
+        background="accent_soft",
+        border="border_strong",
+        paddings=(12, 12, 7, 7),
+    )
+    header.hAlign = "LEFT"
     return header
+
+
+def _receipt_data_card(label, value, width, styles, palette):
+    from reportlab.platypus import Paragraph, Spacer
+
+    return _receipt_card(
+        [
+            Paragraph(_safe_receipt_text(label), styles["label"]),
+            Spacer(1, 3),
+            Paragraph(_safe_receipt_text(value), styles["value_bold"]),
+        ],
+        width,
+        palette,
+        background="surface_soft",
+        border="border",
+        paddings=(10, 10, 8, 8),
+    )
+
+
+def _receipt_badge(text, styles, palette):
+    from reportlab.platypus import Paragraph
+
+    badge = _receipt_card(
+        Paragraph(_safe_receipt_text(text), styles["badge"]),
+        18,
+        palette,
+        background="accent",
+        border="accent",
+        paddings=(0, 0, 4, 4),
+        stroke_width=0,
+    )
+    badge.hAlign = "LEFT"
+    return badge
+
+
+def _receipt_product_visual(file_field, width, height, styles, palette):
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    image = _receipt_product_image(file_field, width - 6, height - 6)
+    box = Table(
+        [[image or Paragraph("PRODUCT IMAGE<br/>UNAVAILABLE", styles["placeholder"])]],
+        colWidths=[width],
+        rowHeights=[height],
+    )
+    box.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), palette["surface_soft"]),
+                ("BOX", (0, 0), (-1, -1), 0.8, palette["border"]),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+    return box
+
+
+def _receipt_info_card(title, description, width, badge_text, styles, palette):
+    from reportlab.platypus import Paragraph, Spacer
+
+    return _receipt_card(
+        [
+            _receipt_badge(badge_text, styles, palette),
+            Spacer(1, 8),
+            Paragraph(_safe_receipt_text(title), styles["info_title"]),
+            Spacer(1, 4),
+            Paragraph(_safe_receipt_text(description), styles["info_text"]),
+        ],
+        width,
+        palette,
+        background="surface_soft",
+        border="border",
+        paddings=(12, 12, 11, 11),
+    )
+
+
+def _receipt_contact_card(label, value, width, styles, palette):
+    from reportlab.platypus import Paragraph, Spacer
+
+    return _receipt_card(
+        [
+            Paragraph(_safe_receipt_text(label), styles["label"]),
+            Spacer(1, 4),
+            Paragraph(_safe_receipt_text(value), styles["value_bold"]),
+        ],
+        width,
+        palette,
+        background="surface_soft",
+        border="border",
+        paddings=(12, 12, 11, 11),
+    )
+
+
+def _receipt_key_value_table(rows, width, styles, palette):
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    table = Table(
+        [
+            [Paragraph(_safe_receipt_text(label), styles["label"]), Paragraph(_safe_receipt_text(value), styles["value_bold"])]
+            for label, value in rows
+        ],
+        colWidths=[width * 0.42, width * 0.58],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LINEBELOW", (0, 0), (-1, -2), 0.5, palette["border"]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
+    return table
 
 
 def _receipt_product_image(file_field, width, height):
@@ -354,7 +610,8 @@ def build_receipt_pdf(sale):
         return _build_basic_receipt_pdf(sale)
 
     payment = sale.payment
-    styles = _receipt_styles()
+    palette = _receipt_palette()
+    styles = _receipt_styles(palette)
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -366,224 +623,309 @@ def build_receipt_pdf(sale):
         pageCompression=0,
     )
     page_width = A4[0] - doc.leftMargin - doc.rightMargin
+    column_gap = 6 * mm
     story = []
+    control_number = getattr(payment, "control_number", None) or "Pending"
+    created_at_text = sale.created_at.strftime("%d %b %Y, %H:%M") if getattr(sale, "created_at", None) else "Not provided"
+    details_width = page_width * 0.66
+    payment_width = page_width - details_width - column_gap
+    detail_card_width = (details_width - 20 - column_gap) / 2
+
+    header_status_card = _receipt_card(
+        [
+            Paragraph("Payment Confirmed", styles["status_label"]),
+            Spacer(1, 4),
+            Paragraph(f"Control #{_safe_receipt_text(control_number)}", styles["status_primary"]),
+            Spacer(1, 3),
+            Paragraph(f"Order #{sale.id}", styles["status_secondary"]),
+            Paragraph(_safe_receipt_text(created_at_text), styles["status_secondary"]),
+        ],
+        payment_width - 8,
+        palette,
+        background="header_pill",
+        border="header_pill_border",
+        paddings=(12, 12, 10, 10),
+    )
+    header_status_card.hAlign = "RIGHT"
 
     header_table = Table(
         [
             [
-                Paragraph(
-                    (
-                        f"<font size='22'><b>{STORE_NAME}</b></font><br/>"
-                        f"<font size='10'>{STORE_SUBTITLE}</font><br/>"
-                        "<font size='10'>Official Customer Receipt</font>"
-                    ),
-                    styles["title"],
-                ),
-                Paragraph(
-                    f"Payment Confirmed<br/>Control #{payment.control_number}<br/>Order #{sale.id}<br/>{sale.created_at:%Y-%m-%d %H:%M}",
-                    styles["header_status"],
-                ),
+                [
+                    Paragraph("OFFICIAL CUSTOMER RECEIPT", styles["brand_kicker"]),
+                    Paragraph(_safe_receipt_text(STORE_NAME), styles["brand_title"]),
+                    Paragraph(_safe_receipt_text(STORE_SUBTITLE), styles["brand_subtitle"]),
+                ],
+                header_status_card,
             ]
         ],
-        colWidths=[page_width * 0.62, page_width * 0.38],
+        colWidths=[details_width, payment_width],
     )
     header_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1f8f3a")),
+                ("BACKGROUND", (0, 0), (-1, -1), palette["accent"]),
                 ("TEXTCOLOR", (0, 0), (-1, -1), colors.whitesmoke),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 14),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
-                ("TOPPADDING", (0, 0), (-1, -1), 14),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
-                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#15722d")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 16),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+                ("TOPPADDING", (0, 0), (-1, -1), 16),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+                ("BOX", (0, 0), (-1, -1), 0.8, palette["accent_dark"]),
             ]
         )
     )
-    story.extend([header_table, Spacer(1, 10)])
+    story.extend([header_table, Spacer(1, 12)])
 
-    detail_rows = [
-        [
-            Paragraph("Customer", styles["label"]),
-            Paragraph(sale.customer_name_display or "Customer", styles["value"]),
-            Paragraph("Email", styles["label"]),
-            Paragraph(sale.customer_email_display or "Not provided", styles["value"]),
-        ],
-        [
-            Paragraph("Phone", styles["label"]),
-            Paragraph(sale.customer_phone_display or "Not provided", styles["value"]),
-            Paragraph("Address", styles["label"]),
-            Paragraph(sale.customer_address_display or "Not provided", styles["value"]),
-        ],
-        [
-            Paragraph("Delivery", styles["label"]),
-            Paragraph(sale.delivery_location or "Not provided", styles["value"]),
-            Paragraph("Payment Method", styles["label"]),
-            Paragraph(sale.payment_method, styles["value"]),
-        ],
+    detail_cards = [
+        _receipt_data_card("Customer", sale.customer_name_display or "Customer", detail_card_width, styles, palette),
+        _receipt_data_card("Email", sale.customer_email_display or "Not provided", detail_card_width, styles, palette),
+        _receipt_data_card("Phone", sale.customer_phone_display or "Not provided", detail_card_width, styles, palette),
+        _receipt_data_card("Address", sale.customer_address_display or "Not provided", detail_card_width, styles, palette),
+        _receipt_data_card("Delivery", sale.delivery_location or "Not provided", detail_card_width, styles, palette),
+        _receipt_data_card("Order Date", created_at_text, detail_card_width, styles, palette),
     ]
-    details_table = Table(
-        detail_rows,
-        colWidths=[22 * mm, 56 * mm, 24 * mm, page_width - (22 + 56 + 24) * mm],
+    details_grid = Table(
+        [
+            [detail_cards[0], detail_cards[1]],
+            [detail_cards[2], detail_cards[3]],
+            [detail_cards[4], detail_cards[5]],
+        ],
+        colWidths=[detail_card_width, detail_card_width],
     )
-    details_table.setStyle(
+    details_grid.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-                ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), column_gap / 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
             ]
         )
     )
-    story.extend(
+    details_panel = _receipt_card(
         [
-            _receipt_section_header("Customer & Order Details", page_width, styles),
-            Spacer(1, 6),
-            details_table,
+            _receipt_section_header("CUSTOMER & ORDER DETAILS", styles, palette),
             Spacer(1, 10),
-        ]
+            details_grid,
+        ],
+        details_width,
+        palette,
+        background="surface",
+        border="border_strong",
+        paddings=(14, 14, 14, 8),
     )
 
-    product_cards = []
-    for item in sale.items.all():
-        image_cell = _receipt_product_image(getattr(item.product, "image", None), 22 * mm, 22 * mm)
-        if image_cell is None:
-            image_cell = Paragraph("Product image unavailable", styles["small"])
-        copy = Paragraph(
-            (
-                f"<b>{item.product.name}</b><br/>"
-                f"Quantity: {item.quantity}<br/>"
-                f"Unit Price: TZS {item.price}<br/>"
-                f"Paid Total: TZS {item.total}"
-            ),
-            styles["value"],
+    payment_panel_content_width = payment_width - 28
+    payment_breakdown = _receipt_key_value_table(
+        [
+            ("Status", "Confirmed"),
+            ("Payment Method", _receipt_payment_method(sale.payment_method)),
+            ("Control Number", control_number),
+        ],
+        payment_panel_content_width,
+        styles,
+        palette,
+    )
+    payment_panel = _receipt_card(
+        [
+            _receipt_section_header("PAYMENT", styles, palette),
+            Spacer(1, 10),
+            Paragraph("Confirmed", styles["success"]),
+            Spacer(1, 4),
+            Paragraph("Final Amount", styles["label"]),
+            Paragraph(_receipt_money(sale.final_amount), styles["total"]),
+            Spacer(1, 8),
+            payment_breakdown,
+        ],
+        payment_width,
+        palette,
+        background="surface",
+        border="border_strong",
+        paddings=(14, 14, 14, 14),
+    )
+
+    summary_table = Table(
+        [[details_panel, "", payment_panel]],
+        colWidths=[details_width, column_gap, payment_width],
+    )
+    summary_table.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
         )
-        total = Paragraph(f"TZS {item.total}", styles["total"])
+    )
+    story.extend([summary_table, Spacer(1, 12)])
+
+    story.extend([_receipt_section_header("PAID PRODUCTS", styles, palette), Spacer(1, 8)])
+    image_width = 29 * mm
+    amount_width = 38 * mm
+    detail_width = page_width - image_width - amount_width
+    for item in sale.items.all():
+        product_copy = [
+            Paragraph(_safe_receipt_text(item.product.name), styles["product_title"]),
+            Spacer(1, 4),
+            Paragraph(f"Quantity: {_safe_receipt_text(item.quantity)}", styles["product_meta"]),
+            Paragraph(f"Unit Price: {_receipt_money(item.price)}", styles["product_meta"]),
+            Paragraph(f"Paid Total: {_receipt_money(item.total)}", styles["product_meta"]),
+        ]
+        total_chip = _receipt_card(
+            [
+                Paragraph("PAID TOTAL", styles["label"]),
+                Spacer(1, 5),
+                Paragraph(_receipt_money(item.total), styles["total_small"]),
+            ],
+            amount_width - 16,
+            palette,
+            background="accent_tint",
+            border="border_strong",
+            paddings=(10, 10, 8, 8),
+        )
+        total_chip.hAlign = "RIGHT"
         item_table = Table(
-            [[image_cell, copy, total]],
-            colWidths=[28 * mm, page_width - 28 * mm - 35 * mm, 35 * mm],
+            [
+                [
+                    _receipt_product_visual(getattr(item.product, "image", None), image_width - 8, image_width - 8, styles, palette),
+                    product_copy,
+                    total_chip,
+                ]
+            ],
+            colWidths=[image_width, detail_width, amount_width],
         )
         item_table.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
+                    ("BACKGROUND", (0, 0), (-1, -1), palette["surface_strong"]),
+                    ("BOX", (0, 0), (-1, -1), 0.8, palette["border"]),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                    ("TOPPADDING", (0, 0), (-1, -1), 8),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
                 ]
             )
         )
-        product_cards.extend([item_table, Spacer(1, 6)])
+        story.extend([item_table, Spacer(1, 7)])
 
-    totals_table = Table(
+    totals_width = 82 * mm
+    totals_table = _receipt_key_value_table(
         [
-            [Paragraph("Subtotal", styles["label"]), Paragraph(f"TZS {sale.total_amount}", styles["value_bold"])],
-            [Paragraph("Discount", styles["label"]), Paragraph(f"TZS {sale.discount}", styles["value_bold"])],
-            [Paragraph("Tax", styles["label"]), Paragraph(f"TZS {sale.tax}", styles["value_bold"])],
-            [Paragraph("Final Amount", styles["label"]), Paragraph(f"TZS {sale.final_amount}", styles["total"])],
+            ("Subtotal", _receipt_money(sale.total_amount)),
+            ("Discount", _receipt_money(sale.discount)),
+            ("Tax", _receipt_money(sale.tax)),
+            ("Final Amount", _receipt_money(sale.final_amount)),
         ],
-        colWidths=[42 * mm, 45 * mm],
-        hAlign="RIGHT",
+        totals_width - 24,
+        styles,
+        palette,
     )
-    totals_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
-                ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-            ]
-        )
-    )
-    story.extend(
+    totals_card = _receipt_card(
         [
-            _receipt_section_header("Paid Products", page_width, styles),
-            Spacer(1, 6),
-            *product_cards,
-            Spacer(1, 4),
+            _receipt_section_header("TOTALS", styles, palette),
+            Spacer(1, 9),
             totals_table,
-            Spacer(1, 10),
-        ]
+        ],
+        totals_width,
+        palette,
+        background="surface",
+        border="border_strong",
+        paddings=(12, 12, 12, 12),
     )
+    totals_card.hAlign = "RIGHT"
+    story.extend([totals_card, Spacer(1, 12)])
 
-    about_cards = []
-    for title, description in RECEIPT_ABOUT_CARDS:
-        about_cards.append(
-            Paragraph(f"<b>{title}</b><br/>{description}", styles["info_text"])
-        )
-    about_table = Table([about_cards], colWidths=[page_width / 3.0] * 3)
+    story.extend([_receipt_section_header("ABOUT US", styles, palette), Spacer(1, 8)])
+    about_card_width = (page_width - column_gap * 2) / 3.0
+    about_table = Table(
+        [[
+            _receipt_info_card(title, description, about_card_width, f"{index + 1:02d}", styles, palette)
+            for index, (title, description) in enumerate(RECEIPT_ABOUT_CARDS)
+        ]],
+        colWidths=[about_card_width, about_card_width, about_card_width],
+    )
     about_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 9),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), column_gap / 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
     )
-    story.extend(
-        [
-            _receipt_section_header("About Us", page_width, styles),
-            Spacer(1, 6),
-            about_table,
-            Spacer(1, 10),
-        ]
-    )
+    story.extend([about_table, Spacer(1, 12)])
 
+    story.extend([_receipt_section_header("CONTACT US", styles, palette), Spacer(1, 8)])
+    contact_card_width = (page_width - column_gap * 2) / 3.0
     contact_table = Table(
-        [
-            [
-                Paragraph(f"<b>Phone</b><br/>{STORE_PHONE}", styles["info_text"]),
-                Paragraph(f"<b>Email</b><br/>{STORE_EMAIL}", styles["info_text"]),
-                Paragraph(f"<b>Location</b><br/>{STORE_LOCATION}", styles["info_text"]),
-            ]
-        ],
-        colWidths=[page_width / 3.0] * 3,
+        [[
+            _receipt_contact_card("Phone", STORE_PHONE, contact_card_width, styles, palette),
+            _receipt_contact_card("Email", STORE_EMAIL, contact_card_width, styles, palette),
+            _receipt_contact_card("Location", STORE_LOCATION, contact_card_width, styles, palette),
+        ]],
+        colWidths=[contact_card_width, contact_card_width, contact_card_width],
     )
     contact_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fbf8")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#dbe6db")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#dbe6db")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 9),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), column_gap / 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
     )
     story.extend(
         [
-            _receipt_section_header("Contact Us", page_width, styles),
-            Spacer(1, 6),
             contact_table,
-            Spacer(1, 8),
-            Paragraph(
-                "This receipt is issued because your payment has been confirmed by Zansupermarket.",
-                styles["small"],
+            Spacer(1, 10),
+            _receipt_card(
+                Paragraph(
+                    "This receipt is issued because your payment has been confirmed by Zansupermarket.",
+                    styles["small"],
+                ),
+                page_width,
+                palette,
+                background="accent_tint",
+                border="border_strong",
+                paddings=(12, 12, 10, 10),
             ),
         ]
     )
 
-    doc.build(story)
+    def draw_receipt_page(canvas, document):
+        canvas.saveState()
+        canvas.setFillColor(palette["page"])
+        canvas.rect(0, 0, *A4, fill=1, stroke=0)
+        canvas.setFillColor(palette["surface_glow"])
+        canvas.circle(A4[0] - 26 * mm, A4[1] - 24 * mm, 20 * mm, fill=1, stroke=0)
+        canvas.setFillColor(palette["gold_soft"])
+        canvas.circle(20 * mm, 18 * mm, 14 * mm, fill=1, stroke=0)
+        canvas.setStrokeColor(palette["border_strong"])
+        canvas.setLineWidth(0.8)
+        canvas.roundRect(
+            document.leftMargin - 5 * mm,
+            document.bottomMargin - 5 * mm,
+            A4[0] - document.leftMargin - document.rightMargin + 10 * mm,
+            A4[1] - document.topMargin - document.bottomMargin + 10 * mm,
+            10,
+            fill=0,
+            stroke=1,
+        )
+        canvas.setFillColor(palette["muted"])
+        canvas.setFont("Helvetica", 8)
+        canvas.drawRightString(A4[0] - document.rightMargin, 8 * mm, f"Receipt | Page {document.page}")
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=draw_receipt_page, onLaterPages=draw_receipt_page)
     return buffer.getvalue()
 
 
