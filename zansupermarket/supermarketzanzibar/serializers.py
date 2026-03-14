@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
+from django.urls import reverse
 from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
@@ -286,10 +287,15 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
 class SaleItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
+    product_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SaleItem
         fields = "__all__"
+
+    def get_product_image_url(self, obj):
+        request = self.context.get("request")
+        return safe_media_url(getattr(obj.product, "image", None), request)
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -302,8 +308,13 @@ class PaymentSerializer(serializers.ModelSerializer):
 class PaymentAdminSerializer(serializers.ModelSerializer):
     sale_id = serializers.IntegerField(source="sale.id", read_only=True)
     sale_status = serializers.CharField(source="sale.status", read_only=True)
-    customer_name = serializers.CharField(source="sale.user.full_name", read_only=True)
-    customer_email = serializers.EmailField(source="sale.user.email", read_only=True)
+    sale_total = serializers.DecimalField(source="sale.final_amount", max_digits=12, decimal_places=2, read_only=True)
+    delivery_location = serializers.CharField(source="sale.delivery_location", read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    customer_address = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
@@ -315,9 +326,29 @@ class PaymentAdminSerializer(serializers.ModelSerializer):
             "created_at",
             "sale_id",
             "sale_status",
+            "sale_total",
+            "delivery_location",
             "customer_name",
             "customer_email",
+            "customer_phone",
+            "customer_address",
+            "items",
         )
+
+    def get_customer_name(self, obj):
+        return obj.sale.customer_name_display or "Customer"
+
+    def get_customer_email(self, obj):
+        return obj.sale.customer_email_display
+
+    def get_customer_phone(self, obj):
+        return obj.sale.customer_phone_display
+
+    def get_customer_address(self, obj):
+        return obj.sale.customer_address_display
+
+    def get_items(self, obj):
+        return SaleItemSerializer(obj.sale.items.all(), many=True, context=self.context).data
 
 
 class SaleSerializer(serializers.ModelSerializer):
@@ -325,10 +356,42 @@ class SaleSerializer(serializers.ModelSerializer):
     payment = PaymentSerializer(read_only=True)
     payment_control_number = serializers.CharField(source="payment.control_number", read_only=True)
     payment_status = serializers.CharField(source="payment.status", read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    customer_address = serializers.SerializerMethodField()
+    receipt_available = serializers.SerializerMethodField()
+    receipt_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
         fields = "__all__"
+
+    def get_customer_name(self, obj):
+        return obj.customer_name_display or "Customer"
+
+    def get_customer_email(self, obj):
+        return obj.customer_email_display
+
+    def get_customer_phone(self, obj):
+        return obj.customer_phone_display
+
+    def get_customer_address(self, obj):
+        return obj.customer_address_display
+
+    def get_receipt_available(self, obj):
+        payment = getattr(obj, "payment", None)
+        return bool(payment and payment.status == "confirmed")
+
+    def get_receipt_url(self, obj):
+        payment = getattr(obj, "payment", None)
+        if not payment or payment.status != "confirmed":
+            return None
+        request = self.context.get("request")
+        url = reverse("customer_order_receipt", kwargs={"sale_id": obj.id})
+        if request is not None:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class StockSerializer(serializers.ModelSerializer):
@@ -345,5 +408,9 @@ class CheckoutItemSerializer(serializers.Serializer):
 class CheckoutSerializer(serializers.Serializer):
     items = CheckoutItemSerializer(many=True)
     payment_method = serializers.CharField(default="mobile_money")
+    customer_full_name = serializers.CharField(required=False, allow_blank=True)
+    customer_email = serializers.EmailField(required=False, allow_blank=True)
+    customer_phone = serializers.CharField(required=False, allow_blank=True)
+    customer_address = serializers.CharField(required=False, allow_blank=True)
     delivery_location = serializers.CharField(required=False, allow_blank=True)
     terms_accepted = serializers.BooleanField(default=False)

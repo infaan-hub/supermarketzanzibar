@@ -1,9 +1,12 @@
 import logging
+from textwrap import wrap
+from urllib.parse import quote
 from decimal import Decimal
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
+from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -32,6 +35,142 @@ from .serializers import (
 User = get_user_model()
 logger = logging.getLogger(__name__)
 PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, SuspiciousOperation)
+WHATSAPP_ORDER_NUMBER = "255711252758"
+
+
+def build_whatsapp_order_url(sale, payment, sale_items):
+    lines = [
+        "Zanzibar Supermarket Order",
+        f"Order ID: {sale.id}",
+        f"Control Number: {payment.control_number}",
+        f"Customer: {sale.customer_name_display or 'Customer'}",
+        f"Email: {sale.customer_email_display or 'Not provided'}",
+        f"Phone: {sale.customer_phone_display or 'Not provided'}",
+        f"Address: {sale.customer_address_display or 'Not provided'}",
+        f"Delivery Location: {sale.delivery_location or 'Not provided'}",
+        f"Payment Method: {sale.payment_method}",
+        f"Payment Status: {payment.status}",
+        f"Total: TZS {sale.final_amount}",
+        "Items:",
+    ]
+
+    for product, quantity in sale_items:
+        lines.append(f"- {product.name} x{quantity} @ TZS {product.price} = TZS {product.price * quantity}")
+
+    message = "\n".join(lines)
+    return f"https://wa.me/{WHATSAPP_ORDER_NUMBER}?text={quote(message)}"
+
+
+def _pdf_escape(value):
+    text = str(value)
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _receipt_text_lines(sale):
+    lines = [
+        "Zanzibar Supermarket Receipt",
+        f"Receipt for Order #{sale.id}",
+        f"Control Number: {sale.payment.control_number}",
+        f"Payment Status: {sale.payment.status}",
+        f"Order Date: {sale.created_at:%Y-%m-%d %H:%M}",
+        "",
+        f"Customer: {sale.customer_name_display or 'Customer'}",
+        f"Email: {sale.customer_email_display or 'Not provided'}",
+        f"Phone: {sale.customer_phone_display or 'Not provided'}",
+        f"Address: {sale.customer_address_display or 'Not provided'}",
+        f"Delivery Location: {sale.delivery_location or 'Not provided'}",
+        "",
+        "Products:",
+    ]
+
+    for item in sale.items.all():
+        lines.append(
+            f"- {item.product_name if hasattr(item, 'product_name') else item.product.name} x{item.quantity} @ TZS {item.price} = TZS {item.total}"
+        )
+
+    lines.extend(
+        [
+            "",
+            f"Subtotal: TZS {sale.total_amount}",
+            f"Discount: TZS {sale.discount}",
+            f"Tax: TZS {sale.tax}",
+            f"Final Amount: TZS {sale.final_amount}",
+            "",
+            "Thank you for shopping with Zanzibar Supermarket.",
+        ]
+    )
+    wrapped_lines = []
+    for line in lines:
+        if not line:
+            wrapped_lines.append("")
+            continue
+        wrapped_lines.extend(wrap(line, width=92) or [""])
+    return wrapped_lines
+
+
+def build_receipt_pdf(sale):
+    lines = _receipt_text_lines(sale)
+    lines_per_page = 48
+    pages = [lines[index:index + lines_per_page] for index in range(0, len(lines), lines_per_page)] or [[]]
+    font_object_id = 3 + len(pages) * 2
+    objects = []
+
+    page_refs = " ".join(f"{3 + index * 2} 0 R" for index in range(len(pages)))
+    objects.append((1, b"<< /Type /Catalog /Pages 2 0 R >>"))
+    objects.append((2, f"<< /Type /Pages /Kids [{page_refs}] /Count {len(pages)} >>".encode("ascii")))
+
+    for index, page_lines in enumerate(pages):
+        page_object_id = 3 + index * 2
+        content_object_id = page_object_id + 1
+        commands = [
+            "BT",
+            "/F1 12 Tf",
+            "50 800 Td",
+            f"(Zanzibar Supermarket Receipt - Page {index + 1}) Tj",
+            "0 -20 Td",
+            "/F1 10 Tf",
+        ]
+        for line in page_lines:
+            commands.append(f"({_pdf_escape(line)}) Tj")
+            commands.append("0 -14 Td")
+        commands.append("ET")
+        stream = "\n".join(commands).encode("latin-1", errors="ignore")
+        page_body = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Resources << /Font << /F1 {font_object_id} 0 R >> >> "
+            f"/Contents {content_object_id} 0 R >>"
+        ).encode("ascii")
+        content_body = (
+            f"<< /Length {len(stream)} >>\nstream\n".encode("ascii")
+            + stream
+            + b"\nendstream"
+        )
+        objects.append((page_object_id, page_body))
+        objects.append((content_object_id, content_body))
+
+    objects.append((font_object_id, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"))
+    objects.sort(key=lambda item: item[0])
+
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for object_id, body in objects:
+        offsets.append(len(pdf))
+        pdf.extend(f"{object_id} 0 obj\n".encode("ascii"))
+        pdf.extend(body)
+        pdf.extend(b"\nendobj\n")
+
+    xref_offset = len(pdf)
+    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    pdf.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF"
+        ).encode("ascii")
+    )
+    return bytes(pdf)
 
 
 class IsAdminRole(permissions.BasePermission):
@@ -383,11 +522,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
         sale.save()
 
         customer_name = (
-            sale.user.full_name
-            if sale.user and getattr(sale.user, "full_name", None)
+            sale.customer_name_display
+            if sale.customer_name_display
             else "Customer"
         )
-        customer_email = sale.user.email if sale.user and getattr(sale.user, "email", None) else ""
+        customer_email = sale.customer_email_display
         if customer_email:
             subject = f"Payment Confirmed - Control #{payment.control_number}"
             message = (
@@ -449,6 +588,10 @@ class CheckoutView(APIView):
         product_map = {p.id: p for p in Product.objects.filter(id__in=[item["product"] for item in items_payload])}
         total_amount = Decimal("0.00")
         sale_items = []
+        customer_full_name = data.get("customer_full_name") or request.user.full_name or request.user.username
+        customer_email = data.get("customer_email") or request.user.email or ""
+        customer_phone = data.get("customer_phone") or request.user.phone or ""
+        customer_address = data.get("customer_address") or request.user.address or ""
 
         for item in items_payload:
             product = product_map.get(item["product"])
@@ -471,6 +614,10 @@ class CheckoutView(APIView):
             payment_confirmed=False,
             delivery_location=data.get("delivery_location", ""),
             terms_accepted=data.get("terms_accepted", False),
+            customer_full_name=customer_full_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            customer_address=customer_address,
             status="pending_payment",
         )
 
@@ -497,24 +644,28 @@ class CheckoutView(APIView):
         )
         subject = f"Order Received - Control #{payment.control_number}"
         message = (
-            f"Hello {request.user.full_name},\n\n"
+            f"Hello {customer_full_name},\n\n"
             f"Your order was created successfully.\n"
             f"Order ID: {sale.id}\n"
             f"Control Number: {payment.control_number}\n"
             f"Payment Method: {payment.payment_method}\n"
             f"Payment Status: {payment.status}\n"
             f"Total: {sale.final_amount}\n"
+            f"Phone: {customer_phone or 'Not provided'}\n"
+            f"Address: {customer_address or 'Not provided'}\n"
             f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
             f"Items:\n{items_text}\n\n"
             "Your payment is pending admin confirmation. Thank you for shopping with Zanzibar Super System."
         )
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email="noreply@zansupermarket.local",
-            recipient_list=[request.user.email],
-            fail_silently=True,
-        )
+        recipient_email = customer_email or request.user.email or ""
+        if recipient_email:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email="noreply@zansupermarket.local",
+                recipient_list=[recipient_email],
+                fail_silently=True,
+            )
 
         admin_emails = list(User.objects.filter(role="admin", is_active=True).exclude(email="").values_list("email", flat=True))
         if admin_emails:
@@ -524,7 +675,10 @@ class CheckoutView(APIView):
                     f"A new order requires payment confirmation.\n"
                     f"Order ID: {sale.id}\n"
                     f"Control Number: {payment.control_number}\n"
-                    f"Customer: {request.user.full_name} ({request.user.email})\n"
+                    f"Customer: {customer_full_name} ({customer_email or 'No email'})\n"
+                    f"Phone: {customer_phone or 'Not provided'}\n"
+                    f"Address: {customer_address or 'Not provided'}\n"
+                    f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
                     f"Total: {sale.final_amount}\n"
                     f"Payment Method: {payment.payment_method}\n"
                     f"Status: {payment.status}\n"
@@ -538,6 +692,7 @@ class CheckoutView(APIView):
             {
                 "sale": SaleSerializer(sale, context={"request": request}).data,
                 "payment": PaymentSerializer(payment, context={"request": request}).data,
+                "whatsapp_url": build_whatsapp_order_url(sale, payment, sale_items),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -547,9 +702,33 @@ class CustomerOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
 
     def get(self, request):
-        sales = Sale.objects.filter(user=request.user).select_related("payment").prefetch_related("items")
+        sales = Sale.objects.filter(user=request.user).select_related("payment").prefetch_related("items__product")
         serializer = SaleSerializer(sales, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CustomerReceiptView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
+
+    def get(self, request, sale_id):
+        sale = (
+            Sale.objects.filter(id=sale_id, user=request.user)
+            .select_related("payment")
+            .prefetch_related("items__product")
+            .first()
+        )
+        if not sale:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        payment = getattr(sale, "payment", None)
+        if not payment or payment.status != "confirmed":
+            return Response(
+                {"detail": "Receipt is available after payment confirmation."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        response = HttpResponse(build_receipt_pdf(sale), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="receipt-order-{sale.id}.pdf"'
+        return response
 
 
 class SupplierDashboardView(APIView):

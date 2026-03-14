@@ -6,7 +6,9 @@ import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
 import CartPage from "./pages/CartPage.jsx";
+import CustomerBuyNowPage from "./pages/CustomerBuyNowPage.jsx";
 import CustomerDashboardPage from "./pages/CustomerDashboardPage.jsx";
+import CustomerHistoryPage from "./pages/CustomerHistoryPage.jsx";
 import DriverDashboardPage from "./pages/DriverDashboardPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
@@ -69,6 +71,10 @@ function AppRoutes() {
         />
         <Route
           path="/cart"
+          element={<Navigate to="/customer/cart" replace />}
+        />
+        <Route
+          path="/customer/cart"
           element={
             <RoleRoute roles={["customer"]}>
               <CartPage />
@@ -88,6 +94,22 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["customer"]}>
               <CustomerDashboardPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/customer/buynow"
+          element={
+            <RoleRoute roles={["customer"]}>
+              <CustomerBuyNowPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/customer/history"
+          element={
+            <RoleRoute roles={["customer"]}>
+              <CustomerHistoryPage />
             </RoleRoute>
           }
         />

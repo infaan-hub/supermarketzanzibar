@@ -172,6 +172,10 @@ class Sale(models.Model):
     payment_confirmed = models.BooleanField(default=False)
     terms_accepted = models.BooleanField(default=False)
     delivery_location = models.TextField(blank=True, null=True)
+    customer_full_name = models.CharField(max_length=255, blank=True)
+    customer_email = models.EmailField(blank=True)
+    customer_phone = models.CharField(max_length=20, blank=True)
+    customer_address = models.TextField(blank=True)
     assigned_driver = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_sales"
     )
@@ -187,6 +191,30 @@ class Sale(models.Model):
     def save(self, *args, **kwargs):
         self.final_amount = self.total_amount - self.discount + self.tax
         super().save(*args, **kwargs)
+
+    @property
+    def customer_name_display(self):
+        if self.customer_full_name:
+            return self.customer_full_name
+        return self.user.full_name if self.user and getattr(self.user, "full_name", None) else ""
+
+    @property
+    def customer_email_display(self):
+        if self.customer_email:
+            return self.customer_email
+        return self.user.email if self.user and getattr(self.user, "email", None) else ""
+
+    @property
+    def customer_phone_display(self):
+        if self.customer_phone:
+            return self.customer_phone
+        return self.user.phone if self.user and getattr(self.user, "phone", None) else ""
+
+    @property
+    def customer_address_display(self):
+        if self.customer_address:
+            return self.customer_address
+        return self.user.address if self.user and getattr(self.user, "address", None) else ""
 
     def __str__(self):
         return f"Sale #{self.id}"

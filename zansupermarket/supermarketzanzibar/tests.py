@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 from urllib.parse import urlsplit
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -10,7 +11,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Category, Product, Supplier
+from .models import Category, Customer, Payment, Product, Sale, Supplier
 from .serializers import ProductSerializer, PublicProductSerializer, safe_media_url
 
 User = get_user_model()
@@ -263,3 +264,121 @@ class ProductApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertEqual(response.data["detail"], "Product image upload is temporarily unavailable.")
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])
+class CustomerOrderApiTests(APITestCase):
+    def setUp(self):
+        self.category = Category.objects.create(name="Snacks")
+        self.customer_user = User.objects.create_user(
+            username="customer-test",
+            email="customer-test@example.com",
+            password="pass12345",
+            full_name="Customer Test",
+            phone="255700000010",
+            address="Town",
+            role="customer",
+        )
+        self.customer = Customer.objects.create(user=self.customer_user, phone=self.customer_user.phone)
+        self.product = Product.objects.create(
+            name="Biscuits",
+            slug="biscuits",
+            category=self.category,
+            price="3200.00",
+            cost_price="2200.00",
+            quantity=15,
+            barcode="biscuits-001",
+            description="Crunchy biscuits",
+        )
+
+    def test_checkout_stores_customer_snapshot_and_returns_whatsapp_url(self):
+        self.client.force_authenticate(user=self.customer_user)
+
+        response = self.client.post(
+            "/api/customer/checkout/",
+            {
+                "items": [{"product": self.product.id, "quantity": 2}],
+                "payment_method": "mobile_money",
+                "customer_full_name": "Asha Mwinyi",
+                "customer_email": "asha@example.com",
+                "customer_phone": "+255711252700",
+                "customer_address": "Mjini, Zanzibar",
+                "delivery_location": "Forodhani Garden",
+                "terms_accepted": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("https://wa.me/255711252758", response.data["whatsapp_url"])
+        sale = Sale.objects.get(id=response.data["sale"]["id"])
+        self.assertEqual(sale.customer_full_name, "Asha Mwinyi")
+        self.assertEqual(sale.customer_email, "asha@example.com")
+        self.assertEqual(sale.customer_phone, "+255711252700")
+        self.assertEqual(sale.customer_address, "Mjini, Zanzibar")
+        self.assertEqual(response.data["sale"]["payment_status"], "pending")
+
+    def test_customer_can_download_pdf_receipt_after_payment_confirmation(self):
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("6400.00"),
+            final_amount=Decimal("6400.00"),
+            payment_method="mobile_money",
+            payment_confirmed=True,
+            delivery_location="Stone Town",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="payment_confirmed",
+        )
+        Payment.objects.create(
+            sale=sale,
+            payment_method="mobile_money",
+            status="confirmed",
+        )
+        sale.items.create(product=self.product, quantity=2, price=Decimal("3200.00"), total=Decimal("6400.00"))
+        self.client.force_authenticate(user=self.customer_user)
+
+        response = self.client.get(f"/api/customer/orders/{sale.id}/receipt/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+
+    def test_admin_pending_payments_include_customer_order_details(self):
+        admin_user = User.objects.create_user(
+            username="admin-test",
+            email="admin-test@example.com",
+            password="pass12345",
+            full_name="Admin Test",
+            phone="255700000099",
+            role="admin",
+        )
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=False,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="pending_payment",
+        )
+        sale.items.create(product=self.product, quantity=1, price=Decimal("3200.00"), total=Decimal("3200.00"))
+        Payment.objects.create(sale=sale, payment_method="mobile_money", status="pending")
+        self.client.force_authenticate(user=admin_user)
+
+        response = self.client.get("/api/payments/admin_pending/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["customer_phone"], "255700000010")
+        self.assertEqual(response.data[0]["delivery_location"], "Darajani")
+        self.assertEqual(response.data[0]["items"][0]["product_name"], "Biscuits")
