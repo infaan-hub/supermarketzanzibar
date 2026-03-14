@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
@@ -6,13 +6,37 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
+const ABOUT_CARDS = [
+  {
+    title: "Fresh supply",
+    description: "We connect Zanzibar shoppers with trusted suppliers for groceries, snacks, and daily essentials.",
+  },
+  {
+    title: "Fast discovery",
+    description: "Search products instantly, filter by category, and open any item quickly without losing your place.",
+  },
+  {
+    title: "Simple shopping",
+    description: "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
+  },
+];
+
+const CONTACT_ITEMS = [
+  { label: "Phone", value: "+255 700 000 000", href: "tel:+255700000000" },
+  { label: "Email", value: "support@zansupermarket.com", href: "mailto:support@zansupermarket.com" },
+  { label: "Location", value: "Stone Town, Zanzibar", href: "#contact" },
+];
 
 function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [productFilter, setProductFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -37,23 +61,83 @@ function HomePage() {
     navigate(`/products/${productId}`);
   };
 
+  const categories = Array.from(
+    new Set(products.map((product) => product.category_name || "General")),
+  ).sort((left, right) => left.localeCompare(right));
+
+  const visibleProducts = products.filter((product) => {
+    const normalizedCategory = product.category_name || "General";
+    const price = Number(product.price || 0);
+    const searchableText = [product.name, normalizedCategory, product.description]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch = !deferredSearch || searchableText.includes(deferredSearch);
+    const matchesCategory = categoryFilter === "all" || normalizedCategory === categoryFilter;
+    const matchesFilter =
+      productFilter === "all" ||
+      (productFilter === "in_stock" && Number(product.quantity || 0) > 0) ||
+      (productFilter === "budget" && price < 5000) ||
+      (productFilter === "premium" && price >= 5000);
+
+    return matchesSearch && matchesCategory && matchesFilter;
+  });
+
   return (
     <section className="page-wrap">
-      <div className="hero">
-        <div className="hero-content">
-          <h1>Zansupermarket</h1>
-          <p>Fresh groceries, pantry staples and household essentials.</p>
-          <p className="hero-desc">Touch any product to open full details, add to cart, or buy now.</p>
-          <a className="hero-cta" href="#products">
-            Shop Now
-          </a>
+      <header className="home-toolbar">
+        <div className="home-toolbar-head">
+          <div className="home-toolbar-copy">
+            <p className="home-toolbar-kicker">Marketplace</p>
+            <h1>Zansupermarket</h1>
+            <p>Search products in real time, narrow by category, and open any item directly from the catalog.</p>
+          </div>
+          <div className="home-toolbar-meta">
+            <span className="home-pill">{products.length} listed</span>
+            <span className="home-pill">{visibleProducts.length} shown</span>
+          </div>
         </div>
-      </div>
+        <div className="home-controls">
+          <label className="home-control home-control-search">
+            <span>Search</span>
+            <input
+              type="search"
+              placeholder="Search products, category, or description"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </label>
+          <label className="home-control">
+            <span>Filter</span>
+            <select value={productFilter} onChange={(event) => setProductFilter(event.target.value)}>
+              <option value="all">All products</option>
+              <option value="in_stock">In stock</option>
+              <option value="budget">Budget picks</option>
+              <option value="premium">Premium picks</option>
+            </select>
+          </label>
+          <label className="home-control">
+            <span>Category</span>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              <option value="all">All categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
       {loading ? <p>Loading products...</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      <h2 id="products" className="section-title">Products</h2>
+      <div className="section-heading">
+        <h2 id="products" className="section-title">Products</h2>
+        <p className="section-note">Tap a card to open the full product view.</p>
+      </div>
       <div className="grid-products product-grid">
-        {products.map((product) => (
+        {visibleProducts.map((product) => (
           <article
             className="product-card"
             key={product.id}
@@ -80,11 +164,63 @@ function HomePage() {
           </article>
         ))}
       </div>
+      {!loading && !error && !visibleProducts.length ? (
+        <div className="catalog-empty">
+          <h3>No products match that search.</h3>
+          <p>Try a different keyword, change the filter, or switch back to all categories.</p>
+        </div>
+      ) : null}
       {!isAuthenticated ? (
         <p className="callout">
           New customer? <Link to="/register">Create account</Link> to open products, add cart, and checkout.
         </p>
       ) : null}
+      <section className="home-section" id="about">
+        <div className="section-heading">
+          <h2 className="section-title">About Us</h2>
+          <p className="section-note">Built to make supermarket shopping clearer, faster, and more reliable.</p>
+        </div>
+        <div className="info-grid">
+          {ABOUT_CARDS.map((card) => (
+            <article key={card.title} className="info-card">
+              <p className="info-card-kicker">About us</p>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="home-section" id="contact">
+        <div className="section-heading">
+          <h2 className="section-title">Contact Us</h2>
+          <p className="section-note">Reach the team for supplier support, customer help, or store questions.</p>
+        </div>
+        <div className="contact-card">
+          <div className="contact-copy">
+            <p className="info-card-kicker">Support</p>
+            <h3>Talk to Zansupermarket</h3>
+            <p>
+              Contact us for account support, supplier onboarding, product updates, and help with your orders.
+            </p>
+            <div className="contact-actions">
+              <a className="primary-btn" href="mailto:support@zansupermarket.com">
+                Email Support
+              </a>
+              <a className="ghost-btn" href="tel:+255700000000">
+                Call Now
+              </a>
+            </div>
+          </div>
+          <div className="contact-list">
+            {CONTACT_ITEMS.map((item) => (
+              <a key={item.label} className="contact-item" href={item.href}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
     </section>
   );
 }
