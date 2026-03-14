@@ -424,6 +424,8 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertGreater(len(response.content), 5000)
+        self.assertIn(b"OFFICIAL CUSTOMER RECEIPT", response.content)
         self.assertIn(b"Payment Confirmed", response.content)
         self.assertIn(b"PAID PRODUCTS", response.content)
         self.assertIn(b"ABOUT US", response.content)
