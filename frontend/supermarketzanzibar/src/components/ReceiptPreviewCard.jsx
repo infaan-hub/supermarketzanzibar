@@ -1,63 +1,31 @@
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import productPlaceholder from "../assets/product-placeholder.svg";
+import { http } from "../api/http.jsx";
 import { applyImageFallback, saleItemImageUrl } from "../lib/media.jsx";
 import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME, STORE_SUBTITLE } from "../lib/storeInfo.js";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
-async function waitForReceiptAssets(node) {
-  if (document.fonts?.ready) {
-    await document.fonts.ready;
-  }
-
-  const images = Array.from(node.querySelectorAll("img"));
-  await Promise.all(
-    images.map(
-      (image) =>
-        new Promise((resolve) => {
-          if (image.complete) {
-            resolve();
-            return;
-          }
-
-          const finish = () => {
-            image.removeEventListener("load", finish);
-            image.removeEventListener("error", finish);
-            resolve();
-          };
-
-          image.addEventListener("load", finish, { once: true });
-          image.addEventListener("error", finish, { once: true });
-        }),
-    ),
-  );
+function downloadBlob(blob, filename) {
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
 }
 
-function saveReceiptCanvasAsPdf(canvas, filename) {
-  const pdf = new jsPDF("p", "mm", "a4");
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 10;
-  const contentWidth = pageWidth - margin * 2;
-  const contentHeight = pageHeight - margin * 2;
-  const imageHeight = (canvas.height * contentWidth) / canvas.width;
-  const imageData = canvas.toDataURL("image/png");
-  let heightLeft = imageHeight;
-  let yPosition = margin;
-
-  pdf.addImage(imageData, "PNG", margin, yPosition, contentWidth, imageHeight, undefined, "FAST");
-  heightLeft -= contentHeight;
-
-  while (heightLeft > 0) {
-    pdf.addPage();
-    yPosition = margin - (imageHeight - heightLeft);
-    pdf.addImage(imageData, "PNG", margin, yPosition, contentWidth, imageHeight, undefined, "FAST");
-    heightLeft -= contentHeight;
+function parseReceiptFilename(contentDisposition, fallbackFilename) {
+  if (!contentDisposition) return fallbackFilename;
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
   }
 
-  pdf.save(filename);
+  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+  return asciiMatch?.[1] || fallbackFilename;
 }
 
 function AboutIcon({ kind }) {
@@ -95,33 +63,39 @@ function AboutIcon({ kind }) {
 
 function ReceiptPreviewCard({ order }) {
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : "Not provided";
-  const receiptRef = useRef(null);
   const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
 
   const downloadReceipt = async () => {
-    if (!receiptRef.current || downloadState.loading) return;
+    if (!order.receipt_url || downloadState.loading) return;
 
     setDownloadState({ loading: true, error: "" });
 
     try {
-      await waitForReceiptAssets(receiptRef.current);
-      const canvas = await html2canvas(receiptRef.current, {
-        backgroundColor: "#edf6ee",
-        imageTimeout: 15000,
-        logging: false,
-        scale: Math.max(2, window.devicePixelRatio || 1),
-        useCORS: true,
+      const response = await http.get(order.receipt_url, {
+        responseType: "blob",
       });
-
-      saveReceiptCanvasAsPdf(canvas, `zansupermarket-receipt-order-${order.id}.pdf`);
+      const filename = parseReceiptFilename(
+        response.headers["content-disposition"],
+        `receipt-order-${order.id}.pdf`,
+      );
+      const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], { type: "application/pdf" });
+      downloadBlob(blob, filename);
       setDownloadState({ loading: false, error: "" });
-    } catch {
-      setDownloadState({ loading: false, error: "Unable to download the receipt right now." });
+    } catch (error) {
+      const serverDetail = typeof error.response?.data?.detail === "string"
+        ? error.response.data.detail
+        : "";
+      setDownloadState({
+        loading: false,
+        error: serverDetail || "Unable to download the receipt right now.",
+      });
     }
   };
 
   return (
-    <article ref={receiptRef} className="receipt-preview-card">
+    <article className="receipt-preview-card">
       <header className="receipt-preview-header">
         <div className="receipt-preview-brand">
           <p className="receipt-preview-kicker">Official Customer Receipt</p>
