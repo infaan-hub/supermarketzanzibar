@@ -77,6 +77,20 @@ class ProductApiTests(APITestCase):
         self.assertEqual(response.data[0]["image"], None)
         self.assertEqual(response.data[0]["image_url"], None)
 
+    def test_public_products_list_omits_dead_image_urls(self):
+        self.create_product(
+            name="Broken Image Product",
+            slug="broken-image-product",
+            barcode="broken-image-001",
+            image="products/does-not-exist.jpg",
+        )
+
+        response = self.client.get("/api/products/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["image"], None)
+        self.assertEqual(response.data[0]["image_url"], None)
+
     def test_public_products_list_skips_products_that_fail_serialization(self):
         good_product = self.create_product(name="Sugar", slug="sugar", barcode="sugar-001")
         broken_product = self.create_product(name="Salt", slug="salt", barcode="salt-001")

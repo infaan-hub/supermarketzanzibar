@@ -77,35 +77,35 @@ function RegisterPage({ mode = "customer" }) {
         <div className="auth-grid">
           <label className="auth-field">
             <span>Username</span>
-            <input id={`${mode}-username`} name="username" type="text" autoComplete="username" placeholder="Choose a username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+            <input name="username" type="text" placeholder="Choose a username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
           </label>
           <label className="auth-field">
             <span>Email</span>
-            <input id={`${mode}-email`} name="email" type="email" autoComplete="email" placeholder="name@example.com" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            <input name="email" type="email" placeholder="name@example.com" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
           </label>
           <label className="auth-field">
             <span>Full Name</span>
-            <input id={`${mode}-full-name`} name="full_name" type="text" autoComplete="name" placeholder="Your full name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
+            <input name="full_name" type="text" placeholder="Your full name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
           </label>
           <label className="auth-field">
             <span>Phone</span>
-            <input id={`${mode}-phone`} name="phone" type="text" autoComplete="tel" placeholder="Phone number" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+            <input name="phone" type="text" placeholder="Phone number" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
           </label>
           <label className="auth-field auth-field-wide">
             <span>Address</span>
-            <input id={`${mode}-address`} name="address" type="text" autoComplete="street-address" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+            <input name="address" type="text" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
           </label>
           <label className="auth-field auth-field-wide">
             <span>Profile Image</span>
-            <input id={`${mode}-profile-image`} name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
+            <input name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
           </label>
           <label className="auth-field">
             <span>Password</span>
-            <input id={`${mode}-password`} name="password" type="password" autoComplete="new-password" placeholder="Create password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+            <input name="password" type="password" placeholder="Create password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
           </label>
           <label className="auth-field">
             <span>Confirm Password</span>
-            <input id={`${mode}-password-confirm`} name="password_confirm" type="password" autoComplete="new-password" placeholder="Repeat password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
+            <input name="password_confirm" type="password" placeholder="Repeat password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
           </label>
         </div>
 

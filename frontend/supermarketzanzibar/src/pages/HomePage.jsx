@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { toMediaUrl } from "../lib/media.jsx";
+import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
+
+const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function HomePage() {
   const [products, setProducts] = useState([]);
@@ -62,7 +65,12 @@ function HomePage() {
             }}
           >
             <div className="card-image">
-              <img src={toMediaUrl(product.image) || "https://placehold.co/600x380?text=No+Image"} alt={product.name} />
+              <img
+                src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+                alt={product.name}
+                data-fallback-src={PRODUCT_PLACEHOLDER}
+                onError={applyImageFallback}
+              />
             </div>
             <div className="card-body">
               <h3 className="product-title">{product.name}</h3>

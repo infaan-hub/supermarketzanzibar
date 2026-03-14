@@ -6,3 +6,9 @@ export function toMediaUrl(path) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE_URL}${normalized}`;
 }
+
+export function applyImageFallback(event) {
+  const fallbackSrc = event.currentTarget.dataset.fallbackSrc;
+  if (!fallbackSrc || event.currentTarget.src === fallbackSrc) return;
+  event.currentTarget.src = fallbackSrc;
+}

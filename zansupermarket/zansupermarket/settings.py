@@ -167,8 +167,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "zansupermarket.wsgi.application"
 
 
+ALLOW_SQLITE_URL = env_bool("ALLOW_SQLITE_URL", False)
 database_url = os.getenv("DATABASE_URL")
 if database_url and dj_database_url is not None:
+    if database_url.startswith("sqlite") and not ALLOW_SQLITE_URL:
+        raise ImproperlyConfigured("SQLite is disabled. Set DATABASE_URL to the Neon PostgreSQL connection string.")
     DATABASES = {
         "default": dj_database_url.parse(
             database_url,
@@ -176,15 +179,15 @@ if database_url and dj_database_url is not None:
             ssl_require=not DEBUG,
         )
     }
-elif not DEBUG:
-    raise ImproperlyConfigured("DATABASE_URL must be set when DEBUG=False.")
-else:
+elif ALLOW_SQLITE_URL:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+else:
+    raise ImproperlyConfigured("DATABASE_URL must be set to the Neon PostgreSQL connection string.")
 
 
 AUTH_PASSWORD_VALIDATORS = [

@@ -39,7 +39,7 @@ function AppLayout() {
 function RootRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <div className="center-screen">Loading...</div>;
-  if (!isAuthenticated) return <HomePage />;
+  if (!isAuthenticated) return <Navigate to="/home" replace />;
   if (user?.role === "admin") return <Navigate to="/admin/dashboard" replace />;
   if (user?.role === "supplier") return <Navigate to="/supplier/dashboard" replace />;
   if (user?.role === "driver") return <Navigate to="/driver/dashboard" replace />;
@@ -51,7 +51,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<RootRedirect />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/login" element={<RoleLoginPage role="customer" />} />
         <Route path="/admin/login" element={<RoleLoginPage role="admin" />} />
         <Route path="/supplier/login" element={<RoleLoginPage role="supplier" />} />
@@ -115,7 +115,7 @@ function AppRoutes() {
             </RoleRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>
     </Routes>
   );

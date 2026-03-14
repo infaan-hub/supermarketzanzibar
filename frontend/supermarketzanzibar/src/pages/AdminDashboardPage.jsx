@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
-import { toMediaUrl } from "../lib/media.jsx";
+import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
+
+const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function AdminDashboardPage() {
   const [payments, setPayments] = useState([]);
@@ -155,20 +158,20 @@ function AdminDashboardPage() {
       <div className="panel">
         <h2>Create Supplier/Driver/Customer</h2>
         <form onSubmit={createUser}>
-          <input id="admin-create-username" name="username" autoComplete="username" required placeholder="Username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
-          <input id="admin-create-email" name="email" autoComplete="email" required placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-          <input id="admin-create-full-name" name="full_name" autoComplete="name" required placeholder="Full name" value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
-          <input id="admin-create-phone" name="phone" autoComplete="tel" required placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-          <input id="admin-create-address" name="address" autoComplete="street-address" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-          <select id="admin-create-role" name="role" autoComplete="off" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
+          <input name="username" required placeholder="Username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+          <input name="email" required placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+          <input name="full_name" required placeholder="Full name" value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
+          <input name="phone" required placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          <input name="address" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+          <select name="role" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
             <option value="supplier">Supplier</option>
             <option value="driver">Driver</option>
             <option value="customer">Customer</option>
           </select>
-          <input id="admin-create-company-name" name="company_name" autoComplete="organization" placeholder="Company name (supplier)" value={form.company_name} onChange={(e) => setForm((p) => ({ ...p, company_name: e.target.value }))} />
-          <input id="admin-create-profile-image" name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
-          <input id="admin-create-password" name="password" type="password" autoComplete="new-password" required placeholder="Password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-          <input id="admin-create-password-confirm" name="password_confirm" type="password" autoComplete="new-password" required placeholder="Confirm password" value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
+          <input name="company_name" placeholder="Company name (supplier)" value={form.company_name} onChange={(e) => setForm((p) => ({ ...p, company_name: e.target.value }))} />
+          <input name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
+          <input name="password" type="password" required placeholder="Password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+          <input name="password_confirm" type="password" required placeholder="Confirm password" value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
           <button className="primary-btn" type="submit">Create User</button>
         </form>
       </div>
@@ -203,7 +206,7 @@ function AdminDashboardPage() {
               <p>Order #{sale.id}</p>
               <p>Status: {sale.status}</p>
             </div>
-            <select id={`sale-driver-${sale.id}`} name="driver_id" defaultValue="" onChange={(e) => assignDriver(sale.id, e.target.value)}>
+            <select name="driver_id" defaultValue="" onChange={(e) => assignDriver(sale.id, e.target.value)}>
               <option value="">Assign Driver</option>
               {drivers.map((driver) => (
                 <option key={driver.id} value={driver.id}>
@@ -220,7 +223,12 @@ function AdminDashboardPage() {
         <div className="grid-products">
           {products.map((product) => (
             <article key={product.id} className="product-card small">
-              <img src={toMediaUrl(product.image) || "https://placehold.co/600x380?text=No+Image"} alt={product.name} />
+              <img
+                src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+                alt={product.name}
+                data-fallback-src={PRODUCT_PLACEHOLDER}
+                onError={applyImageFallback}
+              />
               <div className="card-body">
                 <h3>{product.name}</h3>
                 <p className="price">TZS {product.price}</p>
@@ -235,49 +243,38 @@ function AdminDashboardPage() {
                 {editingProductId === product.id ? (
                   <div>
                     <input
-                      id={`admin-edit-name-${product.id}`}
                       name="name"
                       value={editProductForm.name}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, name: e.target.value }))}
-                      autoComplete="off"
                       placeholder="Name"
                     />
                     <input
-                      id={`admin-edit-category-${product.id}`}
                       name="category"
                       value={editProductForm.category}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, category: e.target.value }))}
-                      autoComplete="off"
                       placeholder="Category"
                     />
                     <input
-                      id={`admin-edit-price-${product.id}`}
                       name="price"
                       type="number"
                       value={editProductForm.price}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, price: e.target.value }))}
-                      autoComplete="off"
                       placeholder="Price"
                     />
                     <input
-                      id={`admin-edit-quantity-${product.id}`}
                       name="quantity"
                       type="number"
                       value={editProductForm.quantity}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, quantity: e.target.value }))}
-                      autoComplete="off"
                       placeholder="Quantity"
                     />
                     <textarea
-                      id={`admin-edit-description-${product.id}`}
                       name="description"
                       value={editProductForm.description}
                       onChange={(e) => setEditProductForm((p) => ({ ...p, description: e.target.value }))}
-                      autoComplete="off"
                       placeholder="Description"
                     />
                     <input
-                      id={`admin-edit-image-${product.id}`}
                       name="image"
                       type="file"
                       accept="image/*"

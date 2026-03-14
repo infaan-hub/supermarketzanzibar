@@ -12,8 +12,10 @@ def safe_media_url(file_field, request=None):
         return None
 
     try:
+        if hasattr(file_field, "storage") and hasattr(file_field, "name") and not file_field.storage.exists(file_field.name):
+            return None
         url = file_field.url
-    except (AttributeError, TypeError, ValueError, SuspiciousOperation):
+    except (AttributeError, OSError, TypeError, ValueError, SuspiciousOperation):
         return None
 
     if request is not None:
@@ -55,12 +57,8 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ("created_at", "updated_at", "role")
 
     def get_profile_image_url(self, obj):
-        if not obj.profile_image:
-            return None
         request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(obj.profile_image.url)
-        return obj.profile_image.url
+        return safe_media_url(obj.profile_image, request)
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
