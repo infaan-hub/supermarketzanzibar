@@ -171,10 +171,6 @@ function HomePage() {
             <p className="home-toolbar-kicker">Marketplace</p>
             <h1>Zansupermarket</h1>
           </div>
-          <div className="home-toolbar-meta">
-            <span className="home-pill">{products.length} listed</span>
-            <span className="home-pill">{visibleProducts.length} shown</span>
-          </div>
         </div>
         <div className="home-controls">
           <div className="home-control-toggles">

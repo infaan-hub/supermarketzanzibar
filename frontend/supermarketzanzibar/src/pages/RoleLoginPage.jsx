@@ -101,11 +101,6 @@ function RoleLoginPage({ role }) {
             No account? <Link to="/register">Register</Link>
           </p>
         ) : null}
-        {role === "admin" ? (
-          <p className="auth-footnote">
-            First admin? <Link to="/admin/register">Register admin</Link>
-          </p>
-        ) : null}
       </form>
     </section>
   );
