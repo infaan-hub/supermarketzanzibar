@@ -1,5 +1,10 @@
 export const STORE_NAME = "Zansupermarket";
 export const STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar.";
+export const STORE_LOCATION = "Stone Town, Zanzibar";
+export const STORE_PHONE = "+255 711 252 758";
+export const STORE_PHONE_HREF = "tel:+255711252758";
+export const STORE_EMAIL = "info@supermarketzanzibar";
+export const STORE_EMAIL_HREF = "mailto:info@supermarketzanzibar";
 
 export const ABOUT_CARDS = [
   {
@@ -23,7 +28,7 @@ export const ABOUT_CARDS = [
 ];
 
 export const CONTACT_ITEMS = [
-  { label: "Phone", value: "+255 700 000 000", href: "tel:+255700000000" },
-  { label: "Email", value: "support@zansupermarket.com", href: "mailto:support@zansupermarket.com" },
-  { label: "Location", value: "Stone Town, Zanzibar", href: "#contact" },
+  { label: "Phone", value: STORE_PHONE, href: STORE_PHONE_HREF },
+  { label: "Email", value: STORE_EMAIL, href: STORE_EMAIL_HREF },
+  { label: "Location", value: STORE_LOCATION, href: "#contact" },
 ];

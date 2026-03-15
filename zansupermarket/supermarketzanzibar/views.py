@@ -40,8 +40,8 @@ PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, Suspiciou
 WHATSAPP_ORDER_NUMBER = "255711252758"
 STORE_NAME = "Zansupermarket"
 STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
-STORE_PHONE = "+255 700 000 000"
-STORE_EMAIL = "support@zansupermarket.com"
+STORE_PHONE = "+255 711 252 758"
+STORE_EMAIL = "info@supermarketzanzibar"
 STORE_LOCATION = "Stone Town, Zanzibar"
 RECEIPT_ABOUT_CARDS = [
     (

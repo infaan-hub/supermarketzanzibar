@@ -5,7 +5,7 @@ import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
-import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME } from "../lib/storeInfo.js";
+import { ABOUT_CARDS, CONTACT_ITEMS, STORE_EMAIL_HREF, STORE_NAME, STORE_PHONE_HREF } from "../lib/storeInfo.js";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
@@ -196,10 +196,10 @@ function HomePage() {
               Contact us for account support, supplier onboarding, product updates, and help with your orders.
             </p>
             <div className="contact-actions">
-              <a className="primary-btn" href="mailto:info@zansupermarket.com">
+              <a className="primary-btn" href={STORE_EMAIL_HREF}>
                 Email Support
               </a>
-              <a className="ghost-btn" href="tel:+255711252758">
+              <a className="ghost-btn" href={STORE_PHONE_HREF}>
                 Call Now
               </a>
             </div>

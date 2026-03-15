@@ -24,8 +24,15 @@
   --field-highlight: rgba(255, 255, 255, 0.85);
   --panel-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 252, 247, 0.7));
   --sidebar-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 251, 245, 0.7));
+  --topbar-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(238, 249, 240, 0.7));
+  --topbar-border: rgba(255, 255, 255, 0.62);
+  --topbar-shadow: 0 18px 40px rgba(64, 84, 70, 0.16);
   --ghost-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(226, 244, 229, 0.72));
   --toggle-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(226, 244, 229, 0.78));
+  --header-toggle-border: rgba(49, 123, 67, 0.18);
+  --header-toggle-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 12px 20px rgba(31, 143, 58, 0.12);
   --hero-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(233, 247, 235, 0.72));
   --order-bg: rgba(255, 255, 255, 0.52);
   --form-bg: rgba(255, 255, 255, 0.26);
@@ -60,8 +67,15 @@
   --field-highlight: rgba(147, 220, 167, 0.08);
   --panel-gradient: linear-gradient(180deg, rgba(22, 35, 27, 0.94), rgba(16, 28, 21, 0.84));
   --sidebar-gradient: linear-gradient(180deg, rgba(19, 31, 24, 0.96), rgba(12, 22, 17, 0.92));
+  --topbar-gradient: linear-gradient(180deg, rgba(21, 35, 27, 0.96), rgba(11, 23, 17, 0.92));
+  --topbar-border: rgba(111, 224, 141, 0.18);
+  --topbar-shadow: 0 20px 40px rgba(0, 0, 0, 0.42);
   --ghost-gradient: linear-gradient(180deg, rgba(27, 43, 33, 0.92), rgba(17, 31, 22, 0.9));
   --toggle-gradient: linear-gradient(180deg, rgba(29, 46, 35, 0.95), rgba(16, 31, 21, 0.92));
+  --header-toggle-border: rgba(111, 224, 141, 0.26);
+  --header-toggle-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 28px rgba(0, 0, 0, 0.34);
   --hero-gradient: linear-gradient(135deg, rgba(25, 38, 30, 0.94), rgba(17, 30, 22, 0.88));
   --order-bg: rgba(18, 31, 23, 0.78);
   --form-bg: rgba(17, 28, 21, 0.54);
@@ -138,9 +152,11 @@ img {
   align-items: center;
   padding: 0.8rem 1rem;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-soft);
+  background:
+    var(--glass-sheen),
+    var(--topbar-gradient);
+  border: 1px solid var(--topbar-border);
+  box-shadow: var(--topbar-shadow);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -148,6 +164,7 @@ img {
 .brand {
   font-weight: 700;
   letter-spacing: 0.01em;
+  color: var(--ink);
 }
 
 .sidebar-toggle {
@@ -159,12 +176,15 @@ img {
   gap: 0.28rem;
   border-radius: 18px;
   padding: 0.7rem;
-  border: 1px solid rgba(49, 123, 67, 0.18);
+  border: 1px solid var(--header-toggle-border);
   background: var(--toggle-gradient);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 12px 20px rgba(31, 143, 58, 0.12);
+  box-shadow: var(--header-toggle-shadow);
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  transform: translateY(-1px);
 }
 
 .sidebar-toggle span {
@@ -1421,6 +1441,80 @@ button:not(:disabled):hover {
   backdrop-filter: blur(14px);
 }
 
+.driver-route-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.driver-route-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.driver-route-copy h2,
+.driver-route-copy p {
+  margin: 0;
+}
+
+.driver-route-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.driver-route-panel {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(49, 123, 67, 0.12);
+}
+
+.driver-route-panel span,
+.driver-route-note,
+.driver-delivery-kicker {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.driver-route-panel strong {
+  color: var(--ink);
+}
+
+.driver-route-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.driver-route-note {
+  margin: 0;
+}
+
+.driver-delivery-card {
+  align-items: stretch;
+}
+
+.driver-delivery-card-active {
+  border-color: rgba(31, 143, 58, 0.36);
+  box-shadow:
+    -10px -10px 20px var(--neo-highlight),
+    14px 14px 28px var(--neo-shadow),
+    inset 0 0 0 1px rgba(31, 143, 58, 0.18);
+}
+
+.driver-delivery-copy {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.driver-delivery-copy h4,
+.driver-delivery-copy p {
+  margin: 0;
+}
+
 form {
   position: relative;
   overflow: hidden;
@@ -1542,12 +1636,6 @@ form {
   font-weight: 700;
 }
 
-.map-box {
-  height: 420px;
-  width: 100%;
-  border-radius: 12px;
-}
-
 .center-screen {
   min-height: 100vh;
   display: grid;
@@ -1601,7 +1689,8 @@ form {
   .receipt-preview-panel,
   .receipt-preview-info-grid,
   .receipt-preview-contact-list,
-  .receipt-preview-detail-grid {
+  .receipt-preview-detail-grid,
+  .driver-route-grid {
     grid-template-columns: 1fr;
   }
 }
