@@ -150,7 +150,7 @@ AUTH_USER_MODEL = "supermarketzanzibar.CustomUser"
 
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
-    "https://zanzibarsupermarket.vercel.app,https://supermarketzanzibar.onrender.com",
+    "https://supermarketzanzibar.vercel.app,https://zanzibarsupermarket.vercel.app,https://supermarketzanzibar.onrender.com",
 )
 CORS_ALLOWED_ORIGIN_REGEXES = env_list(
     "CORS_ALLOWED_ORIGIN_REGEXES",

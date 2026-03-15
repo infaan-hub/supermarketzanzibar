@@ -4,6 +4,7 @@ import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
@@ -19,17 +20,20 @@ function CustomerDashboardPage() {
   const { addToCart, count } = useCart();
   const navigate = useNavigate();
 
+  const loadProducts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await http.get("/api/products/");
+      setProducts(response.data);
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Unable to load products."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await http.get("/api/products/");
-        setProducts(response.data);
-      } catch {
-        setError("Unable to load products.");
-      } finally {
-        setLoading(false);
-      }
-    };
     loadProducts();
   }, []);
 
@@ -90,7 +94,14 @@ function CustomerDashboardPage() {
       />
 
       {loading ? <p>Loading products...</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? (
+        <div className="panel product-load-feedback">
+          <p className="error">{error}</p>
+          <button type="button" className="ghost-btn" onClick={loadProducts}>
+            Retry Products
+          </button>
+        </div>
+      ) : null}
 
       <div className="section-heading">
         <h2 className="section-title">Products</h2>

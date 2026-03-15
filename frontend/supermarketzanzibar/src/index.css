@@ -1461,6 +1461,12 @@ button:not(:disabled):hover {
   color: var(--danger);
 }
 
+.product-load-feedback {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+}
+
 .ok {
   color: var(--ok);
 }

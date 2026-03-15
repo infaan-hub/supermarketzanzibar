@@ -4,6 +4,7 @@ import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
@@ -22,18 +23,22 @@ function ProductDetailPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const loadProduct = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await http.get(`/api/products/${id}/`);
+      setProduct(response.data);
+    } catch (error) {
+      setProduct(null);
+      setError(getApiErrorMessage(error, "Failed to load product details."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const response = await http.get(`/api/products/${id}/`);
-        setProduct(response.data);
-      } catch {
-        setError("Failed to load product details.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadProduct();
   }, [id]);
 
   const buyNow = async () => {
@@ -60,7 +65,16 @@ function ProductDetailPage() {
   };
 
   if (loading) return <p className="page-wrap">Loading product...</p>;
-  if (!product) return <p className="page-wrap error">{error || "Product not found."}</p>;
+  if (!product) {
+    return (
+      <div className="page-wrap panel product-load-feedback">
+        <p className="error">{error || "Product not found."}</p>
+        <button type="button" className="ghost-btn" onClick={loadProduct}>
+          Retry Product
+        </button>
+      </div>
+    );
+  }
 
   return (
     <section className="page-wrap">

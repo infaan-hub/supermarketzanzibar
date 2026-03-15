@@ -4,6 +4,7 @@ import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 import { ABOUT_CARDS, CONTACT_ITEMS, STORE_EMAIL_HREF, STORE_NAME, STORE_PHONE_HREF } from "../lib/storeInfo.js";
 
@@ -53,17 +54,20 @@ function HomePage() {
   const navigate = useNavigate();
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
 
+  const loadProducts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await http.get("/api/products/");
+      setProducts(response.data);
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Failed to load products."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await http.get("/api/products/");
-        setProducts(response.data);
-      } catch {
-        setError("Failed to load products.");
-      } finally {
-        setLoading(false);
-      }
-    };
     loadProducts();
   }, []);
 
@@ -118,7 +122,14 @@ function HomePage() {
         />
       </header>
       {loading ? <p>Loading products...</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? (
+        <div className="panel product-load-feedback">
+          <p className="error">{error}</p>
+          <button type="button" className="ghost-btn" onClick={loadProducts}>
+            Retry Products
+          </button>
+        </div>
+      ) : null}
       <div className="section-heading">
         <h2 id="products" className="section-title">Products</h2>
         <p className="section-note">Tap a card to open the full product view.</p>
