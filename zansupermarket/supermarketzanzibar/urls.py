@@ -29,7 +29,9 @@ urlpatterns = [
     path('customer/orders/', CustomerOrdersView.as_view(), name='customer_orders'),
     path('customer/orders/<int:sale_id>/receipt/', CustomerReceiptView.as_view(), name='customer_order_receipt'),
     path('supplier/dashboard/', SupplierDashboardView.as_view(), name='supplier_dashboard'),
+    path('supplier/alerts/', SupplierAlertsView.as_view(), name='supplier_alerts'),
     path('driver/dashboard/', DriverDashboardView.as_view(), name='driver_dashboard'),
+    path('driver/alerts/', DriverAlertsView.as_view(), name='driver_alerts'),
     path('driver/sales/<int:sale_id>/status/', DriverUpdateDeliveryView.as_view(), name='driver_sale_status'),
     path('', include(router.urls)),
 ]

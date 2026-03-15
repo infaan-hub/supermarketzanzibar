@@ -252,6 +252,98 @@ img {
   visibility: visible;
 }
 
+.role-alert-stack {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 70;
+  display: grid;
+  gap: 0.75rem;
+  width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.role-alert-card {
+  pointer-events: auto;
+  padding: 0.9rem 1rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.08)),
+    var(--panel-gradient);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 84%, transparent);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: role-alert-enter 0.22s ease;
+}
+
+.role-alert-card-supplier {
+  border-color: rgba(31, 143, 58, 0.3);
+}
+
+.role-alert-card-driver {
+  border-color: rgba(14, 165, 233, 0.28);
+}
+
+.role-alert-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.role-alert-header h3,
+.role-alert-header p,
+.role-alert-body,
+.role-alert-meta {
+  margin: 0;
+}
+
+.role-alert-kicker {
+  color: var(--accent-strong);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.role-alert-body {
+  margin-top: 0.55rem;
+  line-height: 1.45;
+}
+
+.role-alert-meta {
+  margin-top: 0.65rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.role-alert-dismiss {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(31, 143, 58, 0.12);
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+@keyframes role-alert-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .sidebar {
   position: fixed;
   top: 1rem;
@@ -1719,6 +1811,13 @@ form {
 }
 
 @media (max-width: 620px) {
+  .role-alert-stack {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+
   .topbar {
     left: 0.75rem;
     right: 0.75rem;

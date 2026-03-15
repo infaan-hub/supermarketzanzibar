@@ -1540,6 +1540,23 @@ class CustomerReceiptView(APIView):
         return response
 
 
+def _supplier_pending_payments_queryset(supplier):
+    return (
+        Payment.objects.filter(status="pending", sale__items__product__supplier=supplier)
+        .select_related("sale", "sale__user")
+        .prefetch_related("sale__items__product")
+        .distinct()
+    )
+
+
+def _driver_active_deliveries_queryset(user):
+    return (
+        Sale.objects.filter(assigned_driver=user)
+        .exclude(status="delivered")
+        .select_related("payment", "user")
+    )
+
+
 class SupplierDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSupplierRole]
 
@@ -1549,12 +1566,7 @@ class SupplierDashboardView(APIView):
             return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
         products = Product.objects.filter(supplier=supplier)
         low_stock = products.filter(quantity__lte=5).count()
-        pending_payments = (
-            Payment.objects.filter(status="pending", sale__items__product__supplier=supplier)
-            .select_related("sale", "sale__user")
-            .prefetch_related("sale__items__product")
-            .distinct()
-        )
+        pending_payments = _supplier_pending_payments_queryset(supplier)
         return Response(
             {
                 "supplier": SupplierSerializer(supplier).data,
@@ -1572,15 +1584,71 @@ class SupplierDashboardView(APIView):
         )
 
 
+class SupplierAlertsView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSupplierRole]
+
+    def get(self, request):
+        supplier = Supplier.objects.filter(user=request.user).first()
+        if not supplier:
+            return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        pending_payments = _supplier_pending_payments_queryset(supplier).order_by("-created_at")[:25]
+        alerts = [
+            {
+                "id": payment.id,
+                "type": "supplier_order",
+                "sale_id": payment.sale_id,
+                "customer_name": payment.sale.customer_name_display or "Customer",
+                "delivery_location": payment.sale.delivery_location or payment.sale.customer_address_display or "",
+                "status": payment.status,
+                "created_at": payment.created_at.isoformat(),
+            }
+            for payment in pending_payments
+        ]
+        return Response(
+            {
+                "alerts": alerts,
+                "pending_count": len(alerts),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class DriverDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def get(self, request):
-        sales = Sale.objects.filter(assigned_driver=request.user).exclude(status="delivered")
+        sales = _driver_active_deliveries_queryset(request.user)
         return Response(
             {
                 "driver": UserSerializer(request.user, context={"request": request}).data,
                 "active_deliveries": SaleSerializer(sales, many=True, context={"request": request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DriverAlertsView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsDriverRole]
+
+    def get(self, request):
+        sales = _driver_active_deliveries_queryset(request.user).order_by("-created_at")[:25]
+        alerts = [
+            {
+                "id": sale.id,
+                "type": "driver_delivery",
+                "sale_id": sale.id,
+                "customer_name": sale.customer_name_display or "Customer",
+                "delivery_location": sale.delivery_location or sale.customer_address_display or "",
+                "status": sale.status,
+                "created_at": sale.created_at.isoformat(),
+            }
+            for sale in sales
+        ]
+        return Response(
+            {
+                "alerts": alerts,
+                "active_count": len(alerts),
             },
             status=status.HTTP_200_OK,
         )

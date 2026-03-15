@@ -328,6 +328,14 @@ class CustomerOrderApiTests(APITestCase):
             phone="255700000011",
             role="supplier",
         )
+        self.driver_user = User.objects.create_user(
+            username="driver-order-test",
+            email="driver-order-test@example.com",
+            password="pass12345",
+            full_name="Driver Order Test",
+            phone="255700000013",
+            role="driver",
+        )
         self.supplier = Supplier.objects.create(
             user=self.supplier_user,
             company_name="Supplier Order Test Co",
@@ -457,6 +465,77 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(response.data["pending_payments_count"], 1)
         self.assertEqual(response.data["pending_payments"][0]["sale_id"], sale.id)
         self.assertEqual(response.data["pending_payments"][0]["items"][0]["product_name"], "Biscuits")
+
+    def test_supplier_alerts_endpoint_returns_pending_order_notifications(self):
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=False,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="pending_payment",
+        )
+        sale.items.create(product=self.product, quantity=1, price=Decimal("3200.00"), total=Decimal("3200.00"))
+        payment = Payment.objects.create(sale=sale, payment_method="mobile_money", status="pending")
+        self.client.force_authenticate(user=self.supplier_user)
+
+        response = self.client.get("/api/supplier/alerts/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pending_count"], 1)
+        self.assertEqual(response.data["alerts"][0]["id"], payment.id)
+        self.assertEqual(response.data["alerts"][0]["sale_id"], sale.id)
+        self.assertEqual(response.data["alerts"][0]["type"], "supplier_order")
+
+    def test_driver_alerts_endpoint_returns_active_delivery_notifications(self):
+        active_sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=True,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            assigned_driver=self.driver_user,
+            status="out_for_delivery",
+        )
+        delivered_sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=True,
+            delivery_location="Mtoni",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            assigned_driver=self.driver_user,
+            status="delivered",
+        )
+        self.client.force_authenticate(user=self.driver_user)
+
+        response = self.client.get("/api/driver/alerts/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["active_count"], 1)
+        self.assertEqual(response.data["alerts"][0]["sale_id"], active_sale.id)
+        self.assertEqual(response.data["alerts"][0]["type"], "driver_delivery")
+        self.assertNotEqual(response.data["alerts"][0]["sale_id"], delivered_sale.id)
 
     def test_supplier_can_confirm_pending_payment_for_own_product(self):
         sale = Sale.objects.create(
