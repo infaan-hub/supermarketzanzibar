@@ -27,6 +27,21 @@
   --topbar-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(238, 249, 240, 0.7));
   --topbar-border: rgba(255, 255, 255, 0.62);
   --topbar-shadow: 0 18px 40px rgba(64, 84, 70, 0.16);
+  --home-control-surface:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
+    rgba(255, 255, 255, 0.42);
+  --home-control-surface-hover:
+    linear-gradient(180deg, rgba(244, 252, 246, 0.86), rgba(227, 241, 230, 0.72)),
+    rgba(236, 247, 238, 0.78);
+  --home-control-border: rgba(49, 123, 67, 0.16);
+  --home-control-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 10px 22px rgba(31, 143, 58, 0.08);
+  --home-control-icon: #1a8f40;
+  --home-control-panel-surface:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
+    rgba(255, 255, 255, 0.42);
+  --home-control-dismiss-bg: rgba(31, 143, 58, 0.12);
   --ghost-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(226, 244, 229, 0.72));
   --toggle-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(226, 244, 229, 0.78));
   --header-toggle-border: rgba(49, 123, 67, 0.18);
@@ -70,6 +85,21 @@
   --topbar-gradient: linear-gradient(180deg, rgba(21, 35, 27, 0.96), rgba(11, 23, 17, 0.92));
   --topbar-border: rgba(111, 224, 141, 0.18);
   --topbar-shadow: 0 20px 40px rgba(0, 0, 0, 0.42);
+  --home-control-surface:
+    linear-gradient(180deg, rgba(88, 99, 92, 0.96), rgba(61, 72, 66, 0.94)),
+    rgba(55, 66, 60, 0.92);
+  --home-control-surface-hover:
+    linear-gradient(180deg, rgba(103, 116, 108, 0.98), rgba(71, 84, 76, 0.96)),
+    rgba(67, 80, 72, 0.94);
+  --home-control-border: rgba(150, 227, 170, 0.28);
+  --home-control-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+  --home-control-icon: #c4ffd2;
+  --home-control-panel-surface:
+    linear-gradient(180deg, rgba(78, 91, 83, 0.98), rgba(46, 58, 51, 0.96)),
+    rgba(39, 50, 43, 0.94);
+  --home-control-dismiss-bg: rgba(196, 255, 210, 0.14);
   --ghost-gradient: linear-gradient(180deg, rgba(27, 43, 33, 0.92), rgba(17, 31, 22, 0.9));
   --toggle-gradient: linear-gradient(180deg, rgba(29, 46, 35, 0.95), rgba(16, 31, 21, 0.92));
   --header-toggle-border: rgba(111, 224, 141, 0.26);
@@ -380,20 +410,17 @@ img {
   align-items: center;
   justify-content: center;
   border-radius: 18px;
-  border: 1px solid rgba(49, 123, 67, 0.16);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
-    rgba(255, 255, 255, 0.42);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 10px 22px rgba(31, 143, 58, 0.08);
-  color: var(--accent-strong);
+  border: 1px solid var(--home-control-border);
+  background: var(--home-control-surface);
+  box-shadow: var(--home-control-shadow);
+  color: var(--home-control-icon);
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .home-control-toggle:hover {
   transform: translateY(-1px);
+  background: var(--home-control-surface-hover);
 }
 
 .home-control-toggle.active {
@@ -414,13 +441,9 @@ img {
   min-height: 3.3rem;
   padding: 0.2rem 0.95rem;
   border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28)),
-    rgba(255, 255, 255, 0.42);
-  border: 1px solid rgba(49, 123, 67, 0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 10px 22px rgba(31, 143, 58, 0.08);
+  background: var(--home-control-panel-surface);
+  border: 1px solid var(--home-control-border);
+  box-shadow: var(--home-control-shadow);
 }
 
 .home-control-panel:focus-within {
@@ -432,7 +455,7 @@ img {
   width: 1.2rem;
   height: 1.2rem;
   flex: 0 0 auto;
-  color: var(--accent-strong);
+  color: var(--home-control-icon);
 }
 
 .home-control-panel-icon svg {
@@ -442,7 +465,7 @@ img {
 
 .home-control-panel-title {
   flex: 0 0 auto;
-  color: var(--accent-strong);
+  color: var(--home-control-icon);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -485,8 +508,8 @@ select.home-control-panel-field {
   justify-content: center;
   border: 0;
   border-radius: 999px;
-  background: rgba(31, 143, 58, 0.12);
-  color: var(--accent-strong);
+  background: var(--home-control-dismiss-bg);
+  color: var(--home-control-icon);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
