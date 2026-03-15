@@ -105,7 +105,6 @@ function HomePage() {
         <div className="home-toolbar-head">
           <div className="home-toolbar-copy">
             <p className="home-toolbar-kicker">Marketplace</p>
-            <h1>{STORE_NAME}</h1>
           </div>
         </div>
         <CatalogControls
@@ -197,10 +196,10 @@ function HomePage() {
               Contact us for account support, supplier onboarding, product updates, and help with your orders.
             </p>
             <div className="contact-actions">
-              <a className="primary-btn" href="mailto:support@zansupermarket.com">
+              <a className="primary-btn" href="mailto:info@zansupermarket.com">
                 Email Support
               </a>
-              <a className="ghost-btn" href="tel:+255700000000">
+              <a className="ghost-btn" href="tel:+255711252758">
                 Call Now
               </a>
             </div>
