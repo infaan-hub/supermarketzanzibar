@@ -28,9 +28,29 @@ class BrokenFile:
         raise ValueError("broken media path")
 
 
+class MissingStorage:
+    def exists(self, name):
+        return False
+
+
+class RepoMediaFile:
+    name = "products/download_5.jpg"
+    storage = MissingStorage()
+
+    def __bool__(self):
+        return True
+
+    @property
+    def url(self):
+        return "/media/products/download_5.jpg"
+
+
 class SafeMediaUrlTests(TestCase):
     def test_returns_none_for_broken_media_field(self):
         self.assertIsNone(safe_media_url(BrokenFile()))
+
+    def test_uses_repo_media_file_when_primary_storage_cannot_find_it(self):
+        self.assertEqual(safe_media_url(RepoMediaFile()), "/media/products/download_5.jpg")
 
     def test_product_serializer_keeps_image_field_writeable(self):
         self.assertFalse(ProductSerializer().fields["image"].read_only)
@@ -117,7 +137,7 @@ class ProductApiTests(APITestCase):
         self.assertEqual(response.data[0]["id"], product.id)
         self.assertEqual(response.data[0]["category_name"], self.category.name)
         self.assertEqual(response.data[0]["image"], None)
-        self.assertEqual(response.data[0]["image_url"], None)
+        self.assertTrue(response.data[0]["image_url"].endswith("/media/products/product-fallback.svg"))
 
     def test_public_products_list_omits_dead_image_urls(self):
         self.create_product(
@@ -131,7 +151,7 @@ class ProductApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0]["image"], None)
-        self.assertEqual(response.data[0]["image_url"], None)
+        self.assertTrue(response.data[0]["image_url"].endswith("/media/products/product-fallback.svg"))
 
     def test_public_products_list_skips_products_that_fail_serialization(self):
         good_product = self.create_product(name="Sugar", slug="sugar", barcode="sugar-001")

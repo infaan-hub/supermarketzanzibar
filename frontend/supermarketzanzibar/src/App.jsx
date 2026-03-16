@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import MainNav from "./components/MainNav.jsx";
+import CartNoticeCenter from "./components/CartNoticeCenter.jsx";
 import RoleNotificationCenter from "./components/RoleNotificationCenter.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
@@ -32,6 +33,7 @@ function AppLayout() {
   return (
     <div className="app-shell">
       <RoleNotificationCenter />
+      <CartNoticeCenter />
       <MainNav theme={theme} onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))} />
       <main className="app-content">
         <Outlet />

@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
@@ -6,6 +9,28 @@ from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
 User = get_user_model()
+PRODUCT_MEDIA_FALLBACK_PATH = "products/product-fallback.svg"
+
+
+def repo_media_file_exists(file_name):
+    if not file_name:
+        return False
+    candidate = Path(settings.BASE_DIR) / "media" / str(file_name)
+    return candidate.exists() and candidate.is_file()
+
+
+def build_media_url(path, request=None):
+    normalized_media_url = str(settings.MEDIA_URL or "/media/").rstrip("/")
+    normalized_path = str(path).lstrip("/")
+    url = f"{normalized_media_url}/{normalized_path}"
+
+    if request is not None:
+        try:
+            return request.build_absolute_uri(url)
+        except (TypeError, ValueError, SuspiciousOperation):
+            return url
+
+    return url
 
 
 def safe_media_url(file_field, request=None):
@@ -13,7 +38,12 @@ def safe_media_url(file_field, request=None):
         return None
 
     try:
-        if hasattr(file_field, "storage") and hasattr(file_field, "name") and not file_field.storage.exists(file_field.name):
+        if (
+            hasattr(file_field, "storage")
+            and hasattr(file_field, "name")
+            and not file_field.storage.exists(file_field.name)
+            and not repo_media_file_exists(file_field.name)
+        ):
             return None
         url = file_field.url
     except (AttributeError, OSError, TypeError, ValueError, SuspiciousOperation):
@@ -32,6 +62,10 @@ class SafeImageField(serializers.ImageField):
     def to_representation(self, value):
         request = self.context.get("request") if hasattr(self, "context") else None
         return safe_media_url(value, request)
+
+
+def product_media_url(file_field, request=None):
+    return safe_media_url(file_field, request) or build_media_url(PRODUCT_MEDIA_FALLBACK_PATH, request)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -251,7 +285,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         request = self.context.get("request")
-        return safe_media_url(obj.image, request)
+        return product_media_url(obj.image, request)
 
     def get_category_name(self, obj):
         return getattr(obj.category, "name", None)
@@ -279,7 +313,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         request = self.context.get("request")
-        return safe_media_url(obj.image, request)
+        return product_media_url(obj.image, request)
 
     def get_category_name(self, obj):
         return getattr(obj.category, "name", None)
@@ -295,7 +329,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
 
     def get_product_image_url(self, obj):
         request = self.context.get("request")
-        return safe_media_url(getattr(obj.product, "image", None), request)
+        return product_media_url(getattr(obj.product, "image", None), request)
 
 
 class PaymentSerializer(serializers.ModelSerializer):
