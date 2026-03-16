@@ -537,6 +537,32 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(response.data["alerts"][0]["type"], "driver_delivery")
         self.assertNotEqual(response.data["alerts"][0]["sale_id"], delivered_sale.id)
 
+    def test_driver_dashboard_auto_assigns_ready_sales_when_only_one_driver_exists(self):
+        sale = Sale.objects.create(
+            customer=self.customer,
+            user=self.customer_user,
+            total_amount=Decimal("3200.00"),
+            final_amount=Decimal("3200.00"),
+            payment_method="mobile_money",
+            payment_confirmed=True,
+            delivery_location="Darajani",
+            terms_accepted=True,
+            customer_full_name="Customer Test",
+            customer_email="customer-test@example.com",
+            customer_phone="255700000010",
+            customer_address="Town",
+            status="payment_confirmed",
+        )
+        self.client.force_authenticate(user=self.driver_user)
+
+        response = self.client.get("/api/driver/dashboard/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sale.refresh_from_db()
+        self.assertEqual(sale.assigned_driver, self.driver_user)
+        self.assertEqual(sale.status, "out_for_delivery")
+        self.assertEqual(response.data["active_deliveries"][0]["id"], sale.id)
+
     def test_supplier_can_confirm_pending_payment_for_own_product(self):
         sale = Sale.objects.create(
             customer=self.customer,
@@ -565,7 +591,8 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(payment.status, "confirmed")
         self.assertEqual(payment.confirmed_by, self.supplier_user)
         self.assertTrue(sale.payment_confirmed)
-        self.assertEqual(sale.status, "payment_confirmed")
+        self.assertEqual(sale.status, "out_for_delivery")
+        self.assertEqual(sale.assigned_driver, self.driver_user)
 
     def test_supplier_cannot_confirm_pending_payment_for_other_supplier_product(self):
         other_supplier_user = User.objects.create_user(

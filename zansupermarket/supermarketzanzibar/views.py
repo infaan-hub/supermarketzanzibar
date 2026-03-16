@@ -1313,6 +1313,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if sale.status == "pending_payment":
             sale.status = "payment_confirmed"
         sale.save()
+        _auto_assign_sale_to_sole_driver(sale)
 
         customer_name = (
             sale.customer_name_display
@@ -1557,6 +1558,42 @@ def _driver_active_deliveries_queryset(user):
     )
 
 
+def _auto_assign_ready_sales_to_sole_driver(user):
+    if not user or getattr(user, "role", None) != "driver" or not getattr(user, "is_active", False):
+        return
+
+    active_driver_ids = list(
+        User.objects.filter(role="driver", is_active=True).order_by("id").values_list("id", flat=True)[:2]
+    )
+    if active_driver_ids != [user.id]:
+        return
+
+    Sale.objects.filter(
+        assigned_driver__isnull=True,
+        status__in=("payment_confirmed", "processing"),
+    ).update(assigned_driver=user, status="out_for_delivery")
+    Sale.objects.filter(
+        assigned_driver__isnull=True,
+        status="out_for_delivery",
+    ).update(assigned_driver=user)
+
+
+def _auto_assign_sale_to_sole_driver(sale):
+    if sale.assigned_driver_id or sale.status not in ("payment_confirmed", "processing", "out_for_delivery"):
+        return
+
+    active_drivers = list(User.objects.filter(role="driver", is_active=True).order_by("id")[:2])
+    if len(active_drivers) != 1:
+        return
+
+    sale.assigned_driver = active_drivers[0]
+    update_fields = ["assigned_driver"]
+    if sale.status in ("payment_confirmed", "processing"):
+        sale.status = "out_for_delivery"
+        update_fields.append("status")
+    sale.save(update_fields=update_fields)
+
+
 class SupplierDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSupplierRole]
 
@@ -1618,6 +1655,7 @@ class DriverDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def get(self, request):
+        _auto_assign_ready_sales_to_sole_driver(request.user)
         sales = _driver_active_deliveries_queryset(request.user)
         return Response(
             {
@@ -1632,6 +1670,7 @@ class DriverAlertsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def get(self, request):
+        _auto_assign_ready_sales_to_sole_driver(request.user)
         sales = _driver_active_deliveries_queryset(request.user).order_by("-created_at")[:25]
         alerts = [
             {
