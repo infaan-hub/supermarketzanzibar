@@ -3,6 +3,8 @@ import { http } from "../api/http.jsx";
 import { STORE_LOCATION, STORE_NAME } from "../lib/storeInfo.js";
 
 const STORE_ROUTE_ORIGIN = STORE_LOCATION;
+const DRIVER_DASHBOARD_POLL_INTERVAL_MS = 10000;
+const DRIVER_ALERTS_UPDATED_EVENT = "driver-alerts-updated";
 
 function normalizeMapsLocation(value) {
   const text = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -65,6 +67,19 @@ function DriverDashboardPage() {
 
   useEffect(() => {
     loadDashboard();
+
+    const intervalId = window.setInterval(loadDashboard, DRIVER_DASHBOARD_POLL_INTERVAL_MS);
+    const handleWindowFocus = () => loadDashboard();
+    const handleDriverAlertsUpdated = () => loadDashboard();
+
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener(DRIVER_ALERTS_UPDATED_EVENT, handleDriverAlertsUpdated);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener(DRIVER_ALERTS_UPDATED_EVENT, handleDriverAlertsUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -156,6 +171,9 @@ function DriverDashboardPage() {
             disabled={!selectedSale || !selectedDestination}
           >
             Start Selected Route
+          </button>
+          <button className="ghost-btn" type="button" onClick={loadDashboard}>
+            Refresh Deliveries
           </button>
           {selectedMapsUrl ? (
             <a className="ghost-btn driver-route-link" href={selectedMapsUrl} target="_blank" rel="noreferrer">

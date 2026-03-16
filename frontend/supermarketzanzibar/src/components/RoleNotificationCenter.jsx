@@ -5,6 +5,7 @@ import { playNotificationTone, primeNotificationTone } from "../lib/notification
 
 const POLL_INTERVAL_MS = 10000;
 const ALERT_LIFETIME_MS = 7000;
+const DRIVER_ALERTS_UPDATED_EVENT = "driver-alerts-updated";
 
 function buildSummaryAlert(role, count) {
   const label = count === 1 ? "1 new item" : `${count} active items`;
@@ -127,6 +128,9 @@ function RoleNotificationCenter() {
           seenIdsRef.current = nextSeenIds;
 
           if (roleAlerts.length) {
+            if (role === "driver") {
+              window.dispatchEvent(new CustomEvent(DRIVER_ALERTS_UPDATED_EVENT));
+            }
             pushAlert(role, {
               itemId: "summary",
               ...buildSummaryAlert(role, roleAlerts.length),
@@ -141,6 +145,9 @@ function RoleNotificationCenter() {
 
         if (!newItems.length) return;
 
+        if (role === "driver") {
+          window.dispatchEvent(new CustomEvent(DRIVER_ALERTS_UPDATED_EVENT));
+        }
         newItems.forEach((item) => {
           pushAlert(role, {
             itemId: item.id,
