@@ -33,6 +33,22 @@ const ROLE_CONFIG = {
   },
 };
 
+function PasswordEyeIcon({ visible }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 12C4.8 7.9 8.1 5.8 12 5.8s7.2 2.1 9.5 6.2C19.2 16.1 15.9 18.2 12 18.2S4.8 16.1 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3.1" stroke="currentColor" strokeWidth="1.9" />
+      {!visible ? <path d="M4 20L20 4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /> : null}
+    </svg>
+  );
+}
+
 function RoleLoginPage({ role }) {
   const config = ROLE_CONFIG[role];
   const auth = useAuth();
@@ -96,7 +112,7 @@ function RoleLoginPage({ role }) {
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((current) => !current)}
               >
-                {showPassword ? "Hide" : "Show"}
+                <PasswordEyeIcon visible={showPassword} />
               </button>
             </div>
           </label>

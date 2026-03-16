@@ -1,4 +1,4 @@
-export const STORE_NAME = "SUPERMARKET ZANZIBAR";
+export const STORE_NAME = "Supermarket Zanzibar";
 export const STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar.";
 export const STORE_LOCATION = "Stone Town, Zanzibar";
 export const STORE_PHONE = "+255 711 252 758";
