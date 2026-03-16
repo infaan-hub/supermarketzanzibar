@@ -38,7 +38,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, SuspiciousOperation)
 WHATSAPP_ORDER_NUMBER = "255711252758"
-STORE_NAME = "Zansupermarket"
+STORE_NAME = "SUPERMARKET ZANZIBAR"
 STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
 STORE_PHONE = "+255 711 252 758"
 STORE_EMAIL = "info@supermarketzanzibar"
@@ -889,7 +889,7 @@ def build_receipt_pdf(sale):
             Spacer(1, 10),
             _receipt_card(
                 Paragraph(
-                    "This receipt is issued because your payment has been confirmed by Zansupermarket.",
+                    f"This receipt is issued because your payment has been confirmed by {STORE_NAME}.",
                     styles["small"],
                 ),
                 page_width,
@@ -1330,7 +1330,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 f"Order ID: {sale.id}\n"
                 f"Total: {sale.final_amount}\n"
                 f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
-                "Thank you for shopping with Zanzibar Super System."
+                f"Thank you for shopping with {STORE_NAME}."
             )
             send_mail(
                 subject=subject,
@@ -1461,7 +1461,7 @@ class CheckoutView(APIView):
                 f"Address: {customer_address or 'Not provided'}\n"
                 f"Delivery location: {sale.delivery_location or 'Not provided'}\n\n"
                 f"Items:\n{items_text}\n\n"
-                "Your payment is pending confirmation. Thank you for shopping with Zanzibar Super System."
+                f"Your payment is pending confirmation. Thank you for shopping with {STORE_NAME}."
             )
             recipient_email = customer_email or request.user.email or ""
             if recipient_email:

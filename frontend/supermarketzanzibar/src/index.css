@@ -1802,6 +1802,22 @@ form {
   margin: 0;
 }
 
+.auth-password-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.auth-password-input input {
+  width: 100%;
+}
+
+.auth-password-toggle {
+  min-width: 74px;
+  padding: 0.72rem 0.95rem;
+}
+
 .auth-field-wide {
   grid-column: 1 / -1;
 }

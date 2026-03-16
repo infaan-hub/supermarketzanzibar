@@ -177,7 +177,6 @@ function HomePage() {
       <section className="home-section" id="about">
         <div className="section-heading">
           <h2 className="section-title">About Us</h2>
-          <p className="section-note">Built to make supermarket shopping clearer, faster, and more reliable.</p>
         </div>
         <div className="info-grid">
           {ABOUT_CARDS.map((card) => (
@@ -197,12 +196,11 @@ function HomePage() {
       <section className="home-section" id="contact">
         <div className="section-heading">
           <h2 className="section-title">Contact Us</h2>
-          <p className="section-note">Reach the team for supplier support, customer help, or store questions.</p>
         </div>
         <div className="contact-card">
           <div className="contact-copy">
             <p className="info-card-kicker">Support</p>
-            <h3>Talk to Zansupermarket</h3>
+            <h3>Talk to {STORE_NAME}</h3>
             <p>
               Contact us for account support, supplier onboarding, product updates, and help with your orders.
             </p>

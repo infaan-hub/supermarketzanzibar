@@ -39,6 +39,7 @@ function RoleLoginPage({ role }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ username: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,14 +81,24 @@ function RoleLoginPage({ role }) {
           </label>
           <label className="auth-field">
             <span>Password</span>
-            <input
-              name="password"
-              type="password"
-              placeholder="Enter your password"
-              value={form.password}
-              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-              required
-            />
+            <div className="auth-password-input">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={form.password}
+                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                required
+              />
+              <button
+                type="button"
+                className="ghost-btn auth-password-toggle"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((current) => !current)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
         </div>
 

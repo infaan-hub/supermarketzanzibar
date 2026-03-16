@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { STORE_NAME } from "../lib/storeInfo.js";
 
 function MainNav({ theme, onToggleTheme }) {
   const { user, logout, isAuthenticated } = useAuth();
@@ -47,7 +48,7 @@ function MainNav({ theme, onToggleTheme }) {
           <span />
         </button>
         <Link to="/home" className="brand">
-          Zansupermarket
+          {STORE_NAME}
         </Link>
       </header>
 
