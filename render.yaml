@@ -41,6 +41,12 @@ services:
         value: True
       - key: MEDIA_ROOT
         value: /var/data/media
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: STRICT_MEDIA_ROOT
+        value: True
       - key: SECURE_SSL_REDIRECT
         value: True
       - key: SECURE_HSTS_SECONDS

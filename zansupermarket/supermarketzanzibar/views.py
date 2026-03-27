@@ -1,7 +1,13 @@
+import json
 import logging
+import os
+import random
+import re
 from io import BytesIO
 from textwrap import wrap
-from urllib.parse import quote
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
 from decimal import Decimal
 from xml.sax.saxutils import escape
 from django.contrib.auth import authenticate, get_user_model
@@ -43,6 +49,10 @@ STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
 STORE_PHONE = "+255 711 252 758"
 STORE_EMAIL = "info@supermarketzanzibar"
 STORE_LOCATION = "Stone Town, Zanzibar"
+GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_ENDPOINT = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 RECEIPT_ABOUT_CARDS = [
     (
         "Fresh supply",
@@ -57,6 +67,99 @@ RECEIPT_ABOUT_CARDS = [
         "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
     ),
 ]
+
+
+def _google_auth_is_configured():
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def _google_json_request(url, *, method="GET", data=None, headers=None):
+    request = Request(url, data=data, headers=headers or {}, method=method)
+    with urlopen(request, timeout=15) as response:
+        payload = response.read().decode("utf-8")
+    return json.loads(payload)
+
+
+def _exchange_google_code_for_profile(code):
+    token_payload = urlencode(
+        {
+            "code": code,
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": "postmessage",
+            "grant_type": "authorization_code",
+        }
+    ).encode("utf-8")
+    token_response = _google_json_request(
+        GOOGLE_TOKEN_ENDPOINT,
+        method="POST",
+        data=token_payload,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    access_token = token_response.get("access_token")
+    if not access_token:
+        raise ValueError("Google token exchange did not return an access token.")
+
+    return _google_json_request(
+        GOOGLE_USERINFO_ENDPOINT,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+
+def _sanitize_google_username_seed(value):
+    seed = re.sub(r"[^a-z0-9._-]+", "", (value or "").lower())
+    return seed[:120] or "customer"
+
+
+def _build_unique_google_username(profile):
+    seed = _sanitize_google_username_seed(profile.get("email", "").split("@")[0]) or _sanitize_google_username_seed(
+        profile.get("name", "")
+    )
+    candidate = seed
+    suffix = 1
+    while User.objects.filter(username=candidate).exists():
+        suffix += 1
+        candidate = f"{seed[:140]}{suffix}"
+    return candidate[:150]
+
+
+def _build_unique_google_phone():
+    while True:
+        candidate = f"google-{random.randint(1000000000, 9999999999)}"
+        if not User.objects.filter(phone=candidate).exists():
+            return candidate
+
+
+def _customer_user_from_google_profile(profile):
+    email = str(profile.get("email") or "").strip().lower()
+    if not email:
+        raise exceptions.ValidationError({"detail": "Google did not return an email address."})
+    if not profile.get("email_verified"):
+        raise exceptions.ValidationError({"detail": "Only verified Google email accounts can sign in."})
+
+    existing_user = User.objects.filter(email__iexact=email).first()
+    if existing_user:
+        if existing_user.role != "customer":
+            raise exceptions.PermissionDenied("Only customer accounts can sign in with Google here.")
+        if not existing_user.is_active:
+            raise exceptions.PermissionDenied("This customer account is inactive.")
+        Customer.objects.get_or_create(user=existing_user, defaults={"phone": existing_user.phone})
+        return existing_user
+
+    full_name = str(profile.get("name") or email.split("@")[0]).strip() or "Customer"
+    user = User.objects.create(
+        username=_build_unique_google_username(profile),
+        email=email,
+        full_name=full_name,
+        phone=_build_unique_google_phone(),
+        address="",
+        role="customer",
+        is_active=True,
+    )
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    Customer.objects.get_or_create(user=user, defaults={"phone": user.phone})
+    return user
 
 
 def build_whatsapp_order_url(sale, payment, sale_items):
@@ -987,6 +1090,36 @@ class RoleLoginView(APIView):
 
 class CustomerLoginView(RoleLoginView):
     required_role = "customer"
+
+
+class CustomerGoogleLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        if not _google_auth_is_configured():
+            return Response(
+                {"detail": "Google login is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        code = str(request.data.get("code") or "").strip()
+        if not code:
+            return Response({"detail": "Google authorization code is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            google_profile = _exchange_google_code_for_profile(code)
+            user = _customer_user_from_google_profile(google_profile)
+            return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
+        except exceptions.APIException:
+            raise
+        except ValueError:
+            logger.exception("Google login failed because the token exchange response was invalid.")
+            return Response({"detail": "Google login failed."}, status=status.HTTP_502_BAD_GATEWAY)
+        except (HTTPError, URLError):
+            logger.exception("Google login failed while contacting Google OAuth.")
+            return Response({"detail": "Google login is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except DatabaseError:
+            return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class AdminLoginView(RoleLoginView):

@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || "";
+const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
+const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
 const ROLE_CONFIG = {
   customer: {
@@ -49,6 +53,34 @@ function PasswordEyeIcon({ visible }) {
   );
 }
 
+function loadGoogleIdentityScript() {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Browser environment is unavailable."));
+  }
+  if (window.google?.accounts?.oauth2) {
+    return Promise.resolve(window.google);
+  }
+
+  const existingScript = document.getElementById(GOOGLE_IDENTITY_SCRIPT_ID);
+  if (existingScript) {
+    return new Promise((resolve, reject) => {
+      existingScript.addEventListener("load", () => resolve(window.google), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Failed to load Google sign-in.")), { once: true });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = GOOGLE_IDENTITY_SCRIPT_ID;
+    script.src = GOOGLE_IDENTITY_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(window.google);
+    script.onerror = () => reject(new Error("Failed to load Google sign-in."));
+    document.head.appendChild(script);
+  });
+}
+
 function RoleLoginPage({ role }) {
   const config = ROLE_CONFIG[role];
   const auth = useAuth();
@@ -57,7 +89,36 @@ function RoleLoginPage({ role }) {
   const [form, setForm] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    if (role !== "customer" || !GOOGLE_CLIENT_ID) {
+      setGoogleReady(false);
+      return undefined;
+    }
+
+    loadGoogleIdentityScript()
+      .then(() => {
+        if (active) setGoogleReady(true);
+      })
+      .catch(() => {
+        if (active) {
+          setGoogleReady(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [role]);
+
+  const finishLogin = () => {
+    const fromPath = typeof location.state?.from === "string" ? location.state.from : null;
+    navigate(role === "customer" && fromPath ? fromPath : config.next, { replace: true });
+  };
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -65,12 +126,57 @@ function RoleLoginPage({ role }) {
     setError("");
     try {
       await auth[config.action](form);
-      const fromPath = typeof location.state?.from === "string" ? location.state.from : null;
-      navigate(role === "customer" && fromPath ? fromPath : config.next, { replace: true });
+      finishLogin();
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onGoogleLogin = async () => {
+    setError("");
+    setGoogleLoading(true);
+
+    try {
+      const google = await loadGoogleIdentityScript();
+      if (!GOOGLE_CLIENT_ID) {
+        throw new Error("Google sign-in is not configured for this app.");
+      }
+      if (!google?.accounts?.oauth2) {
+        throw new Error("Google sign-in is not available right now.");
+      }
+
+      const codeClient = google.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: "openid email profile",
+        ux_mode: "popup",
+        callback: async (response) => {
+          if (response.error || !response.code) {
+            setError("Google login was cancelled or failed.");
+            setGoogleLoading(false);
+            return;
+          }
+
+          try {
+            await auth.loginCustomerWithGoogle(response.code);
+            finishLogin();
+          } catch (err) {
+            setError(err.response?.data?.detail || "Google login failed.");
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+        error_callback: () => {
+          setError("Google login was cancelled or blocked.");
+          setGoogleLoading(false);
+        },
+      });
+
+      codeClient.requestCode();
+    } catch (err) {
+      setError(err.message || "Google login failed.");
+      setGoogleLoading(false);
     }
   };
 
@@ -122,6 +228,22 @@ function RoleLoginPage({ role }) {
         <button className="primary-btn auth-submit" type="submit" disabled={loading}>
           {loading ? "Please wait..." : "Login"}
         </button>
+
+        {role === "customer" ? (
+          <>
+            <div className="auth-alt-divider" aria-hidden="true">
+              <span>or</span>
+            </div>
+            <button
+              className="ghost-btn auth-google-btn"
+              type="button"
+              onClick={onGoogleLogin}
+              disabled={loading || googleLoading || !googleReady}
+            >
+              {googleLoading ? "Connecting to Google..." : "Continue with Google"}
+            </button>
+          </>
+        ) : null}
 
         {role === "customer" ? (
           <p className="auth-footnote">
