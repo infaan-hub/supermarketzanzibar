@@ -68,6 +68,19 @@ def product_media_url(file_field, request=None):
     return safe_media_url(file_field, request) or build_media_url(PRODUCT_MEDIA_FALLBACK_PATH, request)
 
 
+def product_image_url(product, request=None):
+    if getattr(product, "image_data", None):
+        path = reverse("product-image", kwargs={"pk": product.pk})
+        if request is not None:
+            try:
+                return request.build_absolute_uri(path)
+            except (TypeError, ValueError, SuspiciousOperation):
+                return path
+        return path
+
+    return product_media_url(getattr(product, "image", None), request)
+
+
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     profile_image_url = serializers.SerializerMethodField()
@@ -233,7 +246,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category = serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
     category_id = serializers.IntegerField(source="category.id", read_only=True)
-    image = SafeImageField(required=False, allow_null=True)
+    image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     image_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
 
@@ -274,25 +287,40 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         raw_category = validated_data.pop("category", None)
+        uploaded_image = validated_data.pop("image", serializers.empty)
         validated_data["category"] = self._resolve_category(raw_category)
-        return super().create(validated_data)
+        product = super().create(validated_data)
+        if uploaded_image is not serializers.empty:
+            product.set_database_image(uploaded_image)
+            product.save(update_fields=["image", "image_data", "image_name", "image_content_type", "updated_at"])
+        return product
 
     def update(self, instance, validated_data):
         if "category" in validated_data:
             raw_category = validated_data.pop("category")
             validated_data["category"] = self._resolve_category(raw_category)
-        return super().update(instance, validated_data)
+        uploaded_image = validated_data.pop("image", serializers.empty)
+        product = super().update(instance, validated_data)
+        if uploaded_image is not serializers.empty:
+            product.set_database_image(uploaded_image)
+            product.save(update_fields=["image", "image_data", "image_name", "image_content_type", "updated_at"])
+        return product
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = product_image_url(instance, self.context.get("request"))
+        return data
 
     def get_image_url(self, obj):
         request = self.context.get("request")
-        return product_media_url(obj.image, request)
+        return product_image_url(obj, request)
 
     def get_category_name(self, obj):
         return getattr(obj.category, "name", None)
 
 
 class PublicProductSerializer(serializers.ModelSerializer):
-    image = SafeImageField(read_only=True)
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
 
@@ -313,7 +341,11 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         request = self.context.get("request")
-        return product_media_url(obj.image, request)
+        return product_image_url(obj, request)
+
+    def get_image(self, obj):
+        request = self.context.get("request")
+        return product_image_url(obj, request)
 
     def get_category_name(self, obj):
         return getattr(obj.category, "name", None)
@@ -329,7 +361,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
 
     def get_product_image_url(self, obj):
         request = self.context.get("request")
-        return product_media_url(getattr(obj.product, "image", None), request)
+        return product_image_url(obj.product, request)
 
 
 class PaymentSerializer(serializers.ModelSerializer):

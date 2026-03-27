@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.utils.text import slugify
+from os.path import basename
 import random
 import string
 
@@ -116,6 +117,9 @@ class Product(models.Model):
     barcode = models.CharField(max_length=100, unique=True)
 
     image = models.ImageField(upload_to="products/", null=True, blank=True)
+    image_data = models.BinaryField(null=True, blank=True)
+    image_name = models.CharField(max_length=255, blank=True, default="")
+    image_content_type = models.CharField(max_length=100, blank=True, default="")
 
     description = models.TextField(blank=True)
 
@@ -137,6 +141,29 @@ class Product(models.Model):
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
+
+    @property
+    def has_database_image(self):
+        return bool(self.image_data)
+
+    def set_database_image(self, uploaded_file):
+        if uploaded_file is None:
+            self.clear_database_image()
+            return
+
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        self.image_data = uploaded_file.read()
+        self.image_name = basename(getattr(uploaded_file, "name", "") or "product-image")
+        self.image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+        if self.image:
+            self.image = None
+
+    def clear_database_image(self):
+        self.image_data = None
+        self.image_name = ""
+        self.image_content_type = ""
+        self.image = None
 
     def __str__(self):
         return self.name

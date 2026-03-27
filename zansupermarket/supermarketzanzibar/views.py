@@ -14,7 +14,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -1285,6 +1285,44 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {"detail": "This product is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
+    def image(self, request, pk=None):
+        try:
+            product = self.get_object()
+        except Http404:
+            return Response({"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+        except DatabaseError:
+            return Response(
+                {"detail": "This product image is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        if getattr(product, "image_data", None):
+            response = HttpResponse(
+                bytes(product.image_data),
+                content_type=product.image_content_type or "application/octet-stream",
+            )
+            if product.image_name:
+                response["Content-Disposition"] = f'inline; filename="{product.image_name}"'
+            response["Cache-Control"] = "public, max-age=86400"
+            return response
+
+        image_file = getattr(product, "image", None)
+        if image_file:
+            try:
+                with image_file.open("rb") as handle:
+                    payload = handle.read()
+                response = HttpResponse(
+                    payload,
+                    content_type=product.image_content_type or "application/octet-stream",
+                )
+                response["Cache-Control"] = "public, max-age=86400"
+                return response
+            except OSError:
+                logger.exception("Legacy filesystem image for product %s could not be opened.", product.pk)
+
+        return Response({"detail": "Product image not found."}, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request, *args, **kwargs):
         try:
