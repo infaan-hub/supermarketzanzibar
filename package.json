@@ -3,6 +3,9 @@
   "private": true,
   "scripts": {
     "install:frontend": "npm --prefix frontend/supermarketzanzibar install",
-    "build": "npm --prefix frontend/supermarketzanzibar run build"
+    "build": "npm --prefix frontend/supermarketzanzibar run build",
+    "install:desktop": "npm --prefix desktop/supermarketzanzibar-desktop install",
+    "desktop": "npm --prefix desktop/supermarketzanzibar-desktop run desktop",
+    "desktop:dist": "npm --prefix desktop/supermarketzanzibar-desktop run desktop:dist"
   }
 }
