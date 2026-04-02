@@ -129,7 +129,7 @@ function CustomerBuyNowPage() {
         </div>
 
         <div className="checkout-stage-grid">
-          <form className="checkout-stage-card" onSubmit={saveAndContinue}>
+          <form id="customer-buy-form" className="checkout-stage-card" onSubmit={saveAndContinue}>
             <div className="checkout-stage-header">
               <p className="home-toolbar-kicker">Customer details</p>
               <h2>Buy</h2>
@@ -252,6 +252,9 @@ function CustomerBuyNowPage() {
               <span>Total items: {draftItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
               <strong>TZS {total.toFixed(2)}</strong>
             </div>
+            <button type="submit" form="customer-buy-form" className="showcase-primary-btn">
+              Continue to Billing
+            </button>
           </aside>
         </div>
       </div>

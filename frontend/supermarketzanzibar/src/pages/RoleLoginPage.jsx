@@ -183,75 +183,81 @@ function RoleLoginPage({ role }) {
 
   return (
     <section className="auth-section">
-      <form className="auth-card auth-card-premium" onSubmit={onSubmit}>
-        <div className="auth-copy">
-          <p className="auth-eyebrow">{config.eyebrow}</p>
-          <h2>{config.title}</h2>
-          <p className="auth-description">{config.description}</p>
+      <div className="auth-portal-shell">
+        <div className="auth-portal-hero">
+          <span className="auth-portal-badge">{role === "admin" ? "Admin Portal" : role === "supplier" ? "Supplier Portal" : role === "driver" ? "Driver Portal" : "Voter Portal"}</span>
+          <h1>{role === "customer" ? "Login Here" : config.title}</h1>
+          <p>{config.description}</p>
+          <span className="auth-portal-orb auth-portal-orb-left" aria-hidden="true" />
+          <span className="auth-portal-orb auth-portal-orb-right" aria-hidden="true" />
         </div>
 
-        <div className="auth-field-list">
-          <label className="auth-field">
-            <span>Username</span>
-            <input
-              name="username"
-              type="text"
-              placeholder="Enter your username"
-              value={form.username}
-              onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
-              required
-            />
-          </label>
-          <label className="auth-field">
-            <span>Password</span>
-            <div className="auth-password-input">
+        <form className="auth-card auth-card-premium auth-portal-card" onSubmit={onSubmit}>
+          <div className="auth-field-list auth-portal-field-list">
+            <label className="auth-field auth-portal-field">
               <input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={form.password}
-                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                name="username"
+                type="text"
+                placeholder="Username"
+                value={form.username}
+                onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
                 required
               />
+            </label>
+            <label className="auth-field auth-portal-field">
+              <div className="auth-password-input auth-portal-password-input">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                  required
+                />
+                <button
+                  type="button"
+                  className="ghost-btn auth-password-toggle auth-portal-password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  <PasswordEyeIcon visible={showPassword} />
+                </button>
+              </div>
+            </label>
+          </div>
+
+          {error ? <p className="error auth-feedback">{error}</p> : null}
+          <button className="primary-btn auth-submit auth-portal-submit" type="submit" disabled={loading}>
+            {loading ? "Please wait..." : "Login"}
+          </button>
+
+          {role === "customer" ? (
+            <>
+              <div className="auth-alt-divider auth-portal-divider" aria-hidden="true">
+                <span>or</span>
+              </div>
               <button
+                className="ghost-btn auth-google-btn auth-portal-google-btn"
                 type="button"
-                className="ghost-btn auth-password-toggle"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((current) => !current)}
+                onClick={onGoogleLogin}
+                disabled={loading || googleLoading || !googleReady}
               >
-                <PasswordEyeIcon visible={showPassword} />
+                <span className="auth-google-mark" aria-hidden="true">G</span>
+                <span>{googleLoading ? "Connecting to Google..." : "Continue with Google"}</span>
               </button>
-            </div>
-          </label>
-        </div>
+              <p className="auth-portal-helper-link">
+                <Link to="/login">Request a New Password</Link>
+              </p>
+            </>
+          ) : null}
 
-        {error ? <p className="error auth-feedback">{error}</p> : null}
-        <button className="primary-btn auth-submit" type="submit" disabled={loading}>
-          {loading ? "Please wait..." : "Login"}
-        </button>
-
-        {role === "customer" ? (
-          <>
-            <div className="auth-alt-divider" aria-hidden="true">
-              <span>or</span>
-            </div>
-            <button
-              className="ghost-btn auth-google-btn"
-              type="button"
-              onClick={onGoogleLogin}
-              disabled={loading || googleLoading || !googleReady}
-            >
-              {googleLoading ? "Connecting to Google..." : "Continue with Google"}
-            </button>
-          </>
-        ) : null}
-
-        {role === "customer" ? (
-          <p className="auth-footnote">
-            No account? <Link to="/register">Register</Link>
-          </p>
-        ) : null}
-      </form>
+          {role === "customer" ? (
+            <p className="auth-footnote auth-portal-footnote">
+              No account? <Link to="/register">Register</Link>
+            </p>
+          ) : null}
+        </form>
+      </div>
     </section>
   );
 }

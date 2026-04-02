@@ -57,35 +57,68 @@ function ProductDetailPage() {
   return (
     <section className="page-wrap">
       <div className="product-view-shell">
-        <div className="product-view-media">
-          <img
-            src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
-            alt={product.name}
-            data-fallback-src={PRODUCT_PLACEHOLDER}
-            onError={applyImageFallback}
-          />
+        <div className="product-view-media-stage">
+          <div className="product-view-thumbs" aria-hidden="true">
+            <button type="button" className="product-view-thumb active">
+              <img
+                src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
+                alt=""
+                data-fallback-src={PRODUCT_PLACEHOLDER}
+                onError={applyImageFallback}
+              />
+            </button>
+          </div>
+          <div className="product-view-media">
+            <img
+              src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
+              alt={product.name}
+              data-fallback-src={PRODUCT_PLACEHOLDER}
+              onError={applyImageFallback}
+            />
+          </div>
         </div>
         <div className="product-view-copy">
-          <p className="home-toolbar-kicker">{product.category_name || "Product"}</p>
-          <h2>{product.name}</h2>
+          <div className="product-view-topbar">
+            <div>
+              <p className="product-view-brand">{product.category_name || "Product"}</p>
+              <h2>{product.name}</h2>
+            </div>
+            <Link className="product-view-close" to={user?.role === "customer" ? "/customer/dashboard" : "/"}>
+              <span aria-hidden="true">×</span>
+              <span className="sr-only">Close product view</span>
+            </Link>
+          </div>
+
           <p className="product-view-description">{product.description || "Fresh product available now."}</p>
-          <p className="showcase-card-price">TZS {product.price}</p>
-          <p className="muted">Stock available: {product.quantity}</p>
+
+          <div className="product-view-detail-grid">
+            <div>
+              <span>Category</span>
+              <strong>{product.category_name || "Product"}</strong>
+            </div>
+            <div>
+              <span>Stock</span>
+              <strong>{product.quantity} available</strong>
+            </div>
+          </div>
+
+          <div className="product-view-divider" />
+          <p className="product-view-price">TZS {product.price}</p>
 
           {isAuthenticated && user?.role === "customer" ? (
-            <div className="showcase-card-actions">
-              <button type="button" className="showcase-primary-btn" onClick={() => addToCart(product, 1)}>
+            <div className="product-view-actions">
+              <button type="button" className="product-view-primary-btn" onClick={() => addToCart(product, 1)}>
                 Add Cart
               </button>
-              <button type="button" className="showcase-secondary-btn" onClick={openBuy}>
+              <button type="button" className="product-view-secondary-btn" onClick={openBuy}>
                 Buy Now
               </button>
             </div>
           ) : (
-            <div className="catalog-empty compact">
+            <div className="catalog-empty compact product-view-login-card">
               <h3>Login to continue</h3>
               <p>Guests can view the product, but customer login is required before adding cart or buying now.</p>
-              <Link className="showcase-primary-btn" to="/login" state={{ from: `/products/${product.id}` }}>
+              <Link className="product-view-primary-btn" to="/login" state={{ from: `/products/${product.id}` }}>
                 Customer Login
               </Link>
             </div>

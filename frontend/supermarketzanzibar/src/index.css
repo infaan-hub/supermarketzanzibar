@@ -1385,6 +1385,10 @@ select.home-control-panel-field {
   display: grid;
   place-items: center;
   padding: 1.4rem;
+  background:
+    radial-gradient(circle at 0% 38%, rgba(251, 226, 145, 0.86) 0, rgba(251, 226, 145, 0.86) 11%, transparent 11.5%),
+    radial-gradient(circle at 100% 37%, rgba(114, 216, 151, 0.9) 0, rgba(114, 216, 151, 0.9) 10%, transparent 10.5%),
+    linear-gradient(180deg, #f7f2ea 0%, #f4eee4 100%);
 }
 
 .auth-card,
@@ -1722,22 +1726,15 @@ form {
 .auth-card-premium {
   position: relative;
   overflow: hidden;
-  background:
-    var(--glass-sheen),
-    var(--glass-shell-strong),
-    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 95%, white 5%), color-mix(in srgb, var(--surface-soft) 96%, black 4%));
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: var(--glass-shadow), var(--glass-inset);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: #fffefe;
+  border: 1px solid rgba(241, 234, 226, 0.92);
+  box-shadow: 0 28px 52px rgba(142, 128, 110, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .auth-card-premium::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 46%);
-  pointer-events: none;
+  content: none;
 }
 
 .auth-copy,
@@ -1805,8 +1802,8 @@ form {
 .auth-password-input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.6rem;
-  align-items: center;
+  gap: 0;
+  align-items: stretch;
 }
 
 .auth-password-input input {
@@ -1875,6 +1872,235 @@ form {
   font-weight: 700;
 }
 
+.auth-portal-shell {
+  width: min(100%, 760px);
+  display: grid;
+}
+
+.auth-portal-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 370px;
+  padding: 2.5rem 2rem 9rem;
+  border-radius: 56px;
+  background: #eb9073;
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 24px 46px rgba(123, 93, 68, 0.14);
+}
+
+.auth-portal-hero-register {
+  min-height: 330px;
+}
+
+.auth-portal-badge {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin-bottom: 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.auth-portal-hero h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: clamp(3rem, 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.auth-portal-hero p {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 34rem);
+  margin: 1rem auto 0;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.6;
+}
+
+.auth-portal-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(0.3px);
+}
+
+.auth-portal-orb-left {
+  left: -5.6rem;
+  bottom: -0.8rem;
+  width: 180px;
+  height: 180px;
+  background:
+    radial-gradient(circle at 60% 40%, rgba(255, 243, 195, 0.94) 0 56%, rgba(246, 209, 113, 0.82) 57% 100%);
+}
+
+.auth-portal-orb-right {
+  right: -3.8rem;
+  bottom: -0.2rem;
+  width: 176px;
+  height: 176px;
+  background:
+    radial-gradient(circle at 40% 45%, rgba(120, 219, 161, 0.94) 0 56%, rgba(92, 204, 139, 0.82) 57% 100%);
+}
+
+.auth-portal-card {
+  width: min(100%, 640px);
+  margin: -120px auto 0;
+  padding: 2.2rem 2rem 2rem;
+  border-radius: 42px;
+}
+
+.auth-portal-card-register {
+  width: min(100%, 680px);
+  margin-top: -92px;
+}
+
+.auth-portal-field-list,
+.auth-portal-grid {
+  gap: 1rem;
+}
+
+.auth-portal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.auth-portal-field {
+  gap: 0;
+}
+
+.auth-portal-field span {
+  margin-bottom: 0.6rem;
+  color: #6c7383;
+}
+
+.auth-portal-field input {
+  margin: 0;
+  min-height: 72px;
+  padding: 0 1.7rem;
+  border: none;
+  border-radius: 999px;
+  background: #f2efee;
+  box-shadow: none;
+  color: #7e8591;
+  font-size: 1rem;
+}
+
+.auth-portal-field input::placeholder {
+  color: #8d93a0;
+}
+
+.auth-portal-password-input {
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f2efee;
+}
+
+.auth-portal-password-input input {
+  border-radius: 999px 0 0 999px;
+}
+
+.auth-portal-password-toggle {
+  width: 74px;
+  min-width: 74px;
+  height: 72px;
+  border: none;
+  border-left: 1px solid rgba(0, 0, 0, 0.03);
+  border-radius: 0;
+  background: #ece8e7;
+  color: #7c8392;
+  box-shadow: none;
+}
+
+.auth-portal-password-toggle:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-portal-file-field {
+  gap: 0.5rem;
+}
+
+.auth-portal-file-field input {
+  padding: 1rem 1.4rem;
+  border-radius: 28px;
+}
+
+.auth-portal-submit {
+  min-height: 74px;
+  margin-top: 1.25rem;
+  border: none;
+  border-radius: 999px;
+  background: #121212;
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.auth-portal-submit:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-portal-divider {
+  margin-top: 1.15rem;
+  color: #8e93a0;
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.auth-portal-divider::before,
+.auth-portal-divider::after {
+  background: transparent;
+}
+
+.auth-portal-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 74px;
+  margin-top: 0.65rem;
+  border: 3px solid #2a2a2a;
+  border-radius: 999px;
+  background: transparent;
+  color: #23324d;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.auth-google-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f5efe6;
+  color: #4c7cff;
+  font-weight: 800;
+  font-size: 1.35rem;
+}
+
+.auth-portal-helper-link,
+.auth-portal-footnote {
+  margin: 1.15rem 0 0;
+  text-align: center;
+  color: #8d93a0;
+}
+
+.auth-portal-helper-link a,
+.auth-portal-footnote a {
+  color: #747987;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
 .center-screen {
   min-height: 100vh;
   display: grid;
@@ -1884,6 +2110,36 @@ form {
 @media (max-width: 1100px) {
   .product-grid {
     column-count: 3;
+  }
+}
+
+@media (max-width: 760px) {
+  .auth-portal-hero {
+    min-height: 300px;
+    padding: 2rem 1.35rem 8.25rem;
+    border-radius: 36px;
+  }
+
+  .auth-portal-card,
+  .auth-portal-card-register {
+    margin-top: -86px;
+    padding: 1.45rem 1.15rem 1.5rem;
+    border-radius: 32px;
+  }
+
+  .auth-portal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-portal-field input,
+  .auth-portal-password-toggle,
+  .auth-portal-google-btn,
+  .auth-portal-submit {
+    min-height: 64px;
+  }
+
+  .auth-portal-password-toggle {
+    height: 64px;
   }
 }
 
@@ -2552,28 +2808,212 @@ form {
 
 .product-view-shell {
   display: grid;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1fr);
-  gap: 2rem;
-  align-items: start;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 0.9fr);
+  gap: 2.8rem;
+  align-items: stretch;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #f9f9f8;
+  border: 1px solid rgba(43, 43, 43, 0.18);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.12);
+}
+
+.product-view-media-stage {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: center;
+  min-height: 100%;
+}
+
+.product-view-thumbs {
+  display: grid;
+  gap: 0.9rem;
+  align-content: center;
+}
+
+.product-view-thumb {
+  width: 54px;
+  height: 54px;
+  padding: 0.3rem;
+  border: none;
+  background: transparent;
+  opacity: 0.7;
+}
+
+.product-view-thumb.active {
+  opacity: 1;
+}
+
+.product-view-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(27, 27, 27, 0.14);
+}
+
+.product-view-media {
+  display: grid;
+  place-items: center;
+  min-height: 520px;
 }
 
 .product-view-media img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: 2rem;
-  box-shadow: 0 22px 44px rgba(13, 36, 38, 0.12);
+  width: min(100%, 440px);
+  max-height: 460px;
+  object-fit: contain;
+  filter: drop-shadow(0 26px 18px rgba(0, 0, 0, 0.16));
 }
 
 .product-view-copy {
   display: grid;
-  gap: 0.9rem;
+  align-content: start;
+  gap: 1.2rem;
+  padding: 1rem 0;
+}
+
+.product-view-topbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.product-view-brand {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #494949;
+}
+
+.product-view-copy h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.15rem);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+  color: #191919;
+}
+
+.product-view-close {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: #ffffff;
+  text-decoration: none;
+  background: #3a3a3a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.product-view-close span[aria-hidden="true"] {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .product-view-description {
   margin: 0;
-  color: #6f7678;
-  line-height: 1.7;
+  color: #6c6c6c;
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+.product-view-detail-grid {
+  display: grid;
+  gap: 1rem;
+  padding: 1.45rem 0;
+  border-top: 1px solid rgba(27, 27, 27, 0.08);
+  border-bottom: 1px solid rgba(27, 27, 27, 0.08);
+}
+
+.product-view-detail-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.product-view-detail-grid span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #2f2f2f;
+}
+
+.product-view-detail-grid strong {
+  color: #808080;
+  font-weight: 500;
+  text-align: right;
+}
+
+.product-view-divider {
+  height: 1px;
+  background: rgba(27, 27, 27, 0.08);
+}
+
+.product-view-price {
+  margin: 0;
+  font-size: clamp(2rem, 2.5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  color: #121212;
+}
+
+.product-view-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 0.8rem;
+}
+
+.product-view-primary-btn,
+.product-view-secondary-btn {
+  min-height: 62px;
+  border: 1px solid #2d2d2d;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.product-view-primary-btn {
+  background: #2f2f2f;
+  color: #ffffff;
+}
+
+.product-view-secondary-btn {
+  background: #ffffff;
+  color: #2f2f2f;
+}
+
+.product-view-primary-btn:hover,
+.product-view-secondary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.12);
+}
+
+.product-view-login-card {
+  padding: 1.5rem;
+  border: 1px solid rgba(27, 27, 27, 0.08);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .catalog-empty.compact {
@@ -2586,6 +3026,28 @@ form {
   .product-view-shell,
   .payment-method-grid,
   .billing-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-view-shell {
+    padding: 1.25rem;
+    gap: 1.5rem;
+  }
+
+  .product-view-media-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .product-view-thumbs {
+    grid-auto-flow: column;
+    justify-content: start;
+  }
+
+  .product-view-media {
+    min-height: 320px;
+  }
+
+  .product-view-actions {
     grid-template-columns: 1fr;
   }
 
