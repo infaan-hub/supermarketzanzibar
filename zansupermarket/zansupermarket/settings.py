@@ -142,7 +142,7 @@ if dj_database_url is None:
 
 database_url = os.getenv(
     "DATABASE_URL",
-    "postgresql://neondb_owner:npg_5RNWQXv0ZgBd@ep-odd-truth-adpy5dqz-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "postgresql://neondb_owner:npg_Yn74XGStTvgR@ep-weathered-glade-a4znw8xb-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
 )
 
 if database_url.startswith("sqlite"):
