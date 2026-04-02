@@ -2,17 +2,24 @@ import mimetypes
 import os
 
 from django.db import migrations, models
+from django.core.files.storage.handler import InvalidStorageError
 
 
 def _read_field_bytes(instance, field_name):
     file_field = getattr(instance, field_name, None)
-    storage = getattr(file_field, "storage", None)
+    try:
+        storage = getattr(file_field, "storage", None)
+    except (AttributeError, InvalidStorageError):
+        return None, "", ""
     file_name = str(file_field or "")
     if not file_name or storage is None or not storage.exists(file_name):
         return None, "", ""
 
-    with storage.open(file_name, "rb") as handle:
-        payload = handle.read()
+    try:
+        with storage.open(file_name, "rb") as handle:
+            payload = handle.read()
+    except (OSError, InvalidStorageError):
+        return None, "", ""
 
     base_name = os.path.basename(file_name)
     content_type = mimetypes.guess_type(base_name)[0] or "application/octet-stream"
