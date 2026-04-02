@@ -1,212 +1,147 @@
-import { useState } from "react";
-import productPlaceholder from "../assets/product-placeholder.svg";
-import { http } from "../api/http.jsx";
-import { applyImageFallback, saleItemImageUrl } from "../lib/media.jsx";
-import { ABOUT_CARDS, CONTACT_ITEMS, STORE_NAME, STORE_SUBTITLE } from "../lib/storeInfo.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import html2canvas from "html2canvas";
 
-const PRODUCT_PLACEHOLDER = productPlaceholder;
+function formatReceiptAmount(value) {
+  const numeric = Number(value || 0);
+  return `TZS ${numeric.toLocaleString()}`;
+}
 
-function downloadBlob(blob, filename) {
-  const blobUrl = window.URL.createObjectURL(blob);
+function formatReceiptDate(value) {
+  if (!value) return "Not provided";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not provided";
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function buildTicketId(order) {
+  const controlNumber = String(order.payment_control_number || order.payment?.control_number || "").trim();
+  const digitsOnly = controlNumber.replace(/\D/g, "");
+  if (digitsOnly) return digitsOnly;
+
+  const createdAt = order.created_at ? new Date(order.created_at) : new Date();
+  const year = String(createdAt.getFullYear()).slice(-2);
+  const month = String(createdAt.getMonth() + 1).padStart(2, "0");
+  const day = String(createdAt.getDate()).padStart(2, "0");
+  const orderId = String(order.id || 0).padStart(6, "0");
+  return `${year}${month}${day}${orderId}`;
+}
+
+function barcodePattern(value) {
+  const seed = String(value || "000000");
+  return seed
+    .split("")
+    .map((character) => {
+      const digit = Number(character);
+      const safeDigit = Number.isNaN(digit) ? 0 : digit;
+      return [1, 2, 1, 3, 2, 1].map((width, index) => ((safeDigit + index) % 2 === 0 ? width : 0));
+    })
+    .flat();
+}
+
+async function downloadReceiptJpeg(node, filename) {
+  const canvas = await html2canvas(node, {
+    backgroundColor: "#eeefff",
+    scale: 2,
+    useCORS: true,
+  });
+
   const link = document.createElement("a");
-  link.href = blobUrl;
+  link.href = canvas.toDataURL("image/jpeg", 0.95);
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.URL.revokeObjectURL(blobUrl);
 }
 
-function parseReceiptFilename(contentDisposition, fallbackFilename) {
-  if (!contentDisposition) return fallbackFilename;
-  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(utf8Match[1]);
-  }
-
-  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-  return asciiMatch?.[1] || fallbackFilename;
-}
-
-function AboutIcon({ kind }) {
-  if (kind === "supply") {
-    return (
-      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M14 19.5L24 12l10 7.5V32a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V19.5Z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-        <path d="M19 24h10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M24 19v10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (kind === "search") {
-    return (
-      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <circle cx="21" cy="21" r="9" stroke="currentColor" strokeWidth="2.4" />
-        <path d="M27.5 27.5L35 35" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M21 17v8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M17 21h8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M14 16h3l2.2 11.2a2 2 0 0 0 2 1.6h10.8a2 2 0 0 0 2-1.5L36 20H20.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="22" cy="34" r="2.6" fill="currentColor" />
-      <circle cx="32" cy="34" r="2.6" fill="currentColor" />
-      <path d="M31 13v6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M28 16h6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ReceiptPreviewCard({ order }) {
-  const orderDate = order.created_at ? new Date(order.created_at).toLocaleString() : "Not provided";
+function ReceiptPreviewCard({ order, autoDownload = false, onAutoDownloadComplete = null }) {
+  const ticketId = useMemo(() => buildTicketId(order), [order]);
+  const barcodeBars = useMemo(() => barcodePattern(ticketId), [ticketId]);
+  const receiptRef = useRef(null);
   const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
 
-  const downloadReceipt = async () => {
-    if (!order.receipt_url || downloadState.loading) return;
+  const handleDownload = async () => {
+    if (!receiptRef.current || downloadState.loading) return;
 
     setDownloadState({ loading: true, error: "" });
-
     try {
-      const response = await http.get(order.receipt_url, {
-        responseType: "blob",
-      });
-      const filename = parseReceiptFilename(
-        response.headers["content-disposition"],
-        `receipt-order-${order.id}.pdf`,
-      );
-      const blob = response.data instanceof Blob
-        ? response.data
-        : new Blob([response.data], { type: "application/pdf" });
-      downloadBlob(blob, filename);
+      await downloadReceiptJpeg(receiptRef.current, `receipt-${ticketId}.jpeg`);
       setDownloadState({ loading: false, error: "" });
-    } catch (error) {
-      const serverDetail = typeof error.response?.data?.detail === "string"
-        ? error.response.data.detail
-        : "";
-      setDownloadState({
-        loading: false,
-        error: serverDetail || "Unable to download the receipt right now.",
-      });
+      onAutoDownloadComplete?.();
+    } catch {
+      setDownloadState({ loading: false, error: "Unable to download the receipt JPEG right now." });
     }
   };
 
-  return (
-    <article className="receipt-preview-card">
-      <header className="receipt-preview-header">
-        <div className="receipt-preview-brand">
-          <p className="receipt-preview-kicker">Official Customer Receipt</p>
-          <h3>{STORE_NAME}</h3>
-          <p>{STORE_SUBTITLE}</p>
-        </div>
-        <div className="receipt-preview-status">
-          <span>Payment Confirmed</span>
-          <strong>Control #{order.payment_control_number || order.payment?.control_number}</strong>
-          <p>Order #{order.id}</p>
-        </div>
-      </header>
+  useEffect(() => {
+    if (!autoDownload || !receiptRef.current) return;
+    handleDownload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDownload, ticketId]);
 
-      <section className="receipt-preview-panel">
-        <div className="receipt-preview-section">
-          <div className="receipt-preview-section-title">Customer & Order Details</div>
-          <div className="receipt-preview-detail-grid">
-            <div>
-              <span>Customer</span>
-              <strong>{order.customer_name || "Customer"}</strong>
-            </div>
-            <div>
-              <span>Email</span>
-              <strong>{order.customer_email || "Not provided"}</strong>
-            </div>
-            <div>
-              <span>Phone</span>
-              <strong>{order.customer_phone || "Not provided"}</strong>
-            </div>
-            <div>
-              <span>Address</span>
-              <strong>{order.customer_address || "Not provided"}</strong>
-            </div>
-            <div>
-              <span>Delivery</span>
-              <strong>{order.delivery_location || "Not provided"}</strong>
-            </div>
-            <div>
-              <span>Order Date</span>
-              <strong>{orderDate}</strong>
-            </div>
+  return (
+    <div className="receipt-ticket-wrap">
+      <article className="receipt-ticket-card" ref={receiptRef}>
+        <div className="receipt-ticket-check">✓</div>
+        <h2>Thank you!</h2>
+        <p className="receipt-ticket-subtitle">Your ticket has been issued successfully</p>
+
+        <div className="receipt-ticket-divider" />
+
+        <div className="receipt-ticket-meta">
+          <div>
+            <span>Ticket ID</span>
+            <strong>{ticketId}</strong>
+          </div>
+          <div>
+            <span>Amount</span>
+            <strong>{formatReceiptAmount(order.final_amount)}</strong>
+          </div>
+          <div>
+            <span>Date & Time</span>
+            <strong>{formatReceiptDate(order.created_at)}</strong>
           </div>
         </div>
 
-        <div className="receipt-preview-section receipt-preview-total-box">
-          <div className="receipt-preview-section-title">Payment</div>
-          <p className="receipt-preview-total-label">Status</p>
-          <p className="receipt-preview-status-text">Confirmed</p>
-          <p className="receipt-preview-total-label">Final Amount</p>
-          <p className="receipt-preview-total-amount">TZS {order.final_amount}</p>
+        <div className="receipt-ticket-product">
+          <div className="receipt-ticket-brand-mark" aria-hidden="true">
+            <span />
+            <span />
+          </div>
+          <div>
+            <strong>{order.customer_name || "Customer"}</strong>
+            <p>{(order.items || []).map((item) => item.product_name).filter(Boolean).join(", ") || "Billing package"}</p>
+          </div>
         </div>
-      </section>
 
-      <section className="receipt-preview-section">
-        <div className="receipt-preview-section-title">Paid Products</div>
-        <div className="receipt-preview-items">
-          {(order.items || []).map((item) => (
-            <article className="receipt-preview-item" key={`${order.id}-${item.id}`}>
-              <img
-                src={saleItemImageUrl(item) || PRODUCT_PLACEHOLDER}
-                alt={item.product_name || `Product ${item.product}`}
-                crossOrigin="anonymous"
-                data-fallback-src={PRODUCT_PLACEHOLDER}
-                onError={applyImageFallback}
-              />
-              <div className="receipt-preview-item-copy">
-                <h4>{item.product_name || `Product ${item.product}`}</h4>
-                <p>Quantity: {item.quantity}</p>
-                <p>Unit Price: TZS {item.price}</p>
-                <p className="product-price">Paid Total: TZS {item.total}</p>
-              </div>
-            </article>
+        <div className="receipt-ticket-barcode">
+          <div className="receipt-ticket-bars" aria-label={`Barcode ${ticketId}`}>
+            {barcodeBars.map((bar, index) =>
+              bar ? <span key={`${ticketId}-${index}`} style={{ width: `${bar}px` }} /> : <em key={`${ticketId}-${index}`} style={{ width: "1px" }} />
+            )}
+          </div>
+          <p>{ticketId}</p>
+        </div>
+
+        <div className="receipt-ticket-edge" aria-hidden="true">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <span key={index} />
           ))}
         </div>
-      </section>
+      </article>
 
-      <section className="receipt-preview-section">
-        <div className="receipt-preview-section-title">About Us</div>
-        <div className="receipt-preview-info-grid">
-          {ABOUT_CARDS.map((card) => (
-            <article className="receipt-preview-info-card" key={card.title}>
-              <div className="receipt-preview-info-icon">
-                <AboutIcon kind={card.icon} />
-              </div>
-              <h4>{card.title}</h4>
-              <p>{card.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="receipt-preview-section">
-        <div className="receipt-preview-section-title">Contact Us</div>
-        <div className="receipt-preview-contact-list">
-          {CONTACT_ITEMS.map((item) => (
-            <a key={item.label} className="receipt-preview-contact-item" href={item.href}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <div className="receipt-preview-actions">
-        <p>This receipt is available because the payment for this order has been confirmed.</p>
-        <button type="button" className="primary-btn" onClick={downloadReceipt} disabled={downloadState.loading}>
-          {downloadState.loading ? "Downloading..." : "Download Receipt PDF"}
+      <div className="receipt-ticket-actions">
+        <button type="button" className="showcase-primary-btn" onClick={handleDownload} disabled={downloadState.loading}>
+          {downloadState.loading ? "Downloading..." : "Download Receipt JPEG"}
         </button>
       </div>
       {downloadState.error ? <p className="error">{downloadState.error}</p> : null}
-    </article>
+    </div>
   );
 }
 

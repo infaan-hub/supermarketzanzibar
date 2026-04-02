@@ -1980,3 +1980,448 @@ form {
   }
 
 }
+/* Customer storefront refresh */
+.product-grid {
+  gap: 2rem;
+}
+
+.showcase-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 2rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 246, 244, 0.94)),
+    radial-gradient(circle at top left, rgba(201, 231, 228, 0.6), transparent 58%);
+  box-shadow: 0 24px 60px rgba(15, 38, 34, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.showcase-card-media {
+  border: 0;
+  padding: 0;
+  border-radius: 1.8rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, #2a5c66, #081418);
+  box-shadow: 0 18px 28px rgba(2, 12, 16, 0.28);
+  cursor: pointer;
+}
+
+.showcase-card-media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.showcase-card-body {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.35rem 0.3rem 0.15rem;
+}
+
+.showcase-card-kicker {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  color: #9c9a96;
+  font-weight: 700;
+}
+
+.showcase-card-title {
+  border: 0;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  color: #131313;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  line-height: 1.04;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.showcase-card-description {
+  margin: 0;
+  color: #95918d;
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.showcase-card-price {
+  margin: 0.2rem 0 0;
+  color: #1f2020;
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+
+.showcase-card-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 0.55rem;
+}
+
+.showcase-primary-btn,
+.showcase-secondary-btn {
+  border-radius: 999px;
+  border: 0;
+  padding: 0.85rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.showcase-primary-btn {
+  background: linear-gradient(135deg, #101f25, #295f63);
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(17, 39, 44, 0.18);
+}
+
+.showcase-secondary-btn {
+  background: rgba(15, 33, 38, 0.08);
+  color: #17343a;
+}
+
+.showcase-primary-btn:disabled,
+.showcase-secondary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.purchase-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.purchase-list.compact {
+  gap: 0.8rem;
+}
+
+.purchase-card {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 1.6rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 34px rgba(14, 36, 40, 0.08);
+}
+
+.purchase-card.compact {
+  grid-template-columns: 82px 1fr;
+}
+
+.purchase-card-media {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.purchase-card-media img,
+.purchase-card.compact img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 1.2rem;
+}
+
+.purchase-card-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.purchase-card-copy h3,
+.purchase-card-copy p,
+.purchase-card-copy strong {
+  margin: 0;
+}
+
+.purchase-card-actions {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: end;
+}
+
+.quantity-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(21, 57, 60, 0.08);
+}
+
+.quantity-stepper button {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #16353a;
+  color: #fff;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.purchase-summary,
+.receipt-status-card,
+.checkout-stage-card,
+.billing-card {
+  border-radius: 1.8rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 50px rgba(13, 38, 42, 0.1);
+}
+
+.purchase-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.4rem;
+  padding: 1.3rem 1.5rem;
+}
+
+.checkout-shell,
+.billing-shell,
+.receipt-flow-stack {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.checkout-steps {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.checkout-steps span {
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #8b9293;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.checkout-steps span.active,
+.checkout-steps span.complete {
+  color: #0d6e73;
+  background: rgba(206, 246, 240, 0.95);
+}
+
+.checkout-stage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 1.5rem;
+}
+
+.checkout-stage-card {
+  padding: 1.5rem;
+}
+
+.checkout-stage-header {
+  margin-bottom: 1rem;
+}
+
+.checkout-stage-header h2,
+.checkout-stage-header h3,
+.checkout-stage-header p {
+  margin: 0;
+}
+
+.delivery-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  background: rgba(13, 110, 115, 0.06);
+}
+
+.billing-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.checkout-order-card {
+  align-content: start;
+}
+
+.purchase-summary-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(13, 39, 43, 0.08);
+}
+
+.billing-card {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.7rem;
+}
+
+.payment-method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+
+.payment-method-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 84px;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(19, 38, 42, 0.12);
+  background: #fff;
+  cursor: pointer;
+}
+
+.payment-method-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.payment-method-logo {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.payment-method-sunset .payment-method-logo { color: #ea5d2e; }
+.payment-method-ocean .payment-method-logo { color: #1947b8; }
+.payment-method-sky .payment-method-logo { color: #1374bb; }
+.payment-method-stone .payment-method-logo { color: #6f6f6f; }
+
+.payment-method-option:has(input:checked) {
+  border-color: #1de0c3;
+  box-shadow: 0 0 0 3px rgba(29, 224, 195, 0.16);
+}
+
+.billing-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.billing-summary-table {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+  padding: 1rem 1.1rem;
+  border-radius: 1.2rem;
+  background: #f8f8f7;
+}
+
+.billing-summary-table div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.billing-summary-table .total-row {
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(19, 38, 42, 0.12);
+  text-transform: uppercase;
+}
+
+.billing-confirm-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 0.9rem;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(135deg, #17d0b0, #24e3b1);
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.billing-cancel-link {
+  border: 0;
+  background: transparent;
+  color: #6a7477;
+  text-decoration: underline;
+  margin-top: 1rem;
+  cursor: pointer;
+}
+
+.receipt-status-card {
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.receipt-status-card.failed {
+  border-left: 5px solid #d94b56;
+}
+
+.receipt-status-card.pending {
+  border-left: 5px solid #f1ab24;
+}
+
+.receipt-status-card.success {
+  border-left: 5px solid #20ba8d;
+}
+
+.product-view-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.product-view-media img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 2rem;
+  box-shadow: 0 22px 44px rgba(13, 36, 38, 0.12);
+}
+
+.product-view-copy {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.product-view-description {
+  margin: 0;
+  color: #6f7678;
+  line-height: 1.7;
+}
+
+.catalog-empty.compact {
+  align-items: start;
+  text-align: left;
+}
+
+@media (max-width: 960px) {
+  .checkout-stage-grid,
+  .product-view-shell,
+  .payment-method-grid,
+  .billing-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-card {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-card-actions {
+    justify-items: stretch;
+  }
+
+  .purchase-summary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

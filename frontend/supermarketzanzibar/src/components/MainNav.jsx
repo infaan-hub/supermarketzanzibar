@@ -17,12 +17,13 @@ function MainNav({ theme, onToggleTheme }) {
 
   const navItems = [
     { to: "/home", label: "Home", show: true },
-    { to: "/customer/cart", label: `My Cart (${count})`, show: user?.role === "customer" },
+    { to: "/purchases", label: `Purchases (${count})`, show: user?.role === "customer" },
     { to: "/profile", label: "Profile", show: isAuthenticated },
     { to: "/admin/dashboard", label: "Admin Dashboard", show: user?.role === "admin" },
     { to: "/supplier/dashboard", label: "Supplier Dashboard", show: user?.role === "supplier" },
     { to: "/driver/dashboard", label: "Driver Dashboard", show: user?.role === "driver" },
     { to: "/customer/dashboard", label: "Customer Dashboard", show: user?.role === "customer" },
+    { to: "/buy", label: "Buy", show: user?.role === "customer" },
     { to: "/customer/history", label: "Order History", show: user?.role === "customer" },
   ];
 

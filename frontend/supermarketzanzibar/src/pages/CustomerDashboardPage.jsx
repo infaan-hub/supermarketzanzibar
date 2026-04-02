@@ -1,13 +1,10 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
+import ProductShowcaseCard from "../components/ProductShowcaseCard.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { getApiErrorMessage } from "../lib/apiErrors.js";
-import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
-
-const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function CustomerDashboardPage() {
   const [products, setProducts] = useState([]);
@@ -17,7 +14,7 @@ function CustomerDashboardPage() {
   const [productFilter, setProductFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
-  const { addToCart, count } = useCart();
+  const { addToCart, count, startCheckoutFromProduct } = useCart();
   const navigate = useNavigate();
 
   const loadProducts = async () => {
@@ -60,9 +57,9 @@ function CustomerDashboardPage() {
     return matchesSearch && matchesCategory && matchesFilter;
   });
 
-  const onAddToCart = (event, product) => {
-    event.stopPropagation();
-    addToCart(product, 1);
+  const onBuyNow = (product) => {
+    startCheckoutFromProduct(product, 1);
+    navigate("/buy");
   };
 
   return (
@@ -77,8 +74,8 @@ function CustomerDashboardPage() {
           <Link className="ghost-btn" to="/customer/history">
             Order History
           </Link>
-          <Link className="primary-btn" to="/customer/cart">
-            My Cart ({count})
+          <Link className="primary-btn" to="/purchases">
+            Purchases ({count})
           </Link>
         </div>
       </div>
@@ -110,51 +107,14 @@ function CustomerDashboardPage() {
 
       <div className="grid-products product-grid">
         {visibleProducts.map((product) => (
-          <article
-            className="product-card"
+          <ProductShowcaseCard
             key={product.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/products/${product.id}`)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") navigate(`/products/${product.id}`);
-            }}
-          >
-            <div className="card-image">
-              <img
-                src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
-                alt={product.name}
-                data-fallback-src={PRODUCT_PLACEHOLDER}
-                onError={applyImageFallback}
-              />
-            </div>
-            <div className="card-body">
-              <h3 className="product-title">{product.name}</h3>
-              <p className="muted">{product.category_name || "General"}</p>
-              <p className="product-summary">{product.description || "Fresh product available now."}</p>
-              <p className="product-price">TZS {product.price}</p>
-              <div className="product-card-actions">
-                <button
-                  type="button"
-                  className="primary-btn"
-                  disabled={Number(product.quantity || 0) <= 0}
-                  onClick={(event) => onAddToCart(event, product)}
-                >
-                  {Number(product.quantity || 0) > 0 ? "Add to Cart" : "Out of Stock"}
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    navigate(`/products/${product.id}`);
-                  }}
-                >
-                  View
-                </button>
-              </div>
-            </div>
-          </article>
+            product={product}
+            canPurchase
+            onOpenProduct={(productId) => navigate(`/products/${productId}`)}
+            onAddToCart={(entry) => addToCart(entry, 1)}
+            onBuyNow={onBuyNow}
+          />
         ))}
       </div>
 

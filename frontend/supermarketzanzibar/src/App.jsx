@@ -7,6 +7,7 @@ import RoleRoute from "./components/RoleRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
+import BillingPage from "./pages/BillingPage.jsx";
 import CartPage from "./pages/CartPage.jsx";
 import CustomerBuyNowPage from "./pages/CustomerBuyNowPage.jsx";
 import CustomerDashboardPage from "./pages/CustomerDashboardPage.jsx";
@@ -16,6 +17,7 @@ import HomePage from "./pages/HomePage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
+import ReceiptStatusPage from "./pages/ReceiptStatusPage.jsx";
 import RoleLoginPage from "./pages/RoleLoginPage.jsx";
 import SupplierDashboardPage from "./pages/SupplierDashboardPage.jsx";
 
@@ -67,18 +69,18 @@ function AppRoutes() {
 
         <Route
           path="/products/:id"
-          element={
-            <RoleRoute roles={["customer", "admin", "supplier", "driver"]}>
-              <ProductDetailPage />
-            </RoleRoute>
-          }
+          element={<ProductDetailPage />}
         />
         <Route
           path="/cart"
-          element={<Navigate to="/customer/cart" replace />}
+          element={<Navigate to="/purchases" replace />}
         />
         <Route
           path="/customer/cart"
+          element={<Navigate to="/purchases" replace />}
+        />
+        <Route
+          path="/purchases"
           element={
             <RoleRoute roles={["customer"]}>
               <CartPage />
@@ -103,9 +105,29 @@ function AppRoutes() {
         />
         <Route
           path="/customer/buynow"
+          element={<Navigate to="/buy" replace />}
+        />
+        <Route
+          path="/buy"
           element={
             <RoleRoute roles={["customer"]}>
               <CustomerBuyNowPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/billing"
+          element={
+            <RoleRoute roles={["customer"]}>
+              <BillingPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/receipt"
+          element={
+            <RoleRoute roles={["customer"]}>
+              <ReceiptStatusPage />
             </RoleRoute>
           }
         />

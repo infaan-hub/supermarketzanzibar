@@ -3,6 +3,7 @@ import { http } from "../api/http.jsx";
 
 const CartContext = createContext(null);
 const CART_STORAGE_KEY = "zansupermarket-cart";
+const CHECKOUT_STORAGE_KEY = "zansupermarket-checkout";
 const DEFAULT_NOTICE = { id: 0, kind: "info", message: "" };
 const PRODUCT_FALLBACK_MARKER = "/product-fallback.svg";
 
@@ -37,12 +38,30 @@ export function CartProvider({ children }) {
       return [];
     }
   });
+  const [checkoutDraft, setCheckoutDraftState] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = window.localStorage.getItem(CHECKOUT_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [notice, setNotice] = useState(DEFAULT_NOTICE);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!checkoutDraft) {
+      window.localStorage.removeItem(CHECKOUT_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(checkoutDraft));
+  }, [checkoutDraft]);
 
   const cartProductIdsKey = items
     .map((item) => item?.product?.id)
@@ -131,7 +150,7 @@ export function CartProvider({ children }) {
     });
 
     if (didAdd) {
-      showNotice("cart added", "success");
+      showNotice("Product added to purchases.", "success");
       return true;
     }
 
@@ -145,6 +164,57 @@ export function CartProvider({ children }) {
     setItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
+  const setItemQuantity = (productId, nextQuantity) => {
+    setItems((prev) =>
+      prev.flatMap((item) => {
+        if (item.product.id !== productId) return [item];
+        const stockLimit = Math.max(0, Number(item.product?.quantity || 0));
+        const safeQuantity = Math.min(Math.max(0, Number(nextQuantity) || 0), stockLimit);
+        if (safeQuantity <= 0) return [];
+        return [{ ...item, quantity: safeQuantity }];
+      })
+    );
+  };
+
+  const incrementQuantity = (productId) => {
+    const item = items.find((entry) => entry.product.id === productId);
+    if (!item) return;
+    setItemQuantity(productId, item.quantity + 1);
+  };
+
+  const decrementQuantity = (productId) => {
+    const item = items.find((entry) => entry.product.id === productId);
+    if (!item) return;
+    setItemQuantity(productId, item.quantity - 1);
+  };
+
+  const setCheckoutDraft = (value) => {
+    setCheckoutDraftState((current) => (typeof value === "function" ? value(current) : value));
+  };
+
+  const clearCheckoutDraft = () => setCheckoutDraftState(null);
+
+  const startCheckoutFromCart = () => {
+    setCheckoutDraftState({
+      mode: "cart",
+      items,
+      customer: null,
+      submittedAt: null,
+      order: null,
+    });
+  };
+
+  const startCheckoutFromProduct = (product, quantity = 1) => {
+    const safeQuantity = Math.max(1, Number(quantity) || 1);
+    setCheckoutDraftState({
+      mode: "single",
+      items: [{ product, quantity: safeQuantity }],
+      customer: null,
+      submittedAt: null,
+      order: null,
+    });
+  };
+
   const clearCart = () => setItems([]);
   const dismissNotice = () => setNotice(DEFAULT_NOTICE);
 
@@ -153,13 +223,21 @@ export function CartProvider({ children }) {
       items,
       addToCart,
       removeFromCart,
+      setItemQuantity,
+      incrementQuantity,
+      decrementQuantity,
       clearCart,
+      checkoutDraft,
+      setCheckoutDraft,
+      clearCheckoutDraft,
+      startCheckoutFromCart,
+      startCheckoutFromProduct,
       notice,
       dismissNotice,
       count: items.reduce((total, item) => total + item.quantity, 0),
       total: items.reduce((total, item) => total + Number(item.product.price) * item.quantity, 0),
     }),
-    [items, notice]
+    [items, checkoutDraft, notice]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -38,8 +38,8 @@ function CustomerHistoryPage() {
           <Link className="ghost-btn" to="/customer/dashboard">
             Customer Dashboard
           </Link>
-          <Link className="primary-btn" to="/customer/cart">
-            My Cart
+          <Link className="primary-btn" to="/purchases">
+            Purchases
           </Link>
         </div>
       </div>

@@ -1,14 +1,12 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import CatalogControls from "../components/CatalogControls.jsx";
+import ProductShowcaseCard from "../components/ProductShowcaseCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useCart } from "../context/CartContext.jsx";
 import { getApiErrorMessage } from "../lib/apiErrors.js";
-import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
 import { ABOUT_CARDS, CONTACT_ITEMS, STORE_EMAIL_HREF, STORE_NAME, STORE_PHONE_HREF } from "../lib/storeInfo.js";
-
-const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function AboutIcon({ kind }) {
   if (kind === "supply") {
@@ -51,6 +49,7 @@ function HomePage() {
   const [productFilter, setProductFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const { isAuthenticated } = useAuth();
+  const { addToCart, startCheckoutFromProduct } = useCart();
   const navigate = useNavigate();
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
 
@@ -72,12 +71,16 @@ function HomePage() {
   }, []);
 
   const openProduct = (productId) => {
+    navigate(`/products/${productId}`);
+  };
+
+  const buyNow = (product) => {
     if (!isAuthenticated) {
-      alert("Please login first to open product details.");
-      navigate("/login", { state: { from: `/products/${productId}` } });
+      navigate("/login", { state: { from: "/buy" } });
       return;
     }
-    navigate(`/products/${productId}`);
+    startCheckoutFromProduct(product, 1);
+    navigate("/buy");
   };
 
   const categories = Array.from(
@@ -136,31 +139,14 @@ function HomePage() {
       </div>
       <div className="grid-products product-grid">
         {visibleProducts.map((product) => (
-          <article
-            className="product-card"
+          <ProductShowcaseCard
             key={product.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => openProduct(product.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") openProduct(product.id);
-            }}
-          >
-            <div className="card-image">
-              <img
-                src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
-                alt={product.name}
-                data-fallback-src={PRODUCT_PLACEHOLDER}
-                onError={applyImageFallback}
-              />
-            </div>
-            <div className="card-body">
-              <h3 className="product-title">{product.name}</h3>
-              <p className="muted">{product.category_name || "General"}</p>
-              <p className="product-summary">{product.description || "Fresh product available now."}</p>
-              <p className="product-price">TZS {product.price}</p>
-            </div>
-          </article>
+            product={product}
+            canPurchase={isAuthenticated}
+            onOpenProduct={openProduct}
+            onAddToCart={(entry) => addToCart(entry, 1)}
+            onBuyNow={buyNow}
+          />
         ))}
       </div>
       {!loading && !error && !visibleProducts.length ? (

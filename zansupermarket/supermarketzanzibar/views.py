@@ -43,6 +43,7 @@ from .serializers import (
 User = get_user_model()
 logger = logging.getLogger(__name__)
 PRODUCT_SERIALIZATION_ERRORS = (AttributeError, TypeError, ValueError, SuspiciousOperation)
+API_SERIALIZATION_ERRORS = PRODUCT_SERIALIZATION_ERRORS
 WHATSAPP_ORDER_NUMBER = "255711252758"
 STORE_NAME = "Supermarket Zanzibar"
 STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
@@ -67,6 +68,16 @@ RECEIPT_ABOUT_CARDS = [
         "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
     ),
 ]
+
+
+def serialize_or_raise(serializer_class, instance, *, many=False, context=None):
+    serializer = serializer_class(instance, many=many, context=context or {})
+    return serializer.data
+
+
+def api_unavailable_response(detail, *, log_message):
+    logger.exception(log_message)
+    return Response({"detail": detail}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 def _google_auth_is_configured():
@@ -1170,9 +1181,11 @@ class MeView(APIView):
 
     def get(self, request):
         try:
-            serializer = UserSerializer(request.user, context={"request": request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except DatabaseError:
+            return Response(
+                serialize_or_raise(UserSerializer, request.user, context={"request": request}),
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "Profile service is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def patch(self, request):
@@ -1186,7 +1199,7 @@ class MeView(APIView):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except DatabaseError:
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "Profile update is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
@@ -1388,16 +1401,25 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
     def assign_driver(self, request, pk=None):
-        sale = self.get_object()
-        driver_id = request.data.get("driver_id")
-        driver = User.objects.filter(id=driver_id, role="driver").first()
-        if not driver:
-            return Response({"detail": "Driver not found."}, status=status.HTTP_404_NOT_FOUND)
-        sale.assigned_driver = driver
-        if sale.status in ("payment_confirmed", "processing"):
-            sale.status = "out_for_delivery"
-        sale.save(update_fields=["assigned_driver", "status"])
-        return Response(SaleSerializer(sale, context={"request": request}).data, status=status.HTTP_200_OK)
+        try:
+            sale = self.get_object()
+            driver_id = request.data.get("driver_id")
+            driver = User.objects.filter(id=driver_id, role="driver").first()
+            if not driver:
+                return Response({"detail": "Driver not found."}, status=status.HTTP_404_NOT_FOUND)
+            sale.assigned_driver = driver
+            if sale.status in ("payment_confirmed", "processing"):
+                sale.status = "out_for_delivery"
+            sale.save(update_fields=["assigned_driver", "status"])
+            return Response(
+                serialize_or_raise(SaleSerializer, sale, context={"request": request}),
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Driver assignment is temporarily unavailable.",
+                log_message="Sale driver assignment failed because the database or serializer was unavailable.",
+            )
 
 
 class SaleItemViewSet(viewsets.ModelViewSet):
@@ -1451,59 +1473,71 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminOrSupplierRole])
     def confirm(self, request, pk=None):
-        payment = self._payment_for_confirmation(request.user, pk)
-        if not payment:
-            return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
-        if payment.status == "confirmed":
-            return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
-        if payment.status != "pending":
-            return Response(
-                {"detail": "Only pending payments can be confirmed."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        try:
+            payment = self._payment_for_confirmation(request.user, pk)
+            if not payment:
+                return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+            if payment.status == "confirmed":
+                return Response(serialize_or_raise(PaymentSerializer, payment), status=status.HTTP_200_OK)
+            if payment.status != "pending":
+                return Response(
+                    {"detail": "Only pending payments can be confirmed."},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
-        payment.status = "confirmed"
-        payment.confirmed_by = request.user
-        payment.save()
+            payment.status = "confirmed"
+            payment.confirmed_by = request.user
+            payment.save()
 
-        sale = payment.sale
-        sale.payment_confirmed = True
-        if sale.status == "pending_payment":
-            sale.status = "payment_confirmed"
-        sale.save()
-        _auto_assign_sale_to_sole_driver(sale)
+            sale = payment.sale
+            sale.payment_confirmed = True
+            if sale.status == "pending_payment":
+                sale.status = "payment_confirmed"
+            sale.save()
+            _auto_assign_sale_to_sole_driver(sale)
 
-        customer_name = (
-            sale.customer_name_display
-            if sale.customer_name_display
-            else "Customer"
-        )
-        customer_email = sale.customer_email_display
-        if customer_email:
-            subject = f"Payment Confirmed - Control #{payment.control_number}"
-            message = (
-                f"Hello {customer_name},\n\n"
-                f"Your payment is confirmed.\n"
-                f"Control Number: {payment.control_number}\n"
-                f"Order ID: {sale.id}\n"
-                f"Total: {sale.final_amount}\n"
-                f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
-                f"Thank you for shopping with {STORE_NAME}."
+            customer_name = (
+                sale.customer_name_display
+                if sale.customer_name_display
+                else "Customer"
             )
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email="noreply@zansupermarket.local",
-                recipient_list=[customer_email],
-                fail_silently=True,
+            customer_email = sale.customer_email_display
+            if customer_email:
+                subject = f"Payment Confirmed - Control #{payment.control_number}"
+                message = (
+                    f"Hello {customer_name},\n\n"
+                    f"Your payment is confirmed.\n"
+                    f"Control Number: {payment.control_number}\n"
+                    f"Order ID: {sale.id}\n"
+                    f"Total: {sale.final_amount}\n"
+                    f"Delivery location: {sale.delivery_location or 'Not provided'}\n"
+                    f"Thank you for shopping with {STORE_NAME}."
+                )
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email="noreply@zansupermarket.local",
+                    recipient_list=[customer_email],
+                    fail_silently=True,
+                )
+            return Response(serialize_or_raise(PaymentSerializer, payment), status=status.HTTP_200_OK)
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Payment confirmation is temporarily unavailable.",
+                log_message="Payment confirmation failed because the database or serializer was unavailable.",
             )
-        return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
     def admin_pending(self, request):
-        payments = self.queryset.filter(status="pending").select_related("sale", "sale__user")
-        serializer = self.get_serializer(payments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            payments = self.queryset.filter(status="pending").select_related("sale", "sale__user")
+            serializer = self.get_serializer(payments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Pending payments are temporarily unavailable.",
+                log_message="Admin pending payments failed because the database or serializer was unavailable.",
+            )
 
 
 class AdminCreateUserView(APIView):
@@ -1515,8 +1549,11 @@ class AdminCreateUserView(APIView):
             serializer = AdminCreateUserSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             user = serializer.save()
-            return Response(UserSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
-        except DatabaseError:
+            return Response(
+                serialize_or_raise(UserSerializer, user, context={"request": request}),
+                status=status.HTTP_201_CREATED,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "User creation is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
@@ -1656,13 +1693,13 @@ class CheckoutView(APIView):
 
             return Response(
                 {
-                    "sale": SaleSerializer(sale, context={"request": request}).data,
-                    "payment": PaymentSerializer(payment, context={"request": request}).data,
+                    "sale": serialize_or_raise(SaleSerializer, sale, context={"request": request}),
+                    "payment": serialize_or_raise(PaymentSerializer, payment, context={"request": request}),
                     "whatsapp_url": build_whatsapp_order_url(sale, payment, sale_items),
                 },
                 status=status.HTTP_201_CREATED,
             )
-        except DatabaseError:
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
             return self._checkout_unavailable_response()
 
 
@@ -1670,33 +1707,47 @@ class CustomerOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
 
     def get(self, request):
-        sales = Sale.objects.filter(user=request.user).select_related("payment").prefetch_related("items__product")
-        serializer = SaleSerializer(sales, many=True, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            sales = Sale.objects.filter(user=request.user).select_related("payment").prefetch_related("items__product")
+            return Response(
+                serialize_or_raise(SaleSerializer, sales, many=True, context={"request": request}),
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Order history is temporarily unavailable.",
+                log_message="Customer orders failed because the database or serializer was unavailable.",
+            )
 
 
 class CustomerReceiptView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
 
     def get(self, request, sale_id):
-        sale = (
-            Sale.objects.filter(id=sale_id, user=request.user)
-            .select_related("payment")
-            .prefetch_related("items__product")
-            .first()
-        )
-        if not sale:
-            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
-        payment = getattr(sale, "payment", None)
-        if not payment or payment.status != "confirmed":
-            return Response(
-                {"detail": "Receipt is available after payment confirmation."},
-                status=status.HTTP_409_CONFLICT,
+        try:
+            sale = (
+                Sale.objects.filter(id=sale_id, user=request.user)
+                .select_related("payment")
+                .prefetch_related("items__product")
+                .first()
             )
+            if not sale:
+                return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            payment = getattr(sale, "payment", None)
+            if not payment or payment.status != "confirmed":
+                return Response(
+                    {"detail": "Receipt is available after payment confirmation."},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
-        response = HttpResponse(build_receipt_pdf(sale), content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="receipt-order-{sale.id}.pdf"'
-        return response
+            response = HttpResponse(build_receipt_pdf(sale), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="receipt-order-{sale.id}.pdf"'
+            return response
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Receipt service is temporarily unavailable.",
+                log_message="Customer receipt failed because the database or serializer was unavailable.",
+            )
 
 
 def _supplier_pending_payments_queryset(supplier):
@@ -1756,111 +1807,155 @@ class SupplierDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSupplierRole]
 
     def get(self, request):
-        supplier = Supplier.objects.filter(user=request.user).first()
-        if not supplier:
-            return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
-        products = Product.objects.filter(supplier=supplier)
-        low_stock = products.filter(quantity__lte=5).count()
-        pending_payments = _supplier_pending_payments_queryset(supplier)
-        return Response(
-            {
-                "supplier": SupplierSerializer(supplier).data,
-                "products_count": products.count(),
-                "low_stock_count": low_stock,
-                "pending_payments_count": pending_payments.count(),
-                "pending_payments": PaymentAdminSerializer(
-                    pending_payments,
-                    many=True,
-                    context={"request": request},
-                ).data,
-                "products": ProductSerializer(products, many=True, context={"request": request}).data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        try:
+            supplier = Supplier.objects.filter(user=request.user).first()
+            if not supplier:
+                return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            products = Product.objects.filter(supplier=supplier)
+            low_stock = products.filter(quantity__lte=5).count()
+            pending_payments = _supplier_pending_payments_queryset(supplier)
+            return Response(
+                {
+                    "supplier": serialize_or_raise(SupplierSerializer, supplier),
+                    "products_count": products.count(),
+                    "low_stock_count": low_stock,
+                    "pending_payments_count": pending_payments.count(),
+                    "pending_payments": serialize_or_raise(
+                        PaymentAdminSerializer,
+                        pending_payments,
+                        many=True,
+                        context={"request": request},
+                    ),
+                    "products": serialize_or_raise(
+                        ProductSerializer,
+                        products,
+                        many=True,
+                        context={"request": request},
+                    ),
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Supplier dashboard is temporarily unavailable.",
+                log_message="Supplier dashboard failed because the database or serializer was unavailable.",
+            )
 
 
 class SupplierAlertsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSupplierRole]
 
     def get(self, request):
-        supplier = Supplier.objects.filter(user=request.user).first()
-        if not supplier:
-            return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            supplier = Supplier.objects.filter(user=request.user).first()
+            if not supplier:
+                return Response({"detail": "Supplier profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        pending_payments = _supplier_pending_payments_queryset(supplier).order_by("-created_at")[:25]
-        alerts = [
-            {
-                "id": payment.id,
-                "type": "supplier_order",
-                "sale_id": payment.sale_id,
-                "customer_name": payment.sale.customer_name_display or "Customer",
-                "delivery_location": payment.sale.delivery_location or payment.sale.customer_address_display or "",
-                "status": payment.status,
-                "created_at": payment.created_at.isoformat(),
-            }
-            for payment in pending_payments
-        ]
-        return Response(
-            {
-                "alerts": alerts,
-                "pending_count": len(alerts),
-            },
-            status=status.HTTP_200_OK,
-        )
+            pending_payments = _supplier_pending_payments_queryset(supplier).order_by("-created_at")[:25]
+            alerts = [
+                {
+                    "id": payment.id,
+                    "type": "supplier_order",
+                    "sale_id": payment.sale_id,
+                    "customer_name": payment.sale.customer_name_display or "Customer",
+                    "delivery_location": payment.sale.delivery_location or payment.sale.customer_address_display or "",
+                    "status": payment.status,
+                    "created_at": payment.created_at.isoformat(),
+                }
+                for payment in pending_payments
+            ]
+            return Response(
+                {
+                    "alerts": alerts,
+                    "pending_count": len(alerts),
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Supplier alerts are temporarily unavailable.",
+                log_message="Supplier alerts failed because the database or serializer was unavailable.",
+            )
 
 
 class DriverDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def get(self, request):
-        _auto_assign_ready_sales_to_sole_driver(request.user)
-        sales = _driver_active_deliveries_queryset(request.user)
-        return Response(
-            {
-                "driver": UserSerializer(request.user, context={"request": request}).data,
-                "active_deliveries": SaleSerializer(sales, many=True, context={"request": request}).data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        try:
+            _auto_assign_ready_sales_to_sole_driver(request.user)
+            sales = _driver_active_deliveries_queryset(request.user)
+            return Response(
+                {
+                    "driver": serialize_or_raise(UserSerializer, request.user, context={"request": request}),
+                    "active_deliveries": serialize_or_raise(
+                        SaleSerializer,
+                        sales,
+                        many=True,
+                        context={"request": request},
+                    ),
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Driver dashboard is temporarily unavailable.",
+                log_message="Driver dashboard failed because the database or serializer was unavailable.",
+            )
 
 
 class DriverAlertsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def get(self, request):
-        _auto_assign_ready_sales_to_sole_driver(request.user)
-        sales = _driver_active_deliveries_queryset(request.user).order_by("-created_at")[:25]
-        alerts = [
-            {
-                "id": sale.id,
-                "type": "driver_delivery",
-                "sale_id": sale.id,
-                "customer_name": sale.customer_name_display or "Customer",
-                "delivery_location": sale.delivery_location or sale.customer_address_display or "",
-                "status": sale.status,
-                "created_at": sale.created_at.isoformat(),
-            }
-            for sale in sales
-        ]
-        return Response(
-            {
-                "alerts": alerts,
-                "active_count": len(alerts),
-            },
-            status=status.HTTP_200_OK,
-        )
+        try:
+            _auto_assign_ready_sales_to_sole_driver(request.user)
+            sales = _driver_active_deliveries_queryset(request.user).order_by("-created_at")[:25]
+            alerts = [
+                {
+                    "id": sale.id,
+                    "type": "driver_delivery",
+                    "sale_id": sale.id,
+                    "customer_name": sale.customer_name_display or "Customer",
+                    "delivery_location": sale.delivery_location or sale.customer_address_display or "",
+                    "status": sale.status,
+                    "created_at": sale.created_at.isoformat(),
+                }
+                for sale in sales
+            ]
+            return Response(
+                {
+                    "alerts": alerts,
+                    "active_count": len(alerts),
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Driver alerts are temporarily unavailable.",
+                log_message="Driver alerts failed because the database or serializer was unavailable.",
+            )
 
 
 class DriverUpdateDeliveryView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDriverRole]
 
     def patch(self, request, sale_id):
-        sale = Sale.objects.filter(id=sale_id, assigned_driver=request.user).first()
-        if not sale:
-            return Response({"detail": "Delivery not found."}, status=status.HTTP_404_NOT_FOUND)
-        next_status = request.data.get("status")
-        if next_status not in ("out_for_delivery", "delivered"):
-            return Response({"detail": "Invalid status for driver."}, status=status.HTTP_400_BAD_REQUEST)
-        sale.status = next_status
-        sale.save(update_fields=["status"])
-        return Response(SaleSerializer(sale, context={"request": request}).data, status=status.HTTP_200_OK)
+        try:
+            sale = Sale.objects.filter(id=sale_id, assigned_driver=request.user).first()
+            if not sale:
+                return Response({"detail": "Delivery not found."}, status=status.HTTP_404_NOT_FOUND)
+            next_status = request.data.get("status")
+            if next_status not in ("out_for_delivery", "delivered"):
+                return Response({"detail": "Invalid status for driver."}, status=status.HTTP_400_BAD_REQUEST)
+            sale.status = next_status
+            sale.save(update_fields=["status"])
+            return Response(
+                serialize_or_raise(SaleSerializer, sale, context={"request": request}),
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return api_unavailable_response(
+                "Delivery update is temporarily unavailable.",
+                log_message="Driver delivery update failed because the database or serializer was unavailable.",
+            )
