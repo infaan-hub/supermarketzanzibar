@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || "";
 const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
@@ -128,7 +129,7 @@ function RoleLoginPage({ role }) {
       await auth[config.action](form);
       finishLogin();
     } catch (err) {
-      setError(err.response?.data?.detail || "Login failed.");
+      setError(getApiErrorMessage(err, "Login failed."));
     } finally {
       setLoading(false);
     }
@@ -162,7 +163,7 @@ function RoleLoginPage({ role }) {
             await auth.loginCustomerWithGoogle(response.code);
             finishLogin();
           } catch (err) {
-            setError(err.response?.data?.detail || "Google login failed.");
+            setError(getApiErrorMessage(err, "Google login failed."));
           } finally {
             setGoogleLoading(false);
           }
