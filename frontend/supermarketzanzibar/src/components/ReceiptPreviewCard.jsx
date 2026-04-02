@@ -69,7 +69,7 @@ function ReceiptPreviewCard({ order, autoDownload = false, onAutoDownloadComplet
   return (
     <div className="receipt-ticket-wrap">
       <article className="receipt-ticket-card" ref={receiptRef}>
-        <div className="receipt-ticket-check">✓</div>
+        <div className="receipt-ticket-check">&#10003;</div>
         <h2>Thank you!</h2>
         <p className="receipt-ticket-subtitle">Your ticket has been issued successfully</p>
 

@@ -1,5 +1,6 @@
 import base64
 import logging
+from xml.etree import ElementTree as ET
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -34,8 +35,27 @@ def barcode_data_url(value):
         drawing = createBarcodeDrawing("Code128", value=str(value), barHeight=28, humanReadable=False)
         return binary_file_data_url(drawing.asString("png"), "image/png")
     except Exception:
-        logger.exception("Failed to generate payment barcode image for value %s", value)
-        return None
+        logger.exception("PNG barcode generation failed for value %s. Trying SVG fallback.", value)
+        try:
+            drawing = createBarcodeDrawing("Code128", value=str(value), barHeight=28, humanReadable=False)
+            svg_markup = drawing.asString("svg")
+            if isinstance(svg_markup, bytes):
+                svg_markup = svg_markup.decode("utf-8")
+            root = ET.fromstring(svg_markup)
+            for element in root.iter():
+                fill = element.attrib.get("fill")
+                if fill and fill.lower() == "none":
+                    continue
+                if element.tag.endswith("rect") or element.tag.endswith("path") or element.tag.endswith("polygon"):
+                    element.set("fill", "#111111")
+                    if "stroke" in element.attrib:
+                        element.set("stroke", "#111111")
+            normalized_svg = ET.tostring(root, encoding="unicode")
+            encoded = base64.b64encode(normalized_svg.encode("utf-8")).decode("ascii")
+            return f"data:image/svg+xml;base64,{encoded}"
+        except Exception:
+            logger.exception("Failed to generate payment barcode image for value %s", value)
+            return None
 
 
 def safe_media_url(file_field, request=None):
