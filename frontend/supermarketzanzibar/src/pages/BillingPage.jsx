@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
+import cashOnDeliveryLogo from "../assets/payment/cash-on-delivery.png";
+import mastercardLogo from "../assets/payment/mastercard.png";
+import paypalLogo from "../assets/payment/paypal.png";
+import visaLogo from "../assets/payment/visa.png";
 import { useCart } from "../context/CartContext.jsx";
 import { getApiErrorMessage } from "../lib/apiErrors.js";
 
 const PAYMENT_OPTIONS = [
-  { value: "mobile_money", label: "Mastercard", accent: "sunset" },
-  { value: "bank_transfer", label: "Visa", accent: "ocean" },
-  { value: "paypal", label: "PayPal", accent: "sky" },
-  { value: "cash", label: "Cash on Delivery", accent: "stone" },
+  { value: "mobile_money", label: "Mastercard", accent: "sunset", logo: mastercardLogo },
+  { value: "bank_transfer", label: "Visa", accent: "ocean", logo: visaLogo },
+  { value: "paypal", label: "PayPal", accent: "sky", logo: paypalLogo },
+  { value: "cash", label: "Cash on Delivery", accent: "stone", logo: cashOnDeliveryLogo },
 ];
 
 function BillingPage() {
@@ -100,7 +104,7 @@ function BillingPage() {
                   checked={paymentMethod === option.value}
                   onChange={(event) => setPaymentMethod(event.target.value)}
                 />
-                <span className="payment-method-logo">{option.label}</span>
+                <img className="payment-method-logo-image" src={option.logo} alt={option.label} />
               </label>
             ))}
           </div>

@@ -11,6 +11,7 @@ function ReceiptStatusPage() {
   const [latestOrder, setLatestOrder] = useState(checkoutDraft?.order?.sale || null);
   const [loading, setLoading] = useState(Boolean(checkoutDraft?.order?.sale?.id));
   const [error, setError] = useState("");
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
 
   const saleId = checkoutDraft?.order?.sale?.id;
 
@@ -41,11 +42,7 @@ function ReceiptStatusPage() {
     };
   }, [saleId]);
 
-  const receiptReady = useMemo(() => {
-    if (!latestOrder?.receipt_url) return false;
-    const needsDelivery = Boolean(latestOrder.delivery_location);
-    return !needsDelivery || Boolean(latestOrder.assigned_driver) || ["out_for_delivery", "delivered"].includes(latestOrder.status);
-  }, [latestOrder]);
+  const receiptReady = useMemo(() => Boolean(latestOrder?.receipt_url), [latestOrder]);
 
   if (!saleId) {
     return (
@@ -87,17 +84,17 @@ function ReceiptStatusPage() {
 
       {!hasFailed && receiptReady && latestOrder ? (
         <div className="receipt-flow-stack">
-          <ReceiptPreviewCard order={latestOrder} />
+          <ReceiptPreviewCard order={latestOrder} autoDownload={!autoDownloaded} onAutoDownloadComplete={() => setAutoDownloaded(true)} />
           <div className="receipt-status-card success">
             <h2>Receipt ready</h2>
-            <p>Your booking has been confirmed. {latestOrder.delivery_location ? "The delivery route is assigned as well." : "No delivery route was needed."}</p>
+            <p>Your payment was successful and the receipt is ready now.</p>
             <div className="row">
               <button type="button" className="ghost-btn" onClick={() => clearCheckoutDraft()}>
                 Clear Session
               </button>
-              <Link className="showcase-primary-btn" to="/customer/history">
-                Open History
-              </Link>
+              <button type="button" className="showcase-primary-btn" onClick={() => navigate("/customer/dashboard")}>
+                Return Dashboard
+              </button>
             </div>
           </div>
         </div>
@@ -105,12 +102,8 @@ function ReceiptStatusPage() {
 
       {!hasFailed && !receiptReady ? (
         <div className="receipt-status-card pending">
-          <h2>Payment is still being confirmed</h2>
-          <p>
-            {paymentStatus === "confirmed" && latestOrder?.delivery_location
-              ? "Payment is confirmed. Waiting for a driver route assignment before showing the receipt."
-              : "Your order is waiting for admin payment confirmation. If delivery was selected, the driver route will be assigned after confirmation."}
-          </p>
+          <h2>Receipt is being prepared</h2>
+          <p>Your payment request is complete. The receipt will appear here as soon as the order response finishes loading.</p>
           <div className="row">
             <Link className="ghost-btn" to="/customer/history">
               View Order History

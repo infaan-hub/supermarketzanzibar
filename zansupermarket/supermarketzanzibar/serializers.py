@@ -3,6 +3,7 @@ import base64
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.urls import reverse
+from reportlab.graphics.barcode import createBarcodeDrawing
 from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
@@ -14,6 +15,21 @@ def binary_file_data_url(payload, content_type):
     encoded = base64.b64encode(bytes(payload)).decode("ascii")
     mime = content_type or "application/octet-stream"
     return f"data:{mime};base64,{encoded}"
+
+
+def payment_ticket_id(payment):
+    control_number = str(getattr(payment, "control_number", "") or "").strip()
+    digits_only = "".join(ch for ch in control_number if ch.isdigit())
+    if digits_only:
+        return digits_only
+    return control_number or "000000000001"
+
+
+def barcode_data_url(value):
+    if not value:
+        return None
+    drawing = createBarcodeDrawing("Code128", value=str(value), barHeight=28, humanReadable=False)
+    return binary_file_data_url(drawing.asString("png"), "image/png")
 
 
 def safe_media_url(file_field, request=None):
@@ -330,6 +346,8 @@ class SaleItemSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     proof_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     proof_image_url = serializers.SerializerMethodField()
+    ticket_id = serializers.SerializerMethodField()
+    barcode_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
@@ -342,6 +360,8 @@ class PaymentSerializer(serializers.ModelSerializer):
             "confirmed_by",
             "proof_image",
             "proof_image_url",
+            "ticket_id",
+            "barcode_image_url",
             "created_at",
             "updated_at",
         )
@@ -349,6 +369,12 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     def get_proof_image_url(self, obj):
         return binary_file_data_url(obj.proof_image_data, obj.proof_image_content_type)
+
+    def get_ticket_id(self, obj):
+        return payment_ticket_id(obj)
+
+    def get_barcode_image_url(self, obj):
+        return barcode_data_url(payment_ticket_id(obj))
 
     def create(self, validated_data):
         uploaded_proof_image = validated_data.pop("proof_image", serializers.empty)

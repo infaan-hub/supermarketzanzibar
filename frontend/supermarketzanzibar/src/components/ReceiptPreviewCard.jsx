@@ -20,28 +20,11 @@ function formatReceiptDate(value) {
 }
 
 function buildTicketId(order) {
-  const controlNumber = String(order.payment_control_number || order.payment?.control_number || "").trim();
-  const digitsOnly = controlNumber.replace(/\D/g, "");
-  if (digitsOnly) return digitsOnly;
-
-  const createdAt = order.created_at ? new Date(order.created_at) : new Date();
-  const year = String(createdAt.getFullYear()).slice(-2);
-  const month = String(createdAt.getMonth() + 1).padStart(2, "0");
-  const day = String(createdAt.getDate()).padStart(2, "0");
-  const orderId = String(order.id || 0).padStart(6, "0");
-  return `${year}${month}${day}${orderId}`;
-}
-
-function barcodePattern(value) {
-  const seed = String(value || "000000");
-  return seed
-    .split("")
-    .map((character) => {
-      const digit = Number(character);
-      const safeDigit = Number.isNaN(digit) ? 0 : digit;
-      return [1, 2, 1, 3, 2, 1].map((width, index) => ((safeDigit + index) % 2 === 0 ? width : 0));
-    })
-    .flat();
+  return (
+    order.payment?.ticket_id ||
+    String(order.payment_control_number || order.payment?.control_number || "").replace(/\D/g, "") ||
+    String(order.id || 0).padStart(12, "0")
+  );
 }
 
 async function downloadReceiptJpeg(node, filename) {
@@ -61,7 +44,6 @@ async function downloadReceiptJpeg(node, filename) {
 
 function ReceiptPreviewCard({ order, autoDownload = false, onAutoDownloadComplete = null }) {
   const ticketId = useMemo(() => buildTicketId(order), [order]);
-  const barcodeBars = useMemo(() => barcodePattern(ticketId), [ticketId]);
   const receiptRef = useRef(null);
   const [downloadState, setDownloadState] = useState({ loading: false, error: "" });
 
@@ -120,11 +102,9 @@ function ReceiptPreviewCard({ order, autoDownload = false, onAutoDownloadComplet
         </div>
 
         <div className="receipt-ticket-barcode">
-          <div className="receipt-ticket-bars" aria-label={`Barcode ${ticketId}`}>
-            {barcodeBars.map((bar, index) =>
-              bar ? <span key={`${ticketId}-${index}`} style={{ width: `${bar}px` }} /> : <em key={`${ticketId}-${index}`} style={{ width: "1px" }} />
-            )}
-          </div>
+          {order.payment?.barcode_image_url ? (
+            <img className="receipt-ticket-barcode-image" src={order.payment.barcode_image_url} alt={`Barcode ${ticketId}`} />
+          ) : null}
           <p>{ticketId}</p>
         </div>
 
