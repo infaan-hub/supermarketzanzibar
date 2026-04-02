@@ -351,6 +351,31 @@ class CustomerOrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertEqual(response.data["detail"], "Unable to place this order right now. Please try again shortly.")
 
+    def test_checkout_succeeds_when_barcode_image_generation_fails(self):
+        self.client.force_authenticate(user=self.customer_user)
+
+        broken_drawing = type("BrokenDrawing", (), {"asString": lambda self, format_name: (_ for _ in ()).throw(RuntimeError("png backend missing"))})()
+
+        with patch("supermarketzanzibar.serializers.createBarcodeDrawing", return_value=broken_drawing):
+            response = self.client.post(
+                "/api/customer/checkout/",
+                {
+                    "items": [{"product": self.product.id, "quantity": 1}],
+                    "payment_method": "mobile_money",
+                    "customer_full_name": "Asha Mwinyi",
+                    "customer_email": "asha@example.com",
+                    "customer_phone": "+255711252700",
+                    "customer_address": "Mjini, Zanzibar",
+                    "delivery_location": "Forodhani Garden",
+                    "terms_accepted": True,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("payment", response.data)
+        self.assertIsNone(response.data["payment"]["barcode_image_url"])
+
     def test_customer_can_download_pdf_receipt_after_payment_confirmation(self):
         sale = Sale.objects.create(
             customer=self.customer,

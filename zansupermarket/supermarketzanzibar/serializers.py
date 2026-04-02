@@ -1,4 +1,5 @@
 import base64
+import logging
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -8,6 +9,7 @@ from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 def binary_file_data_url(payload, content_type):
     if not payload:
@@ -28,8 +30,12 @@ def payment_ticket_id(payment):
 def barcode_data_url(value):
     if not value:
         return None
-    drawing = createBarcodeDrawing("Code128", value=str(value), barHeight=28, humanReadable=False)
-    return binary_file_data_url(drawing.asString("png"), "image/png")
+    try:
+        drawing = createBarcodeDrawing("Code128", value=str(value), barHeight=28, humanReadable=False)
+        return binary_file_data_url(drawing.asString("png"), "image/png")
+    except Exception:
+        logger.exception("Failed to generate payment barcode image for value %s", value)
+        return None
 
 
 def safe_media_url(file_field, request=None):
