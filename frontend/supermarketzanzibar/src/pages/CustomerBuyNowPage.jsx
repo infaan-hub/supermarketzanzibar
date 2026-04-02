@@ -215,11 +215,11 @@ function CustomerBuyNowPage() {
             ) : null}
 
             {error ? <p className="error">{error}</p> : null}
-            <div className="row">
-              <button type="button" className="ghost-btn" onClick={() => { clearCheckoutDraft(); navigate("/purchases"); }}>
+            <div className="row checkout-action-row">
+              <button type="button" className="ghost-btn checkout-back-btn" onClick={() => { clearCheckoutDraft(); navigate("/purchases"); }}>
                 Back to Purchases
               </button>
-              <button type="submit" className="showcase-primary-btn">
+              <button type="submit" className="showcase-primary-btn checkout-continue-btn">
                 Continue to Billing
               </button>
             </div>
@@ -252,7 +252,7 @@ function CustomerBuyNowPage() {
               <span>Total items: {draftItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
               <strong>TZS {total.toFixed(2)}</strong>
             </div>
-            <button type="submit" form="customer-buy-form" className="showcase-primary-btn">
+            <button type="submit" form="customer-buy-form" className="showcase-primary-btn checkout-continue-btn">
               Continue to Billing
             </button>
           </aside>
