@@ -22,10 +22,7 @@ def safe_media_url(file_field, request=None):
 
 def product_image_url(product, request=None):
     if getattr(product, "image_data", None):
-        path = reverse("product-image", kwargs={"pk": product.pk})
-        if request is not None:
-            return request.build_absolute_uri(path)
-        return path
+        return binary_file_data_url(product.image_data, product.image_content_type)
 
     return None
 
