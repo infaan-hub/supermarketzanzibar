@@ -9,6 +9,7 @@ export function toMediaUrl(path) {
 
 export function toVersionedMediaUrl(path, version) {
   const mediaUrl = toMediaUrl(path);
+  if (/^(data:|blob:)/i.test(mediaUrl || "")) return mediaUrl;
   if (!mediaUrl || !version) return mediaUrl;
   const separator = mediaUrl.includes("?") ? "&" : "?";
   return `${mediaUrl}${separator}v=${encodeURIComponent(version)}`;

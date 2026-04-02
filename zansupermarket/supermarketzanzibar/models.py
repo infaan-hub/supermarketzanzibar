@@ -1,3 +1,6 @@
+from io import BytesIO
+from pathlib import Path
+from PIL import Image
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -49,9 +52,22 @@ class CustomUser(AbstractUser):
 
         if hasattr(uploaded_file, "seek"):
             uploaded_file.seek(0)
-        self.profile_image_data = uploaded_file.read()
-        self.profile_image_name = basename(getattr(uploaded_file, "name", "") or "profile-image")
-        self.profile_image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+        source_name = basename(getattr(uploaded_file, "name", "") or "profile-image")
+        source_stem = Path(source_name).stem or "profile-image"
+        source_bytes = uploaded_file.read()
+
+        with Image.open(BytesIO(source_bytes)) as image:
+            if image.mode not in ("RGB", "L"):
+                image = image.convert("RGB")
+            elif image.mode == "L":
+                image = image.convert("RGB")
+
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=90)
+
+        self.profile_image_data = output.getvalue()
+        self.profile_image_name = f"{source_stem}.jpg"
+        self.profile_image_content_type = "image/jpeg"
 
     def clear_profile_image(self):
         self.profile_image_data = None
@@ -174,9 +190,23 @@ class Product(models.Model):
 
         if hasattr(uploaded_file, "seek"):
             uploaded_file.seek(0)
-        self.image_data = uploaded_file.read()
-        self.image_name = basename(getattr(uploaded_file, "name", "") or "product-image")
-        self.image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+
+        source_name = basename(getattr(uploaded_file, "name", "") or "product-image")
+        source_stem = Path(source_name).stem or "product-image"
+        source_bytes = uploaded_file.read()
+
+        with Image.open(BytesIO(source_bytes)) as image:
+            if image.mode not in ("RGB", "L"):
+                image = image.convert("RGB")
+            elif image.mode == "L":
+                image = image.convert("RGB")
+
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=90)
+
+        self.image_data = output.getvalue()
+        self.image_name = f"{source_stem}.jpg"
+        self.image_content_type = "image/jpeg"
 
     def clear_database_image(self):
         self.image_data = None
@@ -370,9 +400,22 @@ class Payment(models.Model):
 
         if hasattr(uploaded_file, "seek"):
             uploaded_file.seek(0)
-        self.proof_image_data = uploaded_file.read()
-        self.proof_image_name = basename(getattr(uploaded_file, "name", "") or "payment-proof")
-        self.proof_image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+        source_name = basename(getattr(uploaded_file, "name", "") or "payment-proof")
+        source_stem = Path(source_name).stem or "payment-proof"
+        source_bytes = uploaded_file.read()
+
+        with Image.open(BytesIO(source_bytes)) as image:
+            if image.mode not in ("RGB", "L"):
+                image = image.convert("RGB")
+            elif image.mode == "L":
+                image = image.convert("RGB")
+
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=90)
+
+        self.proof_image_data = output.getvalue()
+        self.proof_image_name = f"{source_stem}.jpg"
+        self.proof_image_content_type = "image/jpeg"
 
     def clear_proof_image(self):
         self.proof_image_data = None
