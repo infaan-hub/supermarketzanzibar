@@ -1,6 +1,6 @@
 export function getApiErrorMessage(error, fallbackMessage) {
   if (error?.code === "ECONNABORTED") {
-    return "The server took too long to respond. Check that the backend is running and try again.";
+    return "Please refresh to countinue";
   }
 
   const detail = error?.response?.data?.detail;

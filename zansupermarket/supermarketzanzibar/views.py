@@ -1308,20 +1308,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             response["Cache-Control"] = "public, max-age=86400"
             return response
 
-        image_file = getattr(product, "image", None)
-        if image_file:
-            try:
-                with image_file.open("rb") as handle:
-                    payload = handle.read()
-                response = HttpResponse(
-                    payload,
-                    content_type=product.image_content_type or "application/octet-stream",
-                )
-                response["Cache-Control"] = "public, max-age=86400"
-                return response
-            except OSError:
-                logger.exception("Legacy filesystem image for product %s could not be opened.", product.pk)
-
         return Response({"detail": "Product image not found."}, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request, *args, **kwargs):
@@ -1430,6 +1416,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related("sale", "confirmed_by").all()
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_class(self):
         if self.action in ("admin_pending",):

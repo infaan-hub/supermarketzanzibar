@@ -1,11 +1,9 @@
-from pathlib import Path
 import shutil
 from urllib.parse import urlsplit
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -28,70 +26,15 @@ class BrokenFile:
         raise ValueError("broken media path")
 
 
-class MissingStorage:
-    def exists(self, name):
-        return False
-
-
-class RepoMediaFile:
-    name = "products/download_5.jpg"
-    storage = MissingStorage()
-
-    def __bool__(self):
-        return True
-
-    @property
-    def url(self):
-        return "/media/products/download_5.jpg"
-
-
 class SafeMediaUrlTests(TestCase):
     def test_returns_none_for_broken_media_field(self):
         self.assertIsNone(safe_media_url(BrokenFile()))
 
-    def test_uses_repo_media_file_when_primary_storage_cannot_find_it(self):
-        self.assertEqual(safe_media_url(RepoMediaFile()), "/media/products/download_5.jpg")
+    def test_returns_none_without_filesystem_media_support(self):
+        self.assertIsNone(safe_media_url(object()))
 
     def test_product_serializer_keeps_image_field_writeable(self):
         self.assertFalse(ProductSerializer().fields["image"].read_only)
-
-
-class MediaRootConfigurationTests(TestCase):
-    def test_production_uses_fallback_media_root_when_configured_root_is_unwritable(self):
-        def writable_only_for_fallback(path):
-            return Path(path) == project_settings.BASE_DIR / "media"
-
-        with (
-            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
-            patch.object(project_settings, "DEBUG", False),
-            patch.object(project_settings, "ensure_writable_directory", side_effect=writable_only_for_fallback),
-        ):
-            resolved_root = project_settings.resolve_media_root()
-
-        self.assertEqual(resolved_root, project_settings.BASE_DIR / "media")
-
-    def test_strict_media_root_requires_writable_configured_media_root(self):
-        with (
-            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media", "STRICT_MEDIA_ROOT": "true"}, clear=False),
-            patch.object(project_settings, "DEBUG", False),
-            patch.object(project_settings, "ensure_writable_directory", return_value=False),
-        ):
-            with self.assertRaises(ImproperlyConfigured):
-                project_settings.resolve_media_root()
-
-    def test_collectstatic_can_use_fallback_media_root_during_build(self):
-        def writable_only_for_fallback(path):
-            return Path(path) == project_settings.BASE_DIR / "media"
-
-        with (
-            patch.dict("os.environ", {"MEDIA_ROOT": "/var/data/media"}, clear=False),
-            patch.object(project_settings, "DEBUG", False),
-            patch.object(project_settings, "ensure_writable_directory", side_effect=writable_only_for_fallback),
-            patch.object(project_settings.sys, "argv", ["manage.py", "collectstatic"]),
-        ):
-            resolved_root = project_settings.resolve_media_root()
-
-        self.assertEqual(resolved_root, project_settings.BASE_DIR / "media")
 
 
 @override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])

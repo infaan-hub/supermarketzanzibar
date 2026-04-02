@@ -2,9 +2,7 @@
 Django settings for zansupermarket project.
 """
 
-import logging
 import os
-import sys
 from pathlib import Path
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
@@ -21,7 +19,6 @@ except ImportError:
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-logger = logging.getLogger(__name__)
 
 
 def load_env_file(path: Path) -> None:
@@ -48,62 +45,6 @@ def env_bool(name: str, default: bool) -> bool:
 def env_list(name: str, default: str = "") -> list[str]:
     raw = os.getenv(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
-
-
-def ensure_writable_directory(path: Path) -> bool:
-    try:
-        path.mkdir(parents=True, exist_ok=True)
-        probe = path / ".write_probe"
-        probe.write_bytes(b"")
-        probe.unlink(missing_ok=True)
-        return True
-    except OSError:
-        return False
-
-
-def resolve_media_root() -> Path:
-    configured_media_root = os.getenv("MEDIA_ROOT")
-    configured_root = Path(configured_media_root or str(BASE_DIR / "media"))
-    fallback_root = BASE_DIR / "media"
-    candidate_paths = [configured_root]
-    current_command = sys.argv[1] if len(sys.argv) > 1 else ""
-    strict_media_root = env_bool("STRICT_MEDIA_ROOT", False)
-
-    if configured_media_root and not DEBUG:
-        if ensure_writable_directory(configured_root):
-            return configured_root
-        if current_command == "collectstatic":
-            logger.warning(
-                "Configured MEDIA_ROOT %s is not writable during collectstatic. Using %s for the build step.",
-                configured_root,
-                fallback_root,
-            )
-        else:
-            logger.warning(
-                "Configured MEDIA_ROOT %s is not writable at runtime. Falling back to %s. "
-                "Uploads will not persist across redeploys until persistent storage is available.",
-                configured_root,
-                fallback_root,
-            )
-        if strict_media_root:
-            raise ImproperlyConfigured(
-                f"Configured MEDIA_ROOT {configured_root} is not writable. "
-                "Production media storage must use the mounted persistent disk."
-            )
-        if ensure_writable_directory(fallback_root):
-            return fallback_root
-        raise ImproperlyConfigured("No writable MEDIA_ROOT is available.")
-
-    if configured_root != fallback_root:
-        candidate_paths.append(fallback_root)
-
-    for candidate in candidate_paths:
-        if ensure_writable_directory(candidate):
-            if candidate != configured_root:
-                logger.warning("Configured MEDIA_ROOT %s is not writable. Falling back to %s.", configured_root, candidate)
-            return candidate
-
-    raise ImproperlyConfigured("No writable MEDIA_ROOT is available.")
 
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-2q_14#$vzz%3e=jll&w0l5e-)l#v3k+@t_l1+9c=q2&mfy#+0#")
@@ -196,27 +137,24 @@ TEMPLATES = [
 WSGI_APPLICATION = "zansupermarket.wsgi.application"
 
 
-ALLOW_SQLITE_URL = env_bool("ALLOW_SQLITE_URL", False)
-database_url = os.getenv("DATABASE_URL")
-if database_url and dj_database_url is not None:
-    if database_url.startswith("sqlite") and not ALLOW_SQLITE_URL:
-        raise ImproperlyConfigured("SQLite is disabled. Set DATABASE_URL to the Neon PostgreSQL connection string.")
-    DATABASES = {
-        "default": dj_database_url.parse(
-            database_url,
-            conn_max_age=600,
-            ssl_require=not DEBUG,
-        )
-    }
-elif ALLOW_SQLITE_URL:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-else:
-    raise ImproperlyConfigured("DATABASE_URL must be set to the Neon PostgreSQL connection string.")
+if dj_database_url is None:
+    raise ImproperlyConfigured("dj-database-url is required to configure the Neon PostgreSQL database.")
+
+database_url = os.getenv(
+    "DATABASE_URL",
+    "postgresql://neondb_owner:npg_5RNWQXv0ZgBd@ep-odd-truth-adpy5dqz-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+)
+
+if database_url.startswith("sqlite"):
+    raise ImproperlyConfigured("SQLite is disabled. Set DATABASE_URL to the Neon PostgreSQL connection string.")
+
+DATABASES = {
+    "default": dj_database_url.parse(
+        database_url,
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -243,13 +181,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = resolve_media_root()
 
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
     "staticfiles": {
         "BACKEND": (
             "whitenoise.storage.CompressedManifestStaticFilesStorage"

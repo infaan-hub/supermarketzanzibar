@@ -24,7 +24,9 @@ class CustomUser(AbstractUser):
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     address = models.TextField(blank=True, null=True)
-    profile_image = models.ImageField(upload_to="profiles/", null=True, blank=True)
+    profile_image_data = models.BinaryField(null=True, blank=True)
+    profile_image_name = models.CharField(max_length=255, blank=True, default="")
+    profile_image_content_type = models.CharField(max_length=100, blank=True, default="")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
@@ -35,6 +37,26 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+    @property
+    def has_profile_image(self):
+        return bool(self.profile_image_data)
+
+    def set_profile_image(self, uploaded_file):
+        if uploaded_file is None:
+            self.clear_profile_image()
+            return
+
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        self.profile_image_data = uploaded_file.read()
+        self.profile_image_name = basename(getattr(uploaded_file, "name", "") or "profile-image")
+        self.profile_image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+
+    def clear_profile_image(self):
+        self.profile_image_data = None
+        self.profile_image_name = ""
+        self.profile_image_content_type = ""
 
 
 # ================================
@@ -116,7 +138,6 @@ class Product(models.Model):
 
     barcode = models.CharField(max_length=100, unique=True)
 
-    image = models.ImageField(upload_to="products/", null=True, blank=True)
     image_data = models.BinaryField(null=True, blank=True)
     image_name = models.CharField(max_length=255, blank=True, default="")
     image_content_type = models.CharField(max_length=100, blank=True, default="")
@@ -156,14 +177,11 @@ class Product(models.Model):
         self.image_data = uploaded_file.read()
         self.image_name = basename(getattr(uploaded_file, "name", "") or "product-image")
         self.image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
-        if self.image:
-            self.image = None
 
     def clear_database_image(self):
         self.image_data = None
         self.image_name = ""
         self.image_content_type = ""
-        self.image = None
 
     def __str__(self):
         return self.name
@@ -319,7 +337,9 @@ class Payment(models.Model):
     confirmed_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="confirmed_payments"
     )
-    proof_image = models.ImageField(upload_to="payments/", null=True, blank=True)
+    proof_image_data = models.BinaryField(null=True, blank=True)
+    proof_image_name = models.CharField(max_length=255, blank=True, default="")
+    proof_image_content_type = models.CharField(max_length=100, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -338,6 +358,26 @@ class Payment(models.Model):
                 candidate = self._generate_control_number()
             self.control_number = candidate
         super().save(*args, **kwargs)
+
+    @property
+    def has_proof_image(self):
+        return bool(self.proof_image_data)
+
+    def set_proof_image(self, uploaded_file):
+        if uploaded_file is None:
+            self.clear_proof_image()
+            return
+
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        self.proof_image_data = uploaded_file.read()
+        self.proof_image_name = basename(getattr(uploaded_file, "name", "") or "payment-proof")
+        self.proof_image_content_type = getattr(uploaded_file, "content_type", "") or "application/octet-stream"
+
+    def clear_proof_image(self):
+        self.proof_image_data = None
+        self.proof_image_name = ""
+        self.proof_image_content_type = ""
 
     def __str__(self):
         return f"{self.control_number} ({self.status})"

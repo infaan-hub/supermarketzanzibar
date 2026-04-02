@@ -1,87 +1,37 @@
-from pathlib import Path
+import base64
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
 from django.urls import reverse
 from rest_framework import serializers
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 
 User = get_user_model()
-PRODUCT_MEDIA_FALLBACK_PATH = "products/product-fallback.svg"
 
-
-def repo_media_file_exists(file_name):
-    if not file_name:
-        return False
-    candidate = Path(settings.BASE_DIR) / "media" / str(file_name)
-    return candidate.exists() and candidate.is_file()
-
-
-def build_media_url(path, request=None):
-    normalized_media_url = str(settings.MEDIA_URL or "/media/").rstrip("/")
-    normalized_path = str(path).lstrip("/")
-    url = f"{normalized_media_url}/{normalized_path}"
-
-    if request is not None:
-        try:
-            return request.build_absolute_uri(url)
-        except (TypeError, ValueError, SuspiciousOperation):
-            return url
-
-    return url
+def binary_file_data_url(payload, content_type):
+    if not payload:
+        return None
+    encoded = base64.b64encode(bytes(payload)).decode("ascii")
+    mime = content_type or "application/octet-stream"
+    return f"data:{mime};base64,{encoded}"
 
 
 def safe_media_url(file_field, request=None):
-    if not file_field:
-        return None
-
-    try:
-        if (
-            hasattr(file_field, "storage")
-            and hasattr(file_field, "name")
-            and not file_field.storage.exists(file_field.name)
-            and not repo_media_file_exists(file_field.name)
-        ):
-            return None
-        url = file_field.url
-    except (AttributeError, OSError, TypeError, ValueError, SuspiciousOperation):
-        return None
-
-    if request is not None:
-        try:
-            return request.build_absolute_uri(url)
-        except (TypeError, ValueError, SuspiciousOperation):
-            return url
-
-    return url
-
-
-class SafeImageField(serializers.ImageField):
-    def to_representation(self, value):
-        request = self.context.get("request") if hasattr(self, "context") else None
-        return safe_media_url(value, request)
-
-
-def product_media_url(file_field, request=None):
-    return safe_media_url(file_field, request) or build_media_url(PRODUCT_MEDIA_FALLBACK_PATH, request)
+    return None
 
 
 def product_image_url(product, request=None):
     if getattr(product, "image_data", None):
         path = reverse("product-image", kwargs={"pk": product.pk})
         if request is not None:
-            try:
-                return request.build_absolute_uri(path)
-            except (TypeError, ValueError, SuspiciousOperation):
-                return path
+            return request.build_absolute_uri(path)
         return path
 
-    return product_media_url(getattr(product, "image", None), request)
+    return None
 
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     profile_image_url = serializers.SerializerMethodField()
 
@@ -105,12 +55,14 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ("created_at", "updated_at", "role")
 
     def get_profile_image_url(self, obj):
-        request = self.context.get("request")
-        return safe_media_url(obj.profile_image, request)
+        return binary_file_data_url(obj.profile_image_data, obj.profile_image_content_type)
 
     def create(self, validated_data):
+        uploaded_profile_image = validated_data.pop("profile_image", serializers.empty)
         password = validated_data.pop("password", None)
         user = User(**validated_data)
+        if uploaded_profile_image is not serializers.empty:
+            user.set_profile_image(uploaded_profile_image)
         if password:
             user.set_password(password)
         else:
@@ -119,9 +71,12 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
+        uploaded_profile_image = validated_data.pop("profile_image", serializers.empty)
         password = validated_data.pop("password", None)
         for key, value in validated_data.items():
             setattr(instance, key, value)
+        if uploaded_profile_image is not serializers.empty:
+            instance.set_profile_image(uploaded_profile_image)
         if password:
             instance.set_password(password)
         instance.save()
@@ -129,6 +84,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    profile_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
 
@@ -153,9 +109,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        uploaded_profile_image = validated_data.pop("profile_image", serializers.empty)
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
         user = User(role="customer", **validated_data)
+        if uploaded_profile_image is not serializers.empty:
+            user.set_profile_image(uploaded_profile_image)
         user.set_password(password)
         user.save()
         Customer.objects.get_or_create(user=user, defaults={"phone": user.phone})
@@ -165,15 +124,19 @@ class RegisterSerializer(serializers.ModelSerializer):
 class AdminRegisterSerializer(RegisterSerializer):
     @transaction.atomic
     def create(self, validated_data):
+        uploaded_profile_image = validated_data.pop("profile_image", serializers.empty)
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
         user = User(role="admin", **validated_data)
+        if uploaded_profile_image is not serializers.empty:
+            user.set_profile_image(uploaded_profile_image)
         user.set_password(password)
         user.save()
         return user
 
 
 class AdminCreateUserSerializer(serializers.ModelSerializer):
+    profile_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
     company_name = serializers.CharField(required=False, allow_blank=True)
@@ -206,9 +169,12 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         company_name = validated_data.pop("company_name", "")
+        uploaded_profile_image = validated_data.pop("profile_image", serializers.empty)
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
         user = User(**validated_data)
+        if uploaded_profile_image is not serializers.empty:
+            user.set_profile_image(uploaded_profile_image)
         user.set_password(password)
         user.save()
         if user.role == "supplier":
@@ -292,7 +258,7 @@ class ProductSerializer(serializers.ModelSerializer):
         product = super().create(validated_data)
         if uploaded_image is not serializers.empty:
             product.set_database_image(uploaded_image)
-            product.save(update_fields=["image", "image_data", "image_name", "image_content_type", "updated_at"])
+            product.save(update_fields=["image_data", "image_name", "image_content_type", "updated_at"])
         return product
 
     def update(self, instance, validated_data):
@@ -303,7 +269,7 @@ class ProductSerializer(serializers.ModelSerializer):
         product = super().update(instance, validated_data)
         if uploaded_image is not serializers.empty:
             product.set_database_image(uploaded_image)
-            product.save(update_fields=["image", "image_data", "image_name", "image_content_type", "updated_at"])
+            product.save(update_fields=["image_data", "image_name", "image_content_type", "updated_at"])
         return product
 
     def to_representation(self, instance):
@@ -365,10 +331,43 @@ class SaleItemSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    proof_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
+    proof_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Payment
-        fields = "__all__"
+        fields = (
+            "id",
+            "sale",
+            "control_number",
+            "payment_method",
+            "status",
+            "confirmed_by",
+            "proof_image",
+            "proof_image_url",
+            "created_at",
+            "updated_at",
+        )
         read_only_fields = ("control_number", "confirmed_by")
+
+    def get_proof_image_url(self, obj):
+        return binary_file_data_url(obj.proof_image_data, obj.proof_image_content_type)
+
+    def create(self, validated_data):
+        uploaded_proof_image = validated_data.pop("proof_image", serializers.empty)
+        payment = super().create(validated_data)
+        if uploaded_proof_image is not serializers.empty:
+            payment.set_proof_image(uploaded_proof_image)
+            payment.save(update_fields=["proof_image_data", "proof_image_name", "proof_image_content_type", "updated_at"])
+        return payment
+
+    def update(self, instance, validated_data):
+        uploaded_proof_image = validated_data.pop("proof_image", serializers.empty)
+        payment = super().update(instance, validated_data)
+        if uploaded_proof_image is not serializers.empty:
+            payment.set_proof_image(uploaded_proof_image)
+            payment.save(update_fields=["proof_image_data", "proof_image_name", "proof_image_content_type", "updated_at"])
+        return payment
 
 
 class PaymentAdminSerializer(serializers.ModelSerializer):
