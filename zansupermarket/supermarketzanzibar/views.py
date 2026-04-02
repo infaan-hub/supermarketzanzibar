@@ -1077,7 +1077,7 @@ def token_payload_for_user(user):
     return {
         "refresh": str(refresh),
         "access": str(refresh.access_token),
-        "user": UserSerializer(user).data,
+        "user": serialize_or_raise(UserSerializer, user),
     }
 
 
@@ -1095,7 +1095,7 @@ class RoleLoginView(APIView):
             if self.required_role and user.role != self.required_role:
                 return Response({"detail": f"Only {self.required_role} can login here."}, status=status.HTTP_403_FORBIDDEN)
             return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
-        except DatabaseError:
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
