@@ -424,3 +424,39 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.control_number} ({self.status})"
+
+
+class SystemSubscriptionControl(models.Model):
+    STATUS_CHOICES = (
+        ("unknown", "Unknown"),
+        ("active", "Active"),
+        ("trial", "Trial"),
+        ("suspended", "Suspended"),
+        ("cancelled", "Cancelled"),
+        ("expired", "Expired"),
+    )
+
+    control_enabled = models.BooleanField(default=False)
+    service_id = models.CharField(max_length=120, blank=True, default="")
+    license_key = models.CharField(max_length=255, blank=True, default="")
+    api_key = models.CharField(max_length=255, blank=True, default="")
+    api_secret = models.CharField(max_length=255, blank=True, default="")
+    api_url = models.URLField(blank=True, default="")
+    license_validate_url = models.URLField(blank=True, default="")
+    subscription_status_url = models.URLField(blank=True, default="")
+    heartbeat_url = models.URLField(blank=True, default="")
+    subscription_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="unknown")
+    subscription_end_date = models.DateField(null=True, blank=True)
+    last_validated_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        verbose_name = "System Subscription Control"
+        verbose_name_plural = "System Subscription Control"
+
+    def __str__(self):
+        label = self.service_id or "unconfigured"
+        return f"{label} [{self.subscription_status}]"

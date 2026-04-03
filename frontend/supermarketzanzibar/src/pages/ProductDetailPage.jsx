@@ -1,128 +1,127 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
-import { getApiErrorMessage } from "../lib/apiErrors.js";
-import { applyImageFallback, productImageUrl } from "../lib/media.jsx";
+import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [qty, setQty] = useState(1);
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("mobile_money");
+  const [checkoutInfo, setCheckoutInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { isAuthenticated, user } = useAuth();
-  const { addToCart, startCheckoutFromProduct } = useCart();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadProduct = async () => {
-      setLoading(true);
-      setError("");
+    const load = async () => {
       try {
         const response = await http.get(`/api/products/${id}/`);
         setProduct(response.data);
-      } catch (requestError) {
-        setProduct(null);
-        setError(getApiErrorMessage(requestError, "Failed to load product details."));
+      } catch {
+        setError("Failed to load product details.");
       } finally {
         setLoading(false);
       }
     };
-
-    loadProduct();
+    load();
   }, [id]);
 
-  if (loading) return <p className="page-wrap">Loading product...</p>;
-
-  if (!product) {
-    return (
-      <section className="page-wrap">
-        <div className="catalog-empty">
-          <h3>Product not found.</h3>
-          <p>{error || "This product could not be loaded right now."}</p>
-        </div>
-      </section>
-    );
-  }
-
-  const openBuy = () => {
-    startCheckoutFromProduct(product, 1);
-    navigate("/buy");
+  const buyNow = async () => {
+    if (user?.role !== "customer") {
+      setError("Only customers can buy.");
+      return;
+    }
+    if (!termsAccepted) {
+      setError("Accept terms to continue.");
+      return;
+    }
+    try {
+      const response = await http.post("/api/customer/checkout/", {
+        items: [{ product: product.id, quantity: Number(qty) }],
+        payment_method: paymentMethod,
+        delivery_location: deliveryLocation,
+        terms_accepted: termsAccepted,
+      });
+      setCheckoutInfo(response.data);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Buy now failed.");
+    }
   };
+
+  if (loading) return <p className="page-wrap">Loading product...</p>;
+  if (!product) return <p className="page-wrap error">{error || "Product not found."}</p>;
 
   return (
     <section className="page-wrap">
-      <div className="product-view-shell">
-        <div className="product-view-media-stage">
-          <div className="product-view-thumbs" aria-hidden="true">
-            <button type="button" className="product-view-thumb active">
-              <img
-                src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
-                alt=""
-                data-fallback-src={PRODUCT_PLACEHOLDER}
-                onError={applyImageFallback}
-              />
+      <div className="product-detail">
+        <img
+          src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+          alt={product.name}
+          data-fallback-src={PRODUCT_PLACEHOLDER}
+          onError={applyImageFallback}
+        />
+        <div>
+          <h2>{product.name}</h2>
+          <p>{product.description || "No description available."}</p>
+          <p className="price">TZS {product.price}</p>
+          <p>Available stock: {product.quantity}</p>
+          <div className="row">
+            <input name="quantity" type="number" min="1" max={product.quantity} value={qty} onChange={(e) => setQty(e.target.value)} />
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                addToCart(product, Number(qty));
+                navigate("/cart");
+              }}
+            >
+              Add to Cart
+            </button>
+            <button type="button" className="accent-btn" onClick={buyNow}>
+              Buy Now
             </button>
           </div>
-          <div className="product-view-media">
-            <img
-              src={productImageUrl(product) || PRODUCT_PLACEHOLDER}
-              alt={product.name}
-              data-fallback-src={PRODUCT_PLACEHOLDER}
-              onError={applyImageFallback}
-            />
-          </div>
-        </div>
-        <div className="product-view-copy">
-          <div className="product-view-topbar">
-            <div>
-              <p className="product-view-brand">{product.category_name || "Product"}</p>
-              <h2>{product.name}</h2>
-            </div>
-            <Link className="product-view-close" to={user?.role === "customer" ? "/customer/dashboard" : "/"}>
-              <span aria-hidden="true">×</span>
-              <span className="sr-only">Close product view</span>
-            </Link>
-          </div>
-
-          <p className="product-view-description">{product.description || "Fresh product available now."}</p>
-
-          <div className="product-view-detail-grid">
-            <div>
-              <span>Category</span>
-              <strong>{product.category_name || "Product"}</strong>
-            </div>
-            <div>
-              <span>Stock</span>
-              <strong>{product.quantity} available</strong>
-            </div>
-          </div>
-
-          <div className="product-view-divider" />
-          <p className="product-view-price">TZS {product.price}</p>
-
-          {isAuthenticated && user?.role === "customer" ? (
-            <div className="product-view-actions">
-              <button type="button" className="product-view-primary-btn" onClick={() => addToCart(product, 1)}>
-                Add Cart
-              </button>
-              <button type="button" className="product-view-secondary-btn" onClick={openBuy}>
-                Buy Now
+          <select name="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="cash">Cash</option>
+            <option value="bank_transfer">Bank Transfer</option>
+          </select>
+          <textarea
+            name="delivery_location"
+            placeholder="Delivery location (optional)"
+            value={deliveryLocation}
+            onChange={(e) => setDeliveryLocation(e.target.value)}
+          />
+          <label className="checkbox-row">
+            <input name="terms_accepted" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
+            I accept terms and payment process.
+          </label>
+          {checkoutInfo ? (
+            <div className="order-card checkout-result">
+              <div>
+                <h4>Order Created Successfully</h4>
+                <p>Order ID: #{checkoutInfo.sale?.id}</p>
+                <p>Control Number: {checkoutInfo.payment?.control_number}</p>
+                <p className="pending">Payment Status: {checkoutInfo.payment?.status}</p>
+                <p>Payment is pending admin confirmation. A request has been sent to admin and details were sent to your email.</p>
+              </div>
+              <button type="button" className="primary-btn" onClick={() => navigate("/customer/dashboard")}>
+                View My Orders
               </button>
             </div>
-          ) : (
-            <div className="catalog-empty compact product-view-login-card">
-              <h3>Login to continue</h3>
-              <p>Guests can view the product, but customer login is required before adding cart or buying now.</p>
-              <Link className="product-view-primary-btn" to="/login" state={{ from: `/products/${product.id}` }}>
-                Customer Login
-              </Link>
-            </div>
-          )}
+          ) : null}
+          {error ? <p className="error">{error}</p> : null}
         </div>
       </div>
     </section>

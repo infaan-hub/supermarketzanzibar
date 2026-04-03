@@ -63,59 +63,62 @@ function RegisterPage({ mode = "customer" }) {
 
   return (
     <section className="auth-section">
-      <div className="auth-portal-shell">
-        <div className="auth-portal-hero auth-portal-hero-register">
-          <span className="auth-portal-badge">{isAdmin ? "Admin Portal" : "Customer Portal"}</span>
-          <h1>{isAdmin ? "Register Admin" : "Register Here"}</h1>
-          <p>
+      <form className="auth-card auth-card-premium" onSubmit={onSubmit}>
+        <div className="auth-copy">
+          <p className="auth-eyebrow">{isAdmin ? "Secure onboarding" : "Create your account"}</p>
+          <h2>{isAdmin ? "Admin Register" : "Customer Register"}</h2>
+          <p className="auth-description">
             {isAdmin
-              ? "Create a secure admin account for platform control and operations."
-              : "Create your account to shop, track orders, and manage your profile."}
+              ? "Register a premium admin account for platform control, user management, and operations."
+              : "Create a polished customer account to shop faster, track orders, and manage your profile."}
           </p>
-          <span className="auth-portal-orb auth-portal-orb-left" aria-hidden="true" />
-          <span className="auth-portal-orb auth-portal-orb-right" aria-hidden="true" />
         </div>
 
-        <form className="auth-card auth-card-premium auth-portal-card auth-portal-card-register" onSubmit={onSubmit}>
-          <div className="auth-grid auth-portal-grid">
-            <label className="auth-field auth-portal-field">
-              <input name="username" type="text" placeholder="Username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-portal-field">
-              <input name="email" type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-portal-field">
-              <input name="full_name" type="text" placeholder="Full Name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-portal-field">
-              <input name="phone" type="text" placeholder="Phone" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-field-wide auth-portal-field">
-              <input name="address" type="text" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-field-wide auth-portal-field auth-portal-file-field">
-              <span>Profile Image</span>
-              <input name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
-            </label>
-            <label className="auth-field auth-portal-field">
-              <input name="password" type="password" placeholder="Password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-            </label>
-            <label className="auth-field auth-portal-field">
-              <input name="password_confirm" type="password" placeholder="Confirm Password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
-            </label>
-          </div>
+        <div className="auth-grid">
+          <label className="auth-field">
+            <span>Username</span>
+            <input name="username" type="text" placeholder="Choose a username" required value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Email</span>
+            <input name="email" type="email" placeholder="name@example.com" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Full Name</span>
+            <input name="full_name" type="text" placeholder="Your full name" required value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Phone</span>
+            <input name="phone" type="text" placeholder="Phone number" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          </label>
+          <label className="auth-field auth-field-wide">
+            <span>Address</span>
+            <input name="address" type="text" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+          </label>
+          <label className="auth-field auth-field-wide">
+            <span>Profile Image</span>
+            <input name="profile_image" type="file" accept="image/*" onChange={(e) => setForm((p) => ({ ...p, profile_image: e.target.files?.[0] || null }))} />
+          </label>
+          <label className="auth-field">
+            <span>Password</span>
+            <input name="password" type="password" placeholder="Create password" required value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+          </label>
+          <label className="auth-field">
+            <span>Confirm Password</span>
+            <input name="password_confirm" type="password" placeholder="Repeat password" required value={form.password_confirm} onChange={(e) => setForm((p) => ({ ...p, password_confirm: e.target.value }))} />
+          </label>
+        </div>
 
-          {error ? <p className="error auth-feedback">{error}</p> : null}
-          <button className="primary-btn auth-submit auth-portal-submit" type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Register"}
-          </button>
+        {error ? <p className="error auth-feedback">{error}</p> : null}
+        <button className="primary-btn auth-submit" type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Register"}
+        </button>
 
-          <p className="auth-footnote auth-portal-footnote">
-            Already registered?{" "}
-            <Link to={isAdmin ? "/admin/login" : "/login"}>Login</Link>
-          </p>
-        </form>
-      </div>
+        <p className="auth-footnote">
+          Already registered?{" "}
+          <Link to={isAdmin ? "/admin/login" : "/login"}>Login</Link>
+        </p>
+      </form>
     </section>
   );
 }

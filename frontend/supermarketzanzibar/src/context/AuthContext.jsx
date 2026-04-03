@@ -36,7 +36,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginCustomer = useCallback((credentials) => loginByPath("/api/auth/login/", credentials), [loginByPath]);
-  const loginCustomerWithGoogle = useCallback((code) => loginByPath("/api/auth/google/", { code }), [loginByPath]);
   const loginAdmin = useCallback((credentials) => loginByPath("/api/auth/admin/login/", credentials), [loginByPath]);
   const loginSupplier = useCallback((credentials) => loginByPath("/api/auth/supplier/login/", credentials), [loginByPath]);
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
@@ -80,7 +79,6 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       loginCustomer,
-      loginCustomerWithGoogle,
       loginAdmin,
       loginSupplier,
       loginDriver,
@@ -95,7 +93,6 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated,
       loginCustomer,
-      loginCustomerWithGoogle,
       loginAdmin,
       loginSupplier,
       loginDriver,

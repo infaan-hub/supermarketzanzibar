@@ -1,129 +1,59 @@
-import { useDeferredValue, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { http } from "../api/http.jsx";
-import CatalogControls from "../components/CatalogControls.jsx";
-import ProductShowcaseCard from "../components/ProductShowcaseCard.jsx";
-import { useCart } from "../context/CartContext.jsx";
-import { getApiErrorMessage } from "../lib/apiErrors.js";
 
 function CustomerDashboardPage() {
-  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [productFilter, setProductFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
-  const { addToCart, count, startCheckoutFromProduct } = useCart();
-  const navigate = useNavigate();
-
-  const loadProducts = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await http.get("/api/products/");
-      setProducts(response.data);
-    } catch (error) {
-      setError(getApiErrorMessage(error, "Unable to load products."));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    loadProducts();
+    const load = async () => {
+      try {
+        const response = await http.get("/api/customer/orders/");
+        setOrders(response.data);
+      } catch {
+        setError("Unable to load orders.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const categories = Array.from(
-    new Set(products.map((product) => product.category_name || "General")),
-  ).sort((left, right) => left.localeCompare(right));
-
-  const visibleProducts = products.filter((product) => {
-    const normalizedCategory = product.category_name || "General";
-    const price = Number(product.price || 0);
-    const searchableText = [product.name, normalizedCategory, product.description]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    const matchesSearch = !deferredSearch || searchableText.includes(deferredSearch);
-    const matchesCategory = categoryFilter === "all" || normalizedCategory === categoryFilter;
-    const matchesFilter =
-      productFilter === "all" ||
-      (productFilter === "in_stock" && Number(product.quantity || 0) > 0) ||
-      (productFilter === "budget" && price < 5000) ||
-      (productFilter === "premium" && price >= 5000);
-
-    return matchesSearch && matchesCategory && matchesFilter;
-  });
-
-  const onBuyNow = (product) => {
-    startCheckoutFromProduct(product, 1);
-    navigate("/buy");
-  };
+  if (loading) return <p className="page-wrap">Loading orders...</p>;
 
   return (
     <section className="page-wrap">
-      <div className="dashboard-summary">
-        <div>
-          <p className="home-toolbar-kicker">Customer dashboard</p>
-          <h2 className="dashboard-title">Browse products and build your cart</h2>
-          <p className="section-note">Search, filter, and add items before moving to checkout.</p>
-        </div>
-        <div className="dashboard-summary-actions">
-          <Link className="ghost-btn" to="/customer/history">
-            Order History
-          </Link>
-          <Link className="primary-btn" to="/purchases">
-            Purchases ({count})
-          </Link>
-        </div>
-      </div>
-
-      <CatalogControls
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        productFilter={productFilter}
-        setProductFilter={setProductFilter}
-        categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
-        categories={categories}
-      />
-
-      {loading ? <p>Loading products...</p> : null}
-      {error ? (
-        <div className="panel product-load-feedback">
-          <p className="error">{error}</p>
-          <button type="button" className="ghost-btn" onClick={loadProducts}>
-            Retry Products
-          </button>
-        </div>
-      ) : null}
-
-      <div className="section-heading">
-        <h2 className="section-title">Products</h2>
-        <p className="section-note">Add products to your cart, then continue to buy now when ready.</p>
-      </div>
-
-      <div className="grid-products product-grid">
-        {visibleProducts.map((product) => (
-          <ProductShowcaseCard
-            key={product.id}
-            product={product}
-            canPurchase
-            onOpenProduct={(productId) => navigate(`/products/${productId}`)}
-            onAddToCart={(entry) => addToCart(entry, 1)}
-            onBuyNow={onBuyNow}
-          />
+      <h2>Customer Dashboard</h2>
+      {error ? <p className="error">{error}</p> : null}
+      <div className="order-list">
+        {orders.map((order) => (
+          <article className="order-card" key={order.id}>
+            <div>
+              <h4>Order #{order.id}</h4>
+              <p className="muted">Status: {order.status}</p>
+              <p>Control Number: {order.payment_control_number || order.payment?.control_number || "Pending"}</p>
+              <p className={(order.payment_status || order.payment?.status) === "confirmed" ? "ok" : "pending"}>
+                {(order.payment_status || order.payment?.status) === "confirmed"
+                  ? "Payment Confirmed"
+                  : "Payment Pending"}
+              </p>
+            </div>
+            <div>
+              <p>Total: TZS {order.final_amount}</p>
+              <p>Delivery: {order.delivery_location || "Not set"}</p>
+              <div className="row">
+                {(order.items || []).map((item) => (
+                  <Link key={`${order.id}-${item.id}`} className="ghost-btn" to={`/products/${item.product}`}>
+                    {item.product_name || `Product ${item.product}`}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </article>
         ))}
       </div>
-
-      {!loading && !error && !visibleProducts.length ? (
-        <div className="catalog-empty">
-          <h3>No products match that search.</h3>
-          <p>Try a different keyword, change the filter, or switch back to all categories.</p>
-        </div>
-      ) : null}
     </section>
   );
 }
