@@ -7,7 +7,7 @@ from io import BytesIO
 from textwrap import wrap
 from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin
 from urllib.request import Request, urlopen
 from decimal import Decimal
 from xml.sax.saxutils import escape
@@ -118,7 +118,7 @@ def _safe_parse_datetime(value):
 def _control_config_from_env():
     return SystemSubscriptionControl(
         control_enabled=getattr(settings, "SUPER_SYSTEM_CONTROL_ENABLED", False),
-        service_id=getattr(settings, "SUPER_SYSTEM_SERVICE_ID", ""),
+        service_id="",
         license_key=getattr(settings, "SUPER_SYSTEM_LICENSE_KEY", ""),
         api_key=getattr(settings, "SUPER_SYSTEM_API_KEY", ""),
         api_secret=getattr(settings, "SUPER_SYSTEM_API_SECRET", ""),
@@ -141,7 +141,7 @@ def _current_control_config():
 
 
 def _control_is_configured(config):
-    return bool(config.control_enabled and config.service_id and config.license_key)
+    return bool(config.control_enabled and config.api_url and config.license_key and config.api_key)
 
 
 def _control_status_detail(status_value, end_date=None):
@@ -217,30 +217,24 @@ def _normalize_subscription_payload(payload):
         status_value = "expired"
 
     return {
+        "allowed": bool(payload.get("allowed", status_value in SUBSCRIPTION_ACTIVE_STATUSES)),
         "status": status_value or "unknown",
         "end_date": end_date,
         "detail": detail,
     }
 
 
-def _subscription_remote_url(config):
-    return config.subscription_status_url or config.license_validate_url
-
-
-def _fetch_subscription_control_payload(config):
-    endpoint = _subscription_remote_url(config)
-    if not endpoint:
-        raise ValueError("Super System subscription_status_url or license_validate_url is required.")
-
+def _control_request_payload(config):
     payload = {
-        "service_id": config.service_id,
         "license_key": config.license_key,
+        "api_key": config.api_key,
     }
-    if config.api_key:
-        payload["api_key"] = config.api_key
     if config.api_secret:
         payload["api_secret"] = config.api_secret
+    return payload
 
+
+def _control_request_headers(config):
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -250,16 +244,68 @@ def _fetch_subscription_control_payload(config):
         headers["Authorization"] = f"Bearer {config.api_key}"
     if config.api_secret:
         headers["X-API-Secret"] = config.api_secret
+    return headers
 
+
+def _post_control_request(endpoint, config):
     request = Request(
         endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers=headers,
+        data=json.dumps(_control_request_payload(config)).encode("utf-8"),
+        headers=_control_request_headers(config),
         method="POST",
     )
     with urlopen(request, timeout=15) as response:
         body = response.read().decode("utf-8")
     return json.loads(body)
+
+
+def _control_api_endpoint(config, path_suffix, direct_url=""):
+    if direct_url:
+        return direct_url
+    base_url = str(config.api_url or "").strip()
+    if not base_url:
+        return ""
+    normalized_base = base_url.rstrip("/") + "/"
+    return urljoin(normalized_base, path_suffix.lstrip("/"))
+
+
+def _subscription_remote_urls(config):
+    urls = []
+    status_url = _control_api_endpoint(config, "subscription/status/", config.subscription_status_url)
+    validate_url = _control_api_endpoint(config, "license/validate/", config.license_validate_url)
+    for endpoint in (status_url, validate_url):
+        if endpoint and endpoint not in urls:
+            urls.append(endpoint)
+    return urls
+
+
+def _heartbeat_remote_url(config):
+    return _control_api_endpoint(config, "heartbeat/", config.heartbeat_url)
+
+
+def _fetch_subscription_control_payload(config):
+    endpoints = _subscription_remote_urls(config)
+    if not endpoints:
+        raise ValueError("Super System API_URL, subscription_status_url, or license_validate_url is required.")
+
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            return _post_control_request(endpoint, config)
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+            logger.exception("Super System request to %s failed.", endpoint)
+    raise last_error or ValueError("Super System subscription endpoints are unavailable.")
+
+
+def _send_heartbeat(config):
+    endpoint = _heartbeat_remote_url(config)
+    if not endpoint:
+        return
+    try:
+        _post_control_request(endpoint, config)
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        logger.exception("Super System heartbeat failed.")
 
 
 def validate_admin_subscription(*, force=False):
@@ -295,9 +341,11 @@ def validate_admin_subscription(*, force=False):
         status_value = normalized["status"]
         end_date = normalized["end_date"]
         _update_control_cache(config, status_value=status_value, end_date=end_date, error_message="")
+        if normalized["allowed"] and status_value in SUBSCRIPTION_ACTIVE_STATUSES:
+            _send_heartbeat(config)
         return {
             "enforced": True,
-            "allowed": status_value in SUBSCRIPTION_ACTIVE_STATUSES,
+            "allowed": bool(normalized["allowed"] and status_value in SUBSCRIPTION_ACTIVE_STATUSES),
             "status": status_value,
             "detail": normalized["detail"] or _control_status_detail(status_value, end_date),
             "config": config,
@@ -1443,11 +1491,10 @@ class AdminSubscriptionStatusView(APIView):
                 "allowed": decision["allowed"],
                 "subscription_status": decision["status"],
                 "detail": decision["detail"],
-                "service_id": config.service_id,
                 "api_url": config.api_url,
-                "license_validate_url": config.license_validate_url,
-                "subscription_status_url": config.subscription_status_url,
-                "heartbeat_url": config.heartbeat_url,
+                "license_validate_url": _control_api_endpoint(config, "license/validate/", config.license_validate_url),
+                "subscription_status_url": _control_api_endpoint(config, "subscription/status/", config.subscription_status_url),
+                "heartbeat_url": _control_api_endpoint(config, "heartbeat/", config.heartbeat_url),
                 "subscription_end_date": (
                     config.subscription_end_date.isoformat() if config.subscription_end_date else None
                 ),
