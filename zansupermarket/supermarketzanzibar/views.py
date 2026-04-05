@@ -5,26 +5,23 @@ import random
 import re
 from io import BytesIO
 from textwrap import wrap
-from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode, urljoin
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from decimal import Decimal
 from xml.sax.saxutils import escape
 from django.contrib.auth import authenticate, get_user_model
-from django.conf import settings
 from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
 from django.db import DatabaseError, transaction
 from django.http import Http404, HttpResponse
-from django.utils import timezone
 from rest_framework import permissions, status, viewsets, exceptions
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier, SystemSubscriptionControl
+from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 from .serializers import (
     AdminCreateUserSerializer,
     AdminRegisterSerializer,
@@ -71,315 +68,6 @@ RECEIPT_ABOUT_CARDS = [
         "Browse, add to cart, and move into checkout from the same catalog flow with less friction.",
     ),
 ]
-
-SUBSCRIPTION_ACTIVE_STATUSES = {"active", "trial", "paid"}
-SUBSCRIPTION_BLOCKED_STATUSES = {"suspended", "cancelled", "expired"}
-
-
-def _safe_parse_date(value):
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    text = str(value).strip()
-    if not text:
-        return None
-    if text.endswith("Z"):
-        text = f"{text[:-1]}+00:00"
-    try:
-        return datetime.fromisoformat(text).date()
-    except ValueError:
-        pass
-    try:
-        return date.fromisoformat(text[:10])
-    except ValueError:
-        return None
-
-
-def _safe_parse_datetime(value):
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value if timezone.is_aware(value) else timezone.make_aware(value, timezone.get_current_timezone())
-    text = str(value).strip()
-    if not text:
-        return None
-    if text.endswith("Z"):
-        text = f"{text[:-1]}+00:00"
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return None
-    return parsed if timezone.is_aware(parsed) else timezone.make_aware(parsed, timezone.get_current_timezone())
-
-
-def _control_config_from_env():
-    return SystemSubscriptionControl(
-        control_enabled=getattr(settings, "SUPER_SYSTEM_CONTROL_ENABLED", False),
-        service_id="",
-        license_key=getattr(settings, "SUPER_SYSTEM_LICENSE_KEY", ""),
-        api_key=getattr(settings, "SUPER_SYSTEM_API_KEY", ""),
-        api_secret=getattr(settings, "SUPER_SYSTEM_API_SECRET", ""),
-        api_url=getattr(settings, "SUPER_SYSTEM_API_URL", ""),
-        license_validate_url=getattr(settings, "SUPER_SYSTEM_LICENSE_VALIDATE_URL", ""),
-        subscription_status_url=getattr(settings, "SUPER_SYSTEM_SUBSCRIPTION_STATUS_URL", ""),
-        heartbeat_url=getattr(settings, "SUPER_SYSTEM_HEARTBEAT_URL", ""),
-        subscription_status="unknown",
-    )
-
-
-def _current_control_config():
-    try:
-        config = SystemSubscriptionControl.objects.order_by("-updated_at", "-id").first()
-        if config:
-            return config
-    except DatabaseError:
-        logger.exception("System subscription control table is not ready; falling back to environment settings.")
-    return _control_config_from_env()
-
-
-def _control_is_configured(config):
-    return bool(config.control_enabled and config.api_url and config.license_key and config.api_key)
-
-
-def _control_status_detail(status_value, end_date=None):
-    if status_value == "suspended":
-        return "Admin access is suspended by the Super System subscription control."
-    if status_value == "cancelled":
-        return "Admin access is cancelled by the Super System subscription control."
-    if status_value == "expired" or (end_date and end_date < timezone.localdate()):
-        return "Admin access expired because the subscription end date has passed."
-    return "Admin access is controlled by the Super System subscription."
-
-
-def _update_control_cache(config, *, status_value, end_date, validated_at=None, error_message=""):
-    validated_at = validated_at or timezone.now()
-    config.subscription_status = status_value
-    config.subscription_end_date = end_date
-    config.last_validated_at = validated_at
-    config.last_error = error_message
-    if config.pk:
-        config.save(
-            update_fields=[
-                "subscription_status",
-                "subscription_end_date",
-                "last_validated_at",
-                "last_error",
-                "updated_at",
-            ]
-        )
-
-
-def _normalize_subscription_payload(payload):
-    if not isinstance(payload, dict):
-        raise ValueError("Subscription control payload must be a JSON object.")
-
-    candidates = [payload]
-    for key in ("data", "result", "subscription", "control_details"):
-        nested = payload.get(key)
-        if isinstance(nested, dict):
-            candidates.append(nested)
-
-    status_value = ""
-    end_date = None
-    detail = ""
-
-    for source in candidates:
-        for key in ("subscription_status", "license_status", "status"):
-            value = source.get(key)
-            if value not in (None, ""):
-                status_value = str(value).strip().lower()
-                break
-        if not end_date:
-            for key in ("end_date", "subscription_end_date", "expires_at", "expiry_date", "current_period_end"):
-                end_date = _safe_parse_date(source.get(key))
-                if end_date:
-                    break
-        if not detail:
-            for key in ("detail", "message", "reason"):
-                value = source.get(key)
-                if value not in (None, ""):
-                    detail = str(value).strip()
-                    break
-        if status_value and end_date:
-            break
-
-    if not status_value:
-        is_active = payload.get("is_active")
-        if is_active is True:
-            status_value = "active"
-        elif is_active is False:
-            status_value = "suspended"
-
-    if end_date and end_date < timezone.localdate() and status_value not in {"suspended", "cancelled"}:
-        status_value = "expired"
-
-    return {
-        "allowed": bool(payload.get("allowed", status_value in SUBSCRIPTION_ACTIVE_STATUSES)),
-        "status": status_value or "unknown",
-        "end_date": end_date,
-        "detail": detail,
-    }
-
-
-def _control_request_payload(config):
-    payload = {
-        "license_key": config.license_key,
-        "api_key": config.api_key,
-    }
-    if config.api_secret:
-        payload["api_secret"] = config.api_secret
-    return payload
-
-
-def _control_request_headers(config):
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-    if config.api_key:
-        headers["X-API-Key"] = config.api_key
-        headers["Authorization"] = f"Bearer {config.api_key}"
-    if config.api_secret:
-        headers["X-API-Secret"] = config.api_secret
-    return headers
-
-
-def _post_control_request(endpoint, config):
-    request = Request(
-        endpoint,
-        data=json.dumps(_control_request_payload(config)).encode("utf-8"),
-        headers=_control_request_headers(config),
-        method="POST",
-    )
-    with urlopen(request, timeout=15) as response:
-        body = response.read().decode("utf-8")
-    return json.loads(body)
-
-
-def _control_api_endpoint(config, path_suffix, direct_url=""):
-    if direct_url:
-        return direct_url
-    base_url = str(config.api_url or "").strip()
-    if not base_url:
-        return ""
-    normalized_base = base_url.rstrip("/") + "/"
-    return urljoin(normalized_base, path_suffix.lstrip("/"))
-
-
-def _subscription_remote_urls(config):
-    urls = []
-    status_url = _control_api_endpoint(config, "subscription/status/", config.subscription_status_url)
-    validate_url = _control_api_endpoint(config, "license/validate/", config.license_validate_url)
-    for endpoint in (status_url, validate_url):
-        if endpoint and endpoint not in urls:
-            urls.append(endpoint)
-    return urls
-
-
-def _heartbeat_remote_url(config):
-    return _control_api_endpoint(config, "heartbeat/", config.heartbeat_url)
-
-
-def _fetch_subscription_control_payload(config):
-    endpoints = _subscription_remote_urls(config)
-    if not endpoints:
-        raise ValueError("Super System API_URL, subscription_status_url, or license_validate_url is required.")
-
-    last_error = None
-    for endpoint in endpoints:
-        try:
-            return _post_control_request(endpoint, config)
-        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
-            last_error = exc
-            logger.exception("Super System request to %s failed.", endpoint)
-    raise last_error or ValueError("Super System subscription endpoints are unavailable.")
-
-
-def _send_heartbeat(config):
-    endpoint = _heartbeat_remote_url(config)
-    if not endpoint:
-        return
-    try:
-        _post_control_request(endpoint, config)
-    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        logger.exception("Super System heartbeat failed.")
-
-
-def validate_admin_subscription(*, force=False):
-    config = _current_control_config()
-
-    if not _control_is_configured(config):
-        return {
-            "enforced": False,
-            "allowed": True,
-            "status": "unconfigured",
-            "detail": "Super System control is not configured for this subsystem.",
-            "config": config,
-        }
-
-    cache_seconds = max(int(getattr(settings, "SUPER_SYSTEM_CONTROL_CACHE_SECONDS", 300)), 0)
-    now = timezone.now()
-    if not force and config.last_validated_at and cache_seconds > 0:
-        if now - config.last_validated_at <= timedelta(seconds=cache_seconds):
-            cached_status = (config.subscription_status or "unknown").strip().lower()
-            end_date = config.subscription_end_date
-            if end_date and end_date < timezone.localdate() and cached_status not in {"suspended", "cancelled"}:
-                cached_status = "expired"
-            return {
-                "enforced": True,
-                "allowed": cached_status in SUBSCRIPTION_ACTIVE_STATUSES,
-                "status": cached_status,
-                "detail": _control_status_detail(cached_status, end_date),
-                "config": config,
-            }
-
-    try:
-        normalized = _normalize_subscription_payload(_fetch_subscription_control_payload(config))
-        status_value = normalized["status"]
-        end_date = normalized["end_date"]
-        _update_control_cache(config, status_value=status_value, end_date=end_date, error_message="")
-        if normalized["allowed"] and status_value in SUBSCRIPTION_ACTIVE_STATUSES:
-            _send_heartbeat(config)
-        return {
-            "enforced": True,
-            "allowed": bool(normalized["allowed"] and status_value in SUBSCRIPTION_ACTIVE_STATUSES),
-            "status": status_value,
-            "detail": normalized["detail"] or _control_status_detail(status_value, end_date),
-            "config": config,
-        }
-    except (DatabaseError, HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        logger.exception("Super System subscription validation failed.")
-        cached_status = (config.subscription_status or "unknown").strip().lower()
-        end_date = config.subscription_end_date
-        if cached_status in SUBSCRIPTION_ACTIVE_STATUSES and end_date and end_date >= timezone.localdate():
-            _update_control_cache(
-                config,
-                status_value=cached_status,
-                end_date=end_date,
-                error_message="Remote validation failed; cached active subscription is being used.",
-            )
-            return {
-                "enforced": True,
-                "allowed": True,
-                "status": cached_status,
-                "detail": "Admin subscription was validated from the last known active cache.",
-                "config": config,
-            }
-        if config.pk:
-            config.last_error = "Remote validation failed."
-            config.last_validated_at = now
-            config.save(update_fields=["last_error", "last_validated_at", "updated_at"])
-        return {
-            "enforced": True,
-            "allowed": False,
-            "status": cached_status or "unknown",
-            "detail": "Admin control verification is temporarily unavailable from the Super System.",
-            "config": config,
-        }
-
 
 def serialize_or_raise(serializer_class, instance, *, many=False, context=None):
     serializer = serializer_class(instance, many=many, context=context or {})
@@ -1359,17 +1047,6 @@ class IsAdminRole(permissions.BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.role == "admin")
 
 
-class IsAdminWithActiveSubscription(permissions.BasePermission):
-    message = "Admin access is not available under the current subscription."
-
-    def has_permission(self, request, view):
-        if not (request.user and request.user.is_authenticated and request.user.role == "admin"):
-            return False
-        decision = validate_admin_subscription()
-        self.message = decision["detail"]
-        return decision["allowed"]
-
-
 class IsSupplierRole(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.role == "supplier")
@@ -1382,22 +1059,6 @@ class IsAdminOrSupplierRole(permissions.BasePermission):
             and request.user.is_authenticated
             and request.user.role in ("admin", "supplier")
         )
-
-
-class IsAdminOrSupplierWithActiveAdminSubscription(permissions.BasePermission):
-    message = "Access is not available under the current subscription."
-
-    def has_permission(self, request, view):
-        user = request.user
-        if not (user and user.is_authenticated):
-            return False
-        if user.role == "supplier":
-            return True
-        if user.role != "admin":
-            return False
-        decision = validate_admin_subscription()
-        self.message = decision["detail"]
-        return decision["allowed"]
 
 
 class IsDriverRole(permissions.BasePermission):
@@ -1432,10 +1093,6 @@ class RoleLoginView(APIView):
                 return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
             if self.required_role and user.role != self.required_role:
                 return Response({"detail": f"Only {self.required_role} can login here."}, status=status.HTTP_403_FORBIDDEN)
-            if self.required_role == "admin":
-                subscription_decision = validate_admin_subscription(force=True)
-                if not subscription_decision["allowed"]:
-                    return Response({"detail": subscription_decision["detail"]}, status=status.HTTP_403_FORBIDDEN)
             return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
         except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -1477,33 +1134,6 @@ class CustomerGoogleLoginView(APIView):
 
 class AdminLoginView(RoleLoginView):
     required_role = "admin"
-
-
-class AdminSubscriptionStatusView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
-
-    def get(self, request):
-        decision = validate_admin_subscription(force=True)
-        config = decision["config"]
-        return Response(
-            {
-                "enforced": decision["enforced"],
-                "allowed": decision["allowed"],
-                "subscription_status": decision["status"],
-                "detail": decision["detail"],
-                "api_url": config.api_url,
-                "license_validate_url": _control_api_endpoint(config, "license/validate/", config.license_validate_url),
-                "subscription_status_url": _control_api_endpoint(config, "subscription/status/", config.subscription_status_url),
-                "heartbeat_url": _control_api_endpoint(config, "heartbeat/", config.heartbeat_url),
-                "subscription_end_date": (
-                    config.subscription_end_date.isoformat() if config.subscription_end_date else None
-                ),
-                "last_validated_at": (
-                    config.last_validated_at.isoformat() if config.last_validated_at else None
-                ),
-            },
-            status=status.HTTP_200_OK,
-        )
 
 
 class SupplierLoginView(RoleLoginView):
@@ -1575,7 +1205,7 @@ class MeView(APIView):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminWithActiveSubscription]
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -1587,13 +1217,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminWithActiveSubscription]
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminWithActiveSubscription]
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -1606,7 +1236,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [permissions.IsAuthenticated()]
-        return [permissions.IsAuthenticated(), IsAdminWithActiveSubscription()]
+        return [permissions.IsAuthenticated(), IsAdminRole()]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -1719,17 +1349,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             return
         if self.request.user.role != "admin":
             raise exceptions.PermissionDenied("Only admin or supplier can create products.")
-        subscription_decision = validate_admin_subscription()
-        if not subscription_decision["allowed"]:
-            raise exceptions.PermissionDenied(subscription_decision["detail"])
         serializer.save()
 
     def _assert_can_manage_product(self, product):
         user = self.request.user
         if user.role == "admin":
-            subscription_decision = validate_admin_subscription()
-            if not subscription_decision["allowed"]:
-                raise exceptions.PermissionDenied(subscription_decision["detail"])
             return
         if user.role == "supplier":
             supplier = Supplier.objects.filter(user=user).first()
@@ -1761,15 +1385,12 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy", "assign_driver"):
-            return [permissions.IsAuthenticated(), IsAdminWithActiveSubscription()]
+            return [permissions.IsAuthenticated(), IsAdminRole()]
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
         if user.role == "admin":
-            subscription_decision = validate_admin_subscription()
-            if not subscription_decision["allowed"]:
-                raise exceptions.PermissionDenied(subscription_decision["detail"])
             return self.queryset
         if user.role == "driver":
             return self.queryset.filter(assigned_driver=user)
@@ -1777,7 +1398,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(user=user)
         return self.queryset.none()
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminWithActiveSubscription])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
     def assign_driver(self, request, pk=None):
         try:
             sale = self.get_object()
@@ -1826,9 +1447,6 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == "admin":
-            subscription_decision = validate_admin_subscription()
-            if not subscription_decision["allowed"]:
-                raise exceptions.PermissionDenied(subscription_decision["detail"])
             return self.queryset
         if user.role == "customer":
             return self.queryset.filter(sale__user=user)
@@ -1852,7 +1470,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return self._supplier_reviewable_payments(user).filter(pk=pk).first()
         return None
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminOrSupplierWithActiveAdminSubscription])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdminOrSupplierRole])
     def confirm(self, request, pk=None):
         try:
             payment = self._payment_for_confirmation(request.user, pk)
@@ -1908,7 +1526,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 log_message="Payment confirmation failed because the database or serializer was unavailable.",
             )
 
-    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsAdminWithActiveSubscription])
+    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsAdminRole])
     def admin_pending(self, request):
         try:
             payments = self.queryset.filter(status="pending").select_related("sale", "sale__user")
@@ -1922,7 +1540,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 
 class AdminCreateUserView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdminWithActiveSubscription]
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):

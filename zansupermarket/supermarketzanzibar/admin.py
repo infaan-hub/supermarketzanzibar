@@ -9,7 +9,6 @@ from .models import (
     Sale,
     SaleItem,
     StockMovement,
-    SystemSubscriptionControl,
 )
 
 
@@ -212,22 +211,4 @@ class StockMovementAdmin(admin.ModelAdmin):
     list_filter = (
         'movement_type',
         'date',
-    )
-
-
-@admin.register(SystemSubscriptionControl)
-class SystemSubscriptionControlAdmin(admin.ModelAdmin):
-    list_display = (
-        'id',
-        'control_enabled',
-        'service_id',
-        'subscription_status',
-        'subscription_end_date',
-        'last_validated_at',
-    )
-
-    search_fields = (
-        'service_id',
-        'license_key',
-        'api_url',
     )
