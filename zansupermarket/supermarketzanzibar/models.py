@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+import hashlib
 from PIL import Image
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -8,6 +9,7 @@ from django.utils.text import slugify
 from os.path import basename
 import random
 import string
+import uuid
 
 # ================================
 # Custom User Model
@@ -73,6 +75,45 @@ class CustomUser(AbstractUser):
         self.profile_image_data = None
         self.profile_image_name = ""
         self.profile_image_content_type = ""
+
+
+class EmailOTP(models.Model):
+    PURPOSE_CHOICES = (
+        ("google_login", "Google Login"),
+    )
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="email_otps")
+    email = models.EmailField(blank=True, default="")
+    otp_code_hash = models.CharField(max_length=64)
+    session_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    purpose = models.CharField(max_length=40, choices=PURPOSE_CHOICES, default="google_login")
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    resend_available_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @staticmethod
+    def hash_code(code):
+        return hashlib.sha256(str(code).encode("utf-8")).hexdigest()
+
+    def set_code(self, code):
+        self.otp_code_hash = self.hash_code(code)
+
+    def matches(self, code):
+        return self.otp_code_hash == self.hash_code(code)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def can_resend(self):
+        return timezone.now() >= self.resend_available_at
+
+    def __str__(self):
+        return f"{self.user.username} {self.purpose} OTP"
 
 
 # ================================

@@ -18,6 +18,8 @@ router.register('payments', PaymentViewSet)
 urlpatterns = [
     path('auth/login/', CustomerLoginView.as_view(), name='customer_login'),
     path('auth/google/', CustomerGoogleLoginView.as_view(), name='customer_google_login'),
+    path('auth/google/verify-otp/', CustomerGoogleVerifyOTPView.as_view(), name='customer_google_verify_otp'),
+    path('auth/google/resend-otp/', CustomerGoogleResendOTPView.as_view(), name='customer_google_resend_otp'),
     path('auth/admin/login/', AdminLoginView.as_view(), name='admin_login'),
     path('auth/supplier/login/', SupplierLoginView.as_view(), name='supplier_login'),
     path('auth/driver/login/', DriverLoginView.as_view(), name='driver_login'),
