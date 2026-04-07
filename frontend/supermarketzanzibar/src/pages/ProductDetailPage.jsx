@@ -17,6 +17,7 @@ function ProductDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState("mobile_money");
   const [checkoutInfo, setCheckoutInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const { addToCart } = useCart();
   const { user } = useAuth();
@@ -24,17 +25,26 @@ function ProductDetailPage() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
+      setSlowLoading(false);
+      setError("");
       try {
         const response = await http.get(`/api/products/${id}/`);
         setProduct(response.data);
-      } catch {
-        setError("Failed to load product details.");
+      } catch (err) {
+        setError(err.code === "ECONNABORTED" ? "Product is taking too long to load. Please retry." : "Failed to load product details.");
       } finally {
         setLoading(false);
       }
     };
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = window.setTimeout(() => setSlowLoading(true), 7000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   const buyNow = async () => {
     if (user?.role !== "customer") {
@@ -59,14 +69,14 @@ function ProductDetailPage() {
     }
   };
 
-  if (loading) return <p className="page-wrap">Loading product...</p>;
+  if (loading) return <p className="page-wrap">{slowLoading ? "Backend is waking up. Product will appear soon..." : "Loading product..."}</p>;
   if (!product) return <p className="page-wrap error">{error || "Product not found."}</p>;
 
   return (
     <section className="page-wrap">
       <div className="product-detail">
         <img
-          src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+          src={toMediaUrl(product.image_url || product.image) || PRODUCT_PLACEHOLDER}
           alt={product.name}
           data-fallback-src={PRODUCT_PLACEHOLDER}
           onError={applyImageFallback}

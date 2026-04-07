@@ -520,6 +520,18 @@ img {
   margin-top: 1rem;
 }
 
+.load-error-panel {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.8rem 0 1rem;
+}
+
+.load-error-panel p {
+  margin: 0;
+}
+
 .auth-section {
   min-height: calc(100vh - 70px);
   display: grid;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
@@ -7,26 +7,43 @@ import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
+function productListFromResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
 function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await http.get("/api/products/");
-        setProducts(response.data);
-      } catch {
-        setError("Failed to load products.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadProducts();
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setSlowLoading(false);
+    setError("");
+    try {
+      const response = await http.get("/api/products/");
+      setProducts(productListFromResponse(response.data));
+    } catch (err) {
+      setError(err.code === "ECONNABORTED" ? "Products are taking too long to load. Please retry." : "Failed to load products.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = window.setTimeout(() => setSlowLoading(true), 7000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const openProduct = (productId) => {
     if (!isAuthenticated) {
@@ -65,8 +82,15 @@ function HomePage() {
           </a>
         </div>
       </header>
-      {loading ? <p>Loading products...</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {loading && !products.length ? <p>{slowLoading ? "Backend is waking up. Products will appear soon..." : "Loading products..."}</p> : null}
+      {error ? (
+        <div className="load-error-panel">
+          <p className="error">{error}</p>
+          <button type="button" className="ghost-btn" onClick={loadProducts} disabled={loading}>
+            {loading ? "Retrying..." : "Retry"}
+          </button>
+        </div>
+      ) : null}
       <h2 id="products" className="section-title">Products</h2>
       <div className="grid-products product-grid">
         {products.map((product) => (
