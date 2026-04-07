@@ -348,6 +348,30 @@ img {
   margin: 1.2rem 0 1rem;
 }
 
+.dashboard-section {
+  margin-top: 1.4rem;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .product-grid {
   column-count: 3;
   column-gap: 1.35rem;
@@ -451,7 +475,7 @@ img {
 .product-grid .product-card:not(.small) .card-body {
   position: absolute;
   inset: auto 0 0;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   gap: 0.8rem;
   padding: 1rem 1.05rem 1.05rem;
@@ -510,6 +534,56 @@ img {
 
 .product-grid .product-card:not(.small) .product-price {
   color: #ffffff;
+}
+
+.customer-product-card {
+  position: relative;
+}
+
+.product-card-open {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.product-card-actions {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.product-action-btn {
+  min-height: 2.2rem;
+  padding: 0.52rem 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 24px rgba(0, 0, 0, 0.24);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.product-action-btn.buy {
+  background: rgba(34, 197, 94, 0.82);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.product-action-btn:hover {
+  transform: translateY(-1px);
 }
 
 .muted {

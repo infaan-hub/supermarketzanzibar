@@ -27,18 +27,6 @@ services:
         value: False
       - key: DATABASE_URL
         value: postgresql://neondb_owner:npg_5RNWQXv0ZgBd@ep-odd-truth-adpy5dqz-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-      - key: DEFAULT_FROM_EMAIL
-        value: noreply@zansupermarket.com
-      - key: EMAIL_HOST
-        value: smtp.example.com
-      - key: EMAIL_PORT
-        value: 587
-      - key: EMAIL_HOST_USER
-        value: your-smtp-user
-      - key: EMAIL_HOST_PASSWORD
-        value: your-smtp-password
-      - key: EMAIL_USE_TLS
-        value: True
       - key: MEDIA_ROOT
         value: /var/data/media
       - key: GOOGLE_CLIENT_ID
