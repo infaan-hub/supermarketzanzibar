@@ -40,6 +40,21 @@ export function AuthProvider({ children }) {
   const loginSupplier = useCallback((credentials) => loginByPath("/api/auth/supplier/login/", credentials), [loginByPath]);
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
 
+  const startGoogleLogin = useCallback(async (code) => {
+    const response = await authHttp.post("/api/auth/google/", { code });
+    return response.data;
+  }, []);
+
+  const verifyGoogleOtp = useCallback(async ({ otp_session, otp_code }) => {
+    const response = await authHttp.post("/api/auth/google/verify-otp/", { otp_session, otp_code });
+    setTokens({
+      access: response.data.access,
+      refresh: response.data.refresh,
+    });
+    setUser(response.data.user);
+    return response.data.user;
+  }, []);
+
   const registerCustomer = useCallback(async (payload) => {
     await authHttp.post("/api/auth/register/", payload);
   }, []);
@@ -82,6 +97,8 @@ export function AuthProvider({ children }) {
       loginAdmin,
       loginSupplier,
       loginDriver,
+      startGoogleLogin,
+      verifyGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,
@@ -96,6 +113,8 @@ export function AuthProvider({ children }) {
       loginAdmin,
       loginSupplier,
       loginDriver,
+      startGoogleLogin,
+      verifyGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,

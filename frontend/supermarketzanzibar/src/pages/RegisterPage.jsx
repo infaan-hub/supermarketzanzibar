@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import GoogleAuthPanel from "../components/GoogleAuthPanel.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function formatApiError(err) {
@@ -113,6 +114,8 @@ function RegisterPage({ mode = "customer" }) {
         <button className="primary-btn auth-submit" type="submit" disabled={loading}>
           {loading ? "Creating..." : "Register"}
         </button>
+
+        <GoogleAuthPanel enabled={!isAdmin} next="/customer/dashboard" />
 
         <p className="auth-footnote">
           Already registered?{" "}

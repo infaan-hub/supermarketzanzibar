@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import GoogleAuthPanel from "../components/GoogleAuthPanel.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const ROLE_CONFIG = {
@@ -95,6 +96,8 @@ function RoleLoginPage({ role }) {
         <button className="primary-btn auth-submit" type="submit" disabled={loading}>
           {loading ? "Please wait..." : "Login"}
         </button>
+
+        <GoogleAuthPanel enabled={role === "customer"} next={role === "customer" && typeof location.state?.from === "string" ? location.state.from : config.next} />
 
         {role === "customer" ? (
           <p className="auth-footnote">
