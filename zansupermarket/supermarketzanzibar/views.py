@@ -1442,12 +1442,14 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
 
         if getattr(product, "image_data", None):
+            image_payload = bytes(product.image_data)
             response = HttpResponse(
-                bytes(product.image_data),
+                image_payload,
                 content_type=product.image_content_type or "application/octet-stream",
             )
             if product.image_name:
                 response["Content-Disposition"] = f'inline; filename="{product.image_name}"'
+            response["Content-Length"] = str(len(image_payload))
             response["Cache-Control"] = "public, max-age=86400"
             return response
 

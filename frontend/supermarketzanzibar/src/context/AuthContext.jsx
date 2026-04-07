@@ -39,23 +39,6 @@ export function AuthProvider({ children }) {
   const loginAdmin = useCallback((credentials) => loginByPath("/api/auth/admin/login/", credentials), [loginByPath]);
   const loginSupplier = useCallback((credentials) => loginByPath("/api/auth/supplier/login/", credentials), [loginByPath]);
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
-  const loginCustomerWithGoogle = useCallback(async (code) => {
-    const response = await authHttp.post("/api/auth/google/", { code });
-    return response.data;
-  }, []);
-  const verifyCustomerGoogleOtp = useCallback(async (payload) => {
-    const response = await authHttp.post("/api/auth/google/verify-otp/", payload);
-    setTokens({
-      access: response.data.access,
-      refresh: response.data.refresh,
-    });
-    setUser(response.data.user);
-    return response.data.user;
-  }, []);
-  const resendCustomerGoogleOtp = useCallback(async (payload) => {
-    const response = await authHttp.post("/api/auth/google/resend-otp/", payload);
-    return response.data;
-  }, []);
 
   const registerCustomer = useCallback(async (payload) => {
     await authHttp.post("/api/auth/register/", payload);
@@ -99,9 +82,6 @@ export function AuthProvider({ children }) {
       loginAdmin,
       loginSupplier,
       loginDriver,
-      loginCustomerWithGoogle,
-      verifyCustomerGoogleOtp,
-      resendCustomerGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,
@@ -116,9 +96,6 @@ export function AuthProvider({ children }) {
       loginAdmin,
       loginSupplier,
       loginDriver,
-      loginCustomerWithGoogle,
-      verifyCustomerGoogleOtp,
-      resendCustomerGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,

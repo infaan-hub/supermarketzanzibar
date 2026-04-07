@@ -63,10 +63,12 @@ def safe_media_url(file_field, request=None):
 
 
 def product_image_url(product, request=None):
-    if getattr(product, "image_data", None):
-        return binary_file_data_url(product.image_data, product.image_content_type)
-
-    return None
+    if not getattr(product, "pk", None) or not getattr(product, "image_data", None):
+        return None
+    url = reverse("product-image", kwargs={"pk": product.pk})
+    if request is not None:
+        return request.build_absolute_uri(url)
+    return url
 
 
 class UserSerializer(serializers.ModelSerializer):

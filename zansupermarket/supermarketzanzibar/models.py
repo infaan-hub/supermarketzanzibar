@@ -1,7 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 import hashlib
-from PIL import Image
+from PIL import Image, ImageOps
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -10,6 +10,56 @@ from os.path import basename
 import random
 import string
 import uuid
+
+MAX_PRODUCT_IMAGE_BYTES = 1024 * 1024
+MAX_PRODUCT_IMAGE_DIMENSION = 1600
+MIN_PRODUCT_IMAGE_DIMENSION = 96
+PRODUCT_IMAGE_QUALITIES = (85, 78, 70, 62, 54, 46, 38, 30)
+
+
+def _image_to_rgb(image):
+    image = ImageOps.exif_transpose(image)
+    if image.mode in ("RGBA", "LA") or "transparency" in image.info:
+        rgba_image = image.convert("RGBA")
+        background = Image.new("RGB", rgba_image.size, (255, 255, 255))
+        background.paste(rgba_image, mask=rgba_image.getchannel("A"))
+        return background
+    if image.mode != "RGB":
+        return image.convert("RGB")
+    return image
+
+
+def _encode_jpeg(image, quality):
+    output = BytesIO()
+    image.save(output, format="JPEG", quality=quality, optimize=True, progressive=True)
+    return output.getvalue()
+
+
+def _compress_product_image(image):
+    image = _image_to_rgb(image)
+    image.thumbnail((MAX_PRODUCT_IMAGE_DIMENSION, MAX_PRODUCT_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
+    best_payload = None
+
+    while True:
+        for quality in PRODUCT_IMAGE_QUALITIES:
+            payload = _encode_jpeg(image, quality)
+            if len(payload) <= MAX_PRODUCT_IMAGE_BYTES:
+                return payload
+            if best_payload is None or len(payload) < len(best_payload):
+                best_payload = payload
+
+        width, height = image.size
+        if max(width, height) <= MIN_PRODUCT_IMAGE_DIMENSION:
+            return best_payload
+
+        scale = max(0.65, (MAX_PRODUCT_IMAGE_BYTES / len(best_payload)) ** 0.5 * 0.92)
+        next_size = (
+            max(MIN_PRODUCT_IMAGE_DIMENSION, int(width * scale)),
+            max(MIN_PRODUCT_IMAGE_DIMENSION, int(height * scale)),
+        )
+        if next_size == image.size:
+            return best_payload
+        image = image.resize(next_size, Image.Resampling.LANCZOS)
 
 # ================================
 # Custom User Model
@@ -237,15 +287,9 @@ class Product(models.Model):
         source_bytes = uploaded_file.read()
 
         with Image.open(BytesIO(source_bytes)) as image:
-            if image.mode not in ("RGB", "L"):
-                image = image.convert("RGB")
-            elif image.mode == "L":
-                image = image.convert("RGB")
+            payload = _compress_product_image(image)
 
-            output = BytesIO()
-            image.save(output, format="JPEG", quality=90)
-
-        self.image_data = output.getvalue()
+        self.image_data = payload
         self.image_name = f"{source_stem}.jpg"
         self.image_content_type = "image/jpeg"
 

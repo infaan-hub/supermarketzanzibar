@@ -1,4 +1,5 @@
 import shutil
+from io import BytesIO
 from urllib.parse import urlsplit
 from decimal import Decimal
 from unittest.mock import patch
@@ -7,11 +8,12 @@ from django.contrib.auth import get_user_model
 from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from zansupermarket import settings as project_settings
-from .models import Category, Customer, Payment, Product, Sale, Supplier
+from .models import Category, Customer, MAX_PRODUCT_IMAGE_BYTES, Payment, Product, Sale, Supplier
 from .serializers import ProductSerializer, PublicProductSerializer, safe_media_url
 
 User = get_user_model()
@@ -70,6 +72,12 @@ class ProductApiTests(APITestCase):
         defaults.update(overrides)
         return Product.objects.create(**defaults)
 
+    def product_image_upload(self, name="product.png", size=(2400, 2400)):
+        output = BytesIO()
+        image = Image.effect_noise(size, 100).convert("RGB")
+        image.save(output, format="PNG")
+        return SimpleUploadedFile(name, output.getvalue(), content_type="image/png")
+
     def test_public_products_list_returns_public_payload(self):
         product = self.create_product()
 
@@ -80,21 +88,20 @@ class ProductApiTests(APITestCase):
         self.assertEqual(response.data[0]["id"], product.id)
         self.assertEqual(response.data[0]["category_name"], self.category.name)
         self.assertEqual(response.data[0]["image"], None)
-        self.assertTrue(response.data[0]["image_url"].endswith("/media/products/product-fallback.svg"))
+        self.assertIsNone(response.data[0]["image_url"])
 
-    def test_public_products_list_omits_dead_image_urls(self):
+    def test_public_products_list_omits_missing_image_urls(self):
         self.create_product(
             name="Broken Image Product",
             slug="broken-image-product",
             barcode="broken-image-001",
-            image="products/does-not-exist.jpg",
         )
 
         response = self.client.get("/api/products/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0]["image"], None)
-        self.assertTrue(response.data[0]["image_url"].endswith("/media/products/product-fallback.svg"))
+        self.assertIsNone(response.data[0]["image_url"])
 
     def test_public_products_list_skips_products_that_fail_serialization(self):
         good_product = self.create_product(name="Sugar", slug="sugar", barcode="sugar-001")
@@ -135,12 +142,7 @@ class ProductApiTests(APITestCase):
 
     def test_supplier_can_create_product_with_image(self):
         self.client.force_authenticate(user=self.supplier_user)
-        image_path = Path("zansupermarket/media/products/download_5.jpg")
-        image = SimpleUploadedFile(
-            "download_5.jpg",
-            image_path.read_bytes(),
-            content_type="image/jpeg",
-        )
+        image = self.product_image_upload("large-product.png")
 
         response = self.client.post(
             "/api/products/",
@@ -161,19 +163,17 @@ class ProductApiTests(APITestCase):
         self.assertEqual(response.data["name"], "Fresh Mango")
         self.assertTrue(response.data["image"])
         self.assertTrue(response.data["image_url"])
+        self.assertFalse(response.data["image"].startswith("data:image/"))
+        self.assertIn(f"/api/products/{response.data['id']}/image/", response.data["image"])
         product = Product.objects.get(pk=response.data["id"])
         self.assertTrue(product.image_data)
+        self.assertLessEqual(len(product.image_data), MAX_PRODUCT_IMAGE_BYTES)
         self.assertEqual(product.image_content_type, "image/jpeg")
-        self.assertEqual(product.image_name, "download_5.jpg")
+        self.assertEqual(product.image_name, "large-product.jpg")
 
     def test_uploaded_product_image_is_in_products_and_supplier_dashboard_payloads(self):
         self.client.force_authenticate(user=self.supplier_user)
-        image_path = Path("zansupermarket/media/products/download_5.jpg")
-        image = SimpleUploadedFile(
-            "download_5.jpg",
-            image_path.read_bytes(),
-            content_type="image/jpeg",
-        )
+        image = self.product_image_upload("pineapple.png")
 
         create_response = self.client.post(
             "/api/products/",
@@ -198,16 +198,13 @@ class ProductApiTests(APITestCase):
         self.assertTrue(list_response.data[0]["updated_at"])
         self.assertTrue(dashboard_response.data["products"][0]["image"])
         self.assertTrue(dashboard_response.data["products"][0]["image_url"])
+        self.assertFalse(list_response.data[0]["image"].startswith("data:image/"))
+        self.assertFalse(dashboard_response.data["products"][0]["image"].startswith("data:image/"))
         self.assertIn(f"/api/products/{create_response.data['id']}/image/", list_response.data[0]["image_url"])
 
     def test_uploaded_product_image_is_served_when_debug_is_false(self):
         self.client.force_authenticate(user=self.supplier_user)
-        image_path = Path("zansupermarket/media/products/download_5.jpg")
-        image = SimpleUploadedFile(
-            "download_5.jpg",
-            image_path.read_bytes(),
-            content_type="image/jpeg",
-        )
+        image = self.product_image_upload("orange.png")
 
         with override_settings(DEBUG=False):
             create_response = self.client.post(

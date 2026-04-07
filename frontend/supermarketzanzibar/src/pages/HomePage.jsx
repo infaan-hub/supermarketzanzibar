@@ -39,16 +39,32 @@ function HomePage() {
 
   return (
     <section className="page-wrap">
-      <div className="hero">
-        <div className="hero-content">
-          <h1>Zansupermarket</h1>
-          <p>Fresh groceries, pantry staples and household essentials.</p>
-          <p className="hero-desc">Touch any product to open full details, add to cart, or buy now.</p>
-          <a className="hero-cta" href="#products">
-            Shop Now
+      <header className="marketplace-return" aria-label="Marketplace quick actions">
+        <h1>Marketplace</h1>
+        <div className="marketplace-actions">
+          <a className="market-action-btn" href="#products" aria-label="Search products">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="5.5" />
+              <path d="M15 15l4 4" />
+            </svg>
+          </a>
+          <a className="market-action-btn" href="#products" aria-label="Filter products">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14" />
+              <path d="M8 12h8" />
+              <path d="M11 17h2" />
+            </svg>
+          </a>
+          <a className="market-action-btn" href="#products" aria-label="View products">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="5" width="5" height="5" rx="1" />
+              <rect x="14" y="5" width="5" height="5" rx="1" />
+              <rect x="5" y="14" width="5" height="5" rx="1" />
+              <rect x="14" y="14" width="5" height="5" rx="1" />
+            </svg>
           </a>
         </div>
-      </div>
+      </header>
       {loading ? <p>Loading products...</p> : null}
       {error ? <p className="error">{error}</p> : null}
       <h2 id="products" className="section-title">Products</h2>
