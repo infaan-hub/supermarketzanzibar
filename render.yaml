@@ -42,7 +42,7 @@ services:
       - key: MEDIA_ROOT
         value: /var/data/media
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: 139448352472-lam10578fsju2s23n2ffru2ugssr8pdm.apps.googleusercontent.com
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: STRICT_MEDIA_ROOT

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
@@ -127,6 +128,9 @@ function SupplierDashboardPage() {
         <h2>Supplier Dashboard</h2>
         <p>Products: {data?.products_count ?? 0}</p>
         <p>Low stock: {data?.low_stock_count ?? 0}</p>
+        <Link className="primary-btn" to="/supplier/dashboard/scan">
+          Open QR/Barcode Scanner
+        </Link>
         {error ? <p className="error">{error}</p> : null}
       </div>
       <div className="panel">

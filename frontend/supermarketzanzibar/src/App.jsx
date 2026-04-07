@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import RoleLoginPage from "./pages/RoleLoginPage.jsx";
 import SupplierDashboardPage from "./pages/SupplierDashboardPage.jsx";
+import SupplierScanPage from "./pages/SupplierScanPage.jsx";
 
 function AppLayout() {
   const [theme, setTheme] = useState(() => {
@@ -104,6 +105,14 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["supplier"]}>
               <SupplierDashboardPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/supplier/dashboard/scan"
+          element={
+            <RoleRoute roles={["supplier"]}>
+              <SupplierScanPage />
             </RoleRoute>
           }
         />
