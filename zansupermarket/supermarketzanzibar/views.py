@@ -54,6 +54,7 @@ STORE_EMAIL = "info@supermarketzanzibar"
 STORE_LOCATION = "Stone Town, Zanzibar"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_TOKENINFO_ENDPOINT = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_OTP_EXPIRY_MINUTES = 10
@@ -121,6 +122,13 @@ def _exchange_google_code_for_profile(code):
     )
 
 
+def _verify_google_credential(credential):
+    profile = _google_json_request(f"{GOOGLE_TOKENINFO_ENDPOINT}?id_token={quote(credential)}")
+    if profile.get("aud") != GOOGLE_CLIENT_ID:
+        raise exceptions.ValidationError({"detail": "Google sign in is not configured for this app."})
+    return profile
+
+
 def _sanitize_google_username_seed(value):
     seed = re.sub(r"[^a-z0-9._-]+", "", (value or "").lower())
     return seed[:120] or "customer"
@@ -149,7 +157,8 @@ def _customer_user_from_google_profile(profile):
     email = str(profile.get("email") or "").strip().lower()
     if not email:
         raise exceptions.ValidationError({"detail": "Google did not return an email address."})
-    if not profile.get("email_verified"):
+    email_verified = profile.get("email_verified")
+    if email_verified not in (True, "true", "True", "1", 1):
         raise exceptions.ValidationError({"detail": "Only verified Google email accounts can sign in."})
 
     existing_user = User.objects.filter(email__iexact=email).first()
@@ -1166,18 +1175,21 @@ class CustomerGoogleLoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        if not _google_auth_is_configured():
+        if not GOOGLE_CLIENT_ID:
             return Response(
                 {"detail": "Google login is not configured."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        credential = str(request.data.get("credential") or "").strip()
         code = str(request.data.get("code") or "").strip()
-        if not code:
-            return Response({"detail": "Google authorization code is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not credential and not code:
+            return Response({"detail": "Google credential is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if code and not _google_auth_is_configured():
+            return Response({"detail": "Google code login is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         try:
-            google_profile = _exchange_google_code_for_profile(code)
+            google_profile = _verify_google_credential(credential) if credential else _exchange_google_code_for_profile(code)
             user = _customer_user_from_google_profile(google_profile)
             otp, plain_code = _create_email_otp_for_user(user)
             _send_otp_email(user, plain_code)

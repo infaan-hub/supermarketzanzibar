@@ -6,7 +6,7 @@ const GOOGLE_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
 function loadGoogleScript() {
-  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  if (window.google?.accounts?.id) return Promise.resolve();
   const existingScript = document.querySelector(`script[src="${GOOGLE_SCRIPT_SRC}"]`);
   if (existingScript) {
     return new Promise((resolve, reject) => {
@@ -52,19 +52,17 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
     loadGoogleScript()
       .then(() => {
         if (cancelled) return;
-        codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
+        window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          scope: "openid email profile",
-          ux_mode: "popup",
           callback: async (response) => {
-            if (!response.code) {
-              setError("Google did not return a sign-in code.");
+            if (!response.credential) {
+              setError("Google did not return a sign-in credential.");
               return;
             }
             setLoading(true);
             setError("");
             try {
-              const otpResponse = await startGoogleLogin(response.code);
+              const otpResponse = await startGoogleLogin(response.credential);
               setOtpSession(otpResponse.otp_session);
               setMessage(`Verification code sent to ${otpResponse.masked_email || "your email"}.`);
             } catch (err) {
@@ -74,6 +72,7 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
             }
           },
         });
+        codeClientRef.current = window.google.accounts.id;
         setReady(true);
       })
       .catch(() => setError("Google sign in could not load. Check your connection."));
@@ -94,7 +93,7 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
       setError("Google sign in needs VITE_GOOGLE_CLIENT_ID.");
       return;
     }
-    codeClientRef.current?.requestCode();
+    codeClientRef.current?.prompt();
   };
 
   const submitOtp = async () => {

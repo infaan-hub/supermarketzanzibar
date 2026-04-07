@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
   const loginSupplier = useCallback((credentials) => loginByPath("/api/auth/supplier/login/", credentials), [loginByPath]);
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
 
-  const startGoogleLogin = useCallback(async (code) => {
-    const response = await authHttp.post("/api/auth/google/", { code });
+  const startGoogleLogin = useCallback(async (credential) => {
+    const response = await authHttp.post("/api/auth/google/", { credential });
     return response.data;
   }, []);
 
