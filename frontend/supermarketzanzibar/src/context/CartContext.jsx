@@ -21,6 +21,29 @@ export function CartProvider({ children }) {
     setItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
+  const updateQuantity = (productId, quantity) => {
+    const nextQuantity = Number(quantity);
+    setItems((prev) =>
+      prev
+        .map((item) => (item.product.id === productId ? { ...item, quantity: Math.max(1, nextQuantity) } : item))
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const incrementQuantity = (productId) => {
+    setItems((prev) =>
+      prev.map((item) => (item.product.id === productId ? { ...item, quantity: item.quantity + 1 } : item))
+    );
+  };
+
+  const decrementQuantity = (productId) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId ? { ...item, quantity: Math.max(1, item.quantity - 1) } : item
+      )
+    );
+  };
+
   const clearCart = () => setItems([]);
 
   const value = useMemo(
@@ -28,6 +51,9 @@ export function CartProvider({ children }) {
       items,
       addToCart,
       removeFromCart,
+      updateQuantity,
+      incrementQuantity,
+      decrementQuantity,
       clearCart,
       count: items.reduce((total, item) => total + item.quantity, 0),
       total: items.reduce((total, item) => total + Number(item.product.price) * item.quantity, 0),

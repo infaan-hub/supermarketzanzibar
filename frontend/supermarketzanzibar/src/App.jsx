@@ -9,6 +9,7 @@ import CartPage from "./pages/CartPage.jsx";
 import CustomerDashboardPage from "./pages/CustomerDashboardPage.jsx";
 import DriverDashboardPage from "./pages/DriverDashboardPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
+import PaymentPage from "./pages/PaymentPage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
@@ -73,6 +74,14 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["customer"]}>
               <CartPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <RoleRoute roles={["customer"]}>
+              <PaymentPage />
             </RoleRoute>
           }
         />
