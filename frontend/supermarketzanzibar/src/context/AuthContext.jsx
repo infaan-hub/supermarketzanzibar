@@ -42,11 +42,6 @@ export function AuthProvider({ children }) {
 
   const startGoogleLogin = useCallback(async (credential) => {
     const response = await authHttp.post("/api/auth/google/", { credential });
-    return response.data;
-  }, []);
-
-  const verifyGoogleOtp = useCallback(async ({ otp_session, otp_code }) => {
-    const response = await authHttp.post("/api/auth/google/verify-otp/", { otp_session, otp_code });
     setTokens({
       access: response.data.access,
       refresh: response.data.refresh,
@@ -98,7 +93,6 @@ export function AuthProvider({ children }) {
       loginSupplier,
       loginDriver,
       startGoogleLogin,
-      verifyGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,
@@ -114,7 +108,6 @@ export function AuthProvider({ children }) {
       loginSupplier,
       loginDriver,
       startGoogleLogin,
-      verifyGoogleOtp,
       registerCustomer,
       registerAdmin,
       logout,

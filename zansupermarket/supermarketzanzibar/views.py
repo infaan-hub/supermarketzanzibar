@@ -6,11 +6,10 @@ import re
 from io import BytesIO
 from textwrap import wrap
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from decimal import Decimal
 from xml.sax.saxutils import escape
-from datetime import timedelta
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.core.exceptions import SuspiciousOperation
@@ -23,7 +22,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Category, Customer, EmailOTP, Payment, Product, Sale, SaleItem, StockMovement, Supplier
+from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 from .serializers import (
     AdminCreateUserSerializer,
     AdminRegisterSerializer,
@@ -52,14 +51,8 @@ STORE_SUBTITLE = "Fresh groceries, snacks, and daily essentials in Zanzibar."
 STORE_PHONE = "+255 711 252 758"
 STORE_EMAIL = "info@supermarketzanzibar"
 STORE_LOCATION = "Stone Town, Zanzibar"
-GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
-GOOGLE_USERINFO_ENDPOINT = "https://openidconnect.googleapis.com/v1/userinfo"
 GOOGLE_TOKENINFO_ENDPOINT = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
-GOOGLE_OTP_EXPIRY_MINUTES = 10
-GOOGLE_OTP_RESEND_SECONDS = 60
-GOOGLE_OTP_MAX_ATTEMPTS = 5
 RECEIPT_ABOUT_CARDS = [
     (
         "Fresh supply",
@@ -85,41 +78,11 @@ def api_unavailable_response(detail, *, log_message):
     return Response({"detail": detail}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
-def _google_auth_is_configured():
-    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
-
-
 def _google_json_request(url, *, method="GET", data=None, headers=None):
     request = Request(url, data=data, headers=headers or {}, method=method)
     with urlopen(request, timeout=15) as response:
         payload = response.read().decode("utf-8")
     return json.loads(payload)
-
-
-def _exchange_google_code_for_profile(code):
-    token_payload = urlencode(
-        {
-            "code": code,
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": "postmessage",
-            "grant_type": "authorization_code",
-        }
-    ).encode("utf-8")
-    token_response = _google_json_request(
-        GOOGLE_TOKEN_ENDPOINT,
-        method="POST",
-        data=token_payload,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    access_token = token_response.get("access_token")
-    if not access_token:
-        raise ValueError("Google token exchange did not return an access token.")
-
-    return _google_json_request(
-        GOOGLE_USERINFO_ENDPOINT,
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
 
 
 def _verify_google_credential(credential):
@@ -184,61 +147,6 @@ def _customer_user_from_google_profile(profile):
     user.save(update_fields=["password"])
     Customer.objects.get_or_create(user=user, defaults={"phone": user.phone})
     return user
-
-
-def _mask_email_address(email):
-    text = str(email or "").strip()
-    if "@" not in text:
-        return text
-    local, domain = text.split("@", 1)
-    if len(local) <= 2:
-        masked_local = f"{local[:1]}*"
-    else:
-        masked_local = f"{local[:2]}{'*' * max(len(local) - 2, 1)}"
-    return f"{masked_local}@{domain}"
-
-
-def _create_email_otp_for_user(user, *, purpose="google_login"):
-    EmailOTP.objects.filter(user=user, purpose=purpose, is_verified=False).delete()
-    code = f"{random.randint(100000, 999999):06d}"
-    otp = EmailOTP.objects.create(
-        user=user,
-        email=user.email or "",
-        expires_at=timezone.now() + timedelta(minutes=GOOGLE_OTP_EXPIRY_MINUTES),
-        resend_available_at=timezone.now() + timedelta(seconds=GOOGLE_OTP_RESEND_SECONDS),
-        purpose=purpose,
-    )
-    otp.set_code(code)
-    otp.save(update_fields=["otp_code_hash"])
-    return otp, code
-
-
-def _send_otp_email(user, code):
-    send_mail(
-        subject="Your verification code",
-        message=(
-            f"Your OTP code is: {code}\n\n"
-            f"This code expires in {GOOGLE_OTP_EXPIRY_MINUTES} minutes."
-        ),
-        from_email=os.getenv("DEFAULT_FROM_EMAIL", "noreply@zansupermarket.local"),
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
-
-
-def _google_otp_response(otp):
-    seconds_left = max(int((otp.expires_at - timezone.now()).total_seconds()), 0)
-    resend_seconds = max(int((otp.resend_available_at - timezone.now()).total_seconds()), 0)
-    return {
-        "otp_required": True,
-        "otp_session": str(otp.session_token),
-        "delivery_channel": "email",
-        "email": otp.email,
-        "masked_email": _mask_email_address(otp.email),
-        "expires_in": seconds_left,
-        "resend_in": resend_seconds,
-        "detail": "Verification code sent to your email.",
-    }
 
 
 def build_whatsapp_order_url(sale, payment, sale_items):
@@ -1182,18 +1090,13 @@ class CustomerGoogleLoginView(APIView):
             )
 
         credential = str(request.data.get("credential") or "").strip()
-        code = str(request.data.get("code") or "").strip()
-        if not credential and not code:
+        if not credential:
             return Response({"detail": "Google credential is required."}, status=status.HTTP_400_BAD_REQUEST)
-        if code and not _google_auth_is_configured():
-            return Response({"detail": "Google code login is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         try:
-            google_profile = _verify_google_credential(credential) if credential else _exchange_google_code_for_profile(code)
+            google_profile = _verify_google_credential(credential)
             user = _customer_user_from_google_profile(google_profile)
-            otp, plain_code = _create_email_otp_for_user(user)
-            _send_otp_email(user, plain_code)
-            return Response(_google_otp_response(otp), status=status.HTTP_200_OK)
+            return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
         except exceptions.APIException:
             raise
         except ValueError:
@@ -1204,75 +1107,6 @@ class CustomerGoogleLoginView(APIView):
             return Response({"detail": "Google login is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except DatabaseError:
             return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except OSError:
-            logger.exception("Google OTP email delivery failed.")
-            return Response({"detail": "Verification email could not be sent right now."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-
-class CustomerGoogleVerifyOTPView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        session_token = str(request.data.get("otp_session") or "").strip()
-        entered_code = str(request.data.get("otp_code") or "").strip()
-
-        if not session_token or not entered_code:
-            return Response({"detail": "OTP session and code are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            otp = EmailOTP.objects.select_related("user").filter(
-                session_token=session_token,
-                purpose="google_login",
-                is_verified=False,
-            ).first()
-            if not otp:
-                return Response({"detail": "Invalid code."}, status=status.HTTP_400_BAD_REQUEST)
-            if otp.is_expired():
-                return Response({"detail": "Code expired."}, status=status.HTTP_400_BAD_REQUEST)
-            if otp.attempts >= GOOGLE_OTP_MAX_ATTEMPTS:
-                return Response({"detail": "Too many attempts. Request a new code."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            otp.attempts += 1
-            otp.save(update_fields=["attempts"])
-            if not otp.matches(entered_code):
-                return Response({"detail": "Invalid code."}, status=status.HTTP_400_BAD_REQUEST)
-            otp.is_verified = True
-            otp.save(update_fields=["is_verified"])
-            return Response(token_payload_for_user(otp.user), status=status.HTTP_200_OK)
-        except DatabaseError:
-            return Response({"detail": "OTP verification is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-
-class CustomerGoogleResendOTPView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        session_token = str(request.data.get("otp_session") or "").strip()
-        if not session_token:
-            return Response({"detail": "OTP session is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            otp = EmailOTP.objects.select_related("user").filter(
-                session_token=session_token,
-                purpose="google_login",
-                is_verified=False,
-            ).first()
-            if not otp:
-                return Response({"detail": "Verification session not found."}, status=status.HTTP_404_NOT_FOUND)
-            if not otp.can_resend():
-                seconds_left = max(int((otp.resend_available_at - timezone.now()).total_seconds()), 0)
-                return Response(
-                    {"detail": f"Please wait {seconds_left} seconds before resending."},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
-            otp.delete()
-            new_otp, plain_code = _create_email_otp_for_user(otp.user)
-            _send_otp_email(otp.user, plain_code)
-            return Response(_google_otp_response(new_otp), status=status.HTTP_200_OK)
-        except DatabaseError:
-            return Response({"detail": "OTP resend is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except OSError:
-            logger.exception("Google OTP resend email delivery failed.")
-            return Response({"detail": "Verification email could not be sent right now."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class AdminLoginView(RoleLoginView):

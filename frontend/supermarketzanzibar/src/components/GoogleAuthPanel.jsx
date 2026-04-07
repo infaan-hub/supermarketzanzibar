@@ -35,13 +35,11 @@ function GoogleIcon() {
 }
 
 function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
-  const { startGoogleLogin, verifyGoogleOtp } = useAuth();
+  const { startGoogleLogin } = useAuth();
   const navigate = useNavigate();
   const codeClientRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpSession, setOtpSession] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -62,9 +60,9 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
             setLoading(true);
             setError("");
             try {
-              const otpResponse = await startGoogleLogin(response.credential);
-              setOtpSession(otpResponse.otp_session);
-              setMessage(`Verification code sent to ${otpResponse.masked_email || "your email"}.`);
+              await startGoogleLogin(response.credential);
+              setMessage("Google sign in successful.");
+              navigate(next, { replace: true });
             } catch (err) {
               setError(err.response?.data?.detail || "Google sign in failed.");
             } finally {
@@ -80,7 +78,7 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, startGoogleLogin]);
+  }, [enabled, navigate, next, startGoogleLogin]);
 
   const startGoogle = () => {
     setError("");
@@ -96,42 +94,12 @@ function GoogleAuthPanel({ enabled = true, next = "/customer/dashboard" }) {
     codeClientRef.current?.prompt();
   };
 
-  const submitOtp = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      await verifyGoogleOtp({ otp_session: otpSession, otp_code: otpCode });
-      navigate(next, { replace: true });
-    } catch (err) {
-      setError(err.response?.data?.detail || "Verification failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="google-auth-panel">
       <button className="google-auth-btn" type="button" onClick={startGoogle} disabled={loading || (enabled && !ready && Boolean(GOOGLE_CLIENT_ID))}>
         <GoogleIcon />
         <span>{loading ? "Please wait..." : "Continue with Google"}</span>
       </button>
-
-      {otpSession ? (
-        <div className="google-otp-form">
-          <input
-            name="google_otp_code"
-            inputMode="numeric"
-            maxLength="6"
-            placeholder="Enter email code"
-            value={otpCode}
-            onChange={(event) => setOtpCode(event.target.value)}
-            required
-          />
-          <button className="google-otp-submit" type="button" onClick={submitOtp} disabled={loading || otpCode.length < 6}>
-            Verify
-          </button>
-        </div>
-      ) : null}
 
       {message ? <p className="ok auth-feedback">{message}</p> : null}
       {error ? <p className="error auth-feedback">{error}</p> : null}
