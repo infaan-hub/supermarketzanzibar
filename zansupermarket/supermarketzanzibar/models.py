@@ -299,6 +299,7 @@ class Sale(models.Model):
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_sales"
     )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="pending_payment")
+    customer_history_hidden = models.BooleanField(default=False)
 
     date = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(default=timezone.now, editable=False)

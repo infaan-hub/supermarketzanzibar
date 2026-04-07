@@ -1665,7 +1665,11 @@ class CustomerOrdersView(APIView):
 
     def get(self, request):
         try:
-            sales = Sale.objects.filter(user=request.user).select_related("payment").prefetch_related("items__product")
+            sales = (
+                Sale.objects.filter(user=request.user, customer_history_hidden=False)
+                .select_related("payment")
+                .prefetch_related("items__product")
+            )
             return Response(
                 serialize_or_raise(SaleSerializer, sales, many=True, context={"request": request}),
                 status=status.HTTP_200_OK,
@@ -1674,6 +1678,36 @@ class CustomerOrdersView(APIView):
             return api_unavailable_response(
                 "Order history is temporarily unavailable.",
                 log_message="Customer orders failed because the database or serializer was unavailable.",
+            )
+
+    def delete(self, request):
+        try:
+            hidden_count = Sale.objects.filter(user=request.user, customer_history_hidden=False).update(
+                customer_history_hidden=True
+            )
+            return Response({"detail": "Order history deleted.", "hidden_count": hidden_count}, status=status.HTTP_200_OK)
+        except DatabaseError:
+            return api_unavailable_response(
+                "Order history could not be deleted right now.",
+                log_message="Customer order history delete failed because the database was unavailable.",
+            )
+
+
+class CustomerOrderHistoryItemView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsCustomerRole]
+
+    def delete(self, request, sale_id):
+        try:
+            hidden_count = Sale.objects.filter(
+                id=sale_id, user=request.user, customer_history_hidden=False
+            ).update(customer_history_hidden=True)
+            if not hidden_count:
+                return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Order history item deleted."}, status=status.HTTP_200_OK)
+        except DatabaseError:
+            return api_unavailable_response(
+                "Order history item could not be deleted right now.",
+                log_message="Customer order history item delete failed because the database was unavailable.",
             )
 
 

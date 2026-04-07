@@ -17,6 +17,9 @@ function CustomerDashboardPage() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState(null);
+  const [clearingOrders, setClearingOrders] = useState(false);
   const [error, setError] = useState("");
   const { addToCart } = useCart();
   const navigate = useNavigate();
@@ -45,6 +48,32 @@ function CustomerDashboardPage() {
   const addProductToCart = (product) => {
     addToCart(product, 1);
     navigate("/cart");
+  };
+
+  const deleteOrderHistoryItem = async (orderId) => {
+    setDeletingOrderId(orderId);
+    setError("");
+    try {
+      await http.delete(`/api/customer/orders/${orderId}/`);
+      setOrders((current) => current.filter((order) => order.id !== orderId));
+    } catch {
+      setError("Unable to delete that order history item right now.");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  const clearOrderHistory = async () => {
+    setClearingOrders(true);
+    setError("");
+    try {
+      await http.delete("/api/customer/orders/");
+      setOrders([]);
+    } catch {
+      setError("Unable to clear order history right now.");
+    } finally {
+      setClearingOrders(false);
+    }
   };
 
   if (loading) return <p className="page-wrap">Loading customer dashboard...</p>;
@@ -95,37 +124,57 @@ function CustomerDashboardPage() {
         </div>
         {!products.length && !error ? <p className="muted">No products available yet.</p> : null}
       </div>
-      <div className="dashboard-section">
-        <h3 className="section-title">My Orders</h3>
-        <div className="order-list">
-          {orders.map((order) => (
-            <article className="order-card" key={order.id}>
-              <div>
-                <h4>Order #{order.id}</h4>
-                <p className="muted">Status: {order.status}</p>
-                <p>Control Number: {order.payment_control_number || order.payment?.control_number || "Pending"}</p>
-                <p className={(order.payment_status || order.payment?.status) === "confirmed" ? "ok" : "pending"}>
-                  {(order.payment_status || order.payment?.status) === "confirmed"
-                    ? "Payment Confirmed"
-                    : "Payment Pending"}
-                </p>
-              </div>
-              <div>
-                <p>Total: TZS {order.final_amount}</p>
-                <p>Delivery: {order.delivery_location || "Not set"}</p>
-                <div className="row">
-                  {(order.items || []).map((item) => (
-                    <Link key={`${order.id}-${item.id}`} className="ghost-btn" to={`/products/${item.product}`}>
-                      {item.product_name || `Product ${item.product}`}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-        {!orders.length ? <p className="muted">You do not have orders yet.</p> : null}
+      <div className="dashboard-section order-history-controls">
+        <button type="button" className="ghost-btn" onClick={() => setShowOrderHistory((current) => !current)}>
+          {showOrderHistory ? "Hide Order History" : `Show Order History (${orders.length})`}
+        </button>
+        {showOrderHistory && orders.length ? (
+          <button type="button" className="danger-btn" onClick={clearOrderHistory} disabled={clearingOrders}>
+            {clearingOrders ? "Deleting..." : "Delete All History"}
+          </button>
+        ) : null}
       </div>
+      {showOrderHistory ? (
+        <div className="dashboard-section">
+          <h3 className="section-title">My Orders</h3>
+          <div className="order-list">
+            {orders.map((order) => (
+              <article className="order-card" key={order.id}>
+                <div>
+                  <h4>Order #{order.id}</h4>
+                  <p className="muted">Status: {order.status}</p>
+                  <p>Control Number: {order.payment_control_number || order.payment?.control_number || "Pending"}</p>
+                  <p className={(order.payment_status || order.payment?.status) === "confirmed" ? "ok" : "pending"}>
+                    {(order.payment_status || order.payment?.status) === "confirmed"
+                      ? "Payment Confirmed"
+                      : "Payment Pending"}
+                  </p>
+                </div>
+                <div>
+                  <p>Total: TZS {order.final_amount}</p>
+                  <p>Delivery: {order.delivery_location || "Not set"}</p>
+                  <div className="row">
+                    {(order.items || []).map((item) => (
+                      <Link key={`${order.id}-${item.id}`} className="ghost-btn" to={`/products/${item.product}`}>
+                        {item.product_name || `Product ${item.product}`}
+                      </Link>
+                    ))}
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => deleteOrderHistoryItem(order.id)}
+                      disabled={deletingOrderId === order.id}
+                    >
+                      {deletingOrderId === order.id ? "Deleting..." : "Delete History"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          {!orders.length ? <p className="muted">You do not have orders yet.</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }

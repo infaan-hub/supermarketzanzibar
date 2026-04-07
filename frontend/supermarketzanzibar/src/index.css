@@ -704,13 +704,15 @@ textarea {
 .primary-btn,
 .accent-btn,
 .ghost-btn,
+.danger-btn,
 button:not(.unstyled-btn) {
   min-height: 2.9rem;
 }
 
 .primary-btn,
 .accent-btn,
-.ghost-btn {
+.ghost-btn,
+.danger-btn {
   border-radius: 999px;
   padding: 0.68rem 1rem;
   border: 1px solid rgba(21, 114, 45, 0.22);
@@ -726,6 +728,7 @@ button:not(.unstyled-btn) {
 .primary-btn:hover,
 .accent-btn:hover,
 .ghost-btn:hover,
+.danger-btn:hover,
 button:not(:disabled):hover {
   transform: translateY(-1px);
 }
@@ -747,6 +750,27 @@ button:not(:disabled):hover {
   color: var(--button-on-soft);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.danger-btn {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.22), rgba(185, 28, 28, 0.16));
+  border-color: rgba(185, 28, 28, 0.38);
+  color: #b91c1c;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme="dark"] .danger-btn {
+  color: #fecaca;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.34), rgba(127, 29, 29, 0.28));
+  border-color: rgba(252, 165, 165, 0.34);
+}
+
+.order-history-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .theme-switch {
