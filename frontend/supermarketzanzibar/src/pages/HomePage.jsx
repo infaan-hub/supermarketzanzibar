@@ -82,7 +82,7 @@ function HomePage() {
           >
             <div className="card-image">
               <img
-                src={toMediaUrl(product.image) || PRODUCT_PLACEHOLDER}
+                src={toMediaUrl(product.image_url || product.image) || PRODUCT_PLACEHOLDER}
                 alt={product.name}
                 data-fallback-src={PRODUCT_PLACEHOLDER}
                 onError={applyImageFallback}
@@ -90,8 +90,10 @@ function HomePage() {
             </div>
             <div className="card-body">
               <h3 className="product-title">{product.name}</h3>
-              <p className="muted">{product.category_name || "General"}</p>
-              <p className="product-price">TZS {product.price}</p>
+              <div className="product-meta-row">
+                <span className="product-chip">{product.category_name || "General"}</span>
+                <span className="product-price">TZS {product.price}</span>
+              </div>
             </div>
           </article>
         ))}
