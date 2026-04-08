@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -15,16 +15,18 @@ function productListFromResponse(data) {
 
 function HomePage() {
   const [products, setProducts] = useState([]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
+  const searchOpen = location.pathname === "/search";
+  const filterOpen = location.pathname === "/filter" || location.pathname === "/category";
+  const query = searchOpen ? searchParams.get("q") || "" : "";
+  const activeCategory = location.pathname === "/category" ? searchParams.get("name") || "all" : "all";
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -51,7 +53,10 @@ function HomePage() {
   }, [loadProducts]);
 
   useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus();
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+      document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [searchOpen]);
 
   const categories = useMemo(() => {
@@ -75,23 +80,15 @@ function HomePage() {
   }, [activeCategory, products, query]);
 
   const toggleSearch = () => {
-    setSearchOpen((current) => !current);
-    setFilterOpen(false);
-    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    navigate(searchOpen ? "/home" : "/search");
   };
 
   const toggleFilter = () => {
-    setFilterOpen((current) => !current);
-    setSearchOpen(false);
-    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    navigate(filterOpen ? "/home" : "/filter");
   };
 
   const resetProductView = () => {
-    setQuery("");
-    setActiveCategory("all");
-    setSearchOpen(false);
-    setFilterOpen(false);
-    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    navigate("/home");
   };
 
   const openProduct = (productId) => {
@@ -151,7 +148,10 @@ function HomePage() {
                 type="search"
                 placeholder="Search product name, description, or category"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  navigate(nextQuery ? `/search?q=${encodeURIComponent(nextQuery)}` : "/search", { replace: true });
+                }}
               />
             ) : null}
             {filterOpen ? (
@@ -161,10 +161,7 @@ function HomePage() {
                     key={category}
                     type="button"
                     className={category === activeCategory ? "category-filter active" : "category-filter"}
-                    onClick={() => {
-                      setActiveCategory(category);
-                      document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
+                    onClick={() => navigate(category === "all" ? "/filter" : `/category?name=${encodeURIComponent(category)}`)}
                   >
                     {category === "all" ? "All" : category}
                   </button>

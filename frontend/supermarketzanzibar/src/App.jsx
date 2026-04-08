@@ -54,6 +54,9 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/home" element={<HomePage />} />
+        <Route path="/search" element={<HomePage />} />
+        <Route path="/filter" element={<HomePage />} />
+        <Route path="/category" element={<HomePage />} />
         <Route path="/login" element={<RoleLoginPage role="customer" />} />
         <Route path="/admin/login" element={<RoleLoginPage role="admin" />} />
         <Route path="/supplier/login" element={<RoleLoginPage role="supplier" />} />
