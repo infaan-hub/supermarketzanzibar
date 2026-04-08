@@ -242,11 +242,17 @@ function PaymentPage() {
       <div className="payment-phone-card">
         <header className="payment-topbar">
           <button type="button" className="payment-icon-btn" onClick={() => navigate("/cart")} aria-label="Back to cart">
-            <span aria-hidden="true">&lt;</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
           </button>
           <h2>Payment Status</h2>
           <button type="button" className="payment-icon-btn" aria-label="Share payment">
-            <span aria-hidden="true">+</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 5h5v5" />
+              <path d="M10 14L19 5" />
+              <path d="M19 13v5h-14v-14h5" />
+            </svg>
           </button>
         </header>
 
