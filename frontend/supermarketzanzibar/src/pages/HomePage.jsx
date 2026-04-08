@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
+import StoreQrCard from "../components/StoreQrCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
@@ -140,7 +141,7 @@ function HomePage() {
   return (
     <section className="page-wrap">
       <header className="marketplace-return" aria-label="Marketplace quick actions">
-        <h1>Supermarket</h1>
+        <h1>Marketplace</h1>
         <div className="marketplace-actions">
           <button
             type="button"
@@ -273,6 +274,7 @@ function HomePage() {
               </a>
             ))}
           </div>
+          <StoreQrCard />
         </div>
       </section>
       {!isAuthenticated ? (

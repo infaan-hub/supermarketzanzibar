@@ -131,6 +131,9 @@ function SupplierDashboardPage() {
         <Link className="primary-btn" to="/supplier/dashboard/scan">
           Open QR/Barcode Scanner
         </Link>
+        <Link className="ghost-btn" to="/supplier/calculator">
+          Open Calculator
+        </Link>
         {error ? <p className="error">{error}</p> : null}
       </div>
       <div className="panel">

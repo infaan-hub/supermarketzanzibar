@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
+import StoreQrCard from "../components/StoreQrCard.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
@@ -123,6 +124,15 @@ function CustomerDashboardPage() {
           ))}
         </div>
         {!products.length && !error ? <p className="muted">No products available yet.</p> : null}
+      </div>
+      <div className="dashboard-section">
+        <div className="section-heading-row">
+          <div>
+            <h3 className="section-title">About Us / Contact</h3>
+            <p className="muted">Scan the store QR code any time to open the live supermarket website quickly.</p>
+          </div>
+        </div>
+        <StoreQrCard />
       </div>
       <div className="dashboard-section order-history-controls">
         <button type="button" className="ghost-btn" onClick={() => setShowOrderHistory((current) => !current)}>

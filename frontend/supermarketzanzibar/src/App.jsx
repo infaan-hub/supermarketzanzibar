@@ -15,6 +15,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import RoleLoginPage from "./pages/RoleLoginPage.jsx";
 import SupplierDashboardPage from "./pages/SupplierDashboardPage.jsx";
+import SupplierCalculatorPage from "./pages/SupplierCalculatorPage.jsx";
 import SupplierScanPage from "./pages/SupplierScanPage.jsx";
 
 function AppLayout() {
@@ -125,6 +126,14 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["supplier"]}>
               <SupplierScanPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/supplier/calculator"
+          element={
+            <RoleRoute roles={["supplier"]}>
+              <SupplierCalculatorPage />
             </RoleRoute>
           }
         />
