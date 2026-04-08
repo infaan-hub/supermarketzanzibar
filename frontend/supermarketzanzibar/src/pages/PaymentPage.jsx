@@ -292,18 +292,7 @@ function PaymentPage() {
   if (loading) {
     return (
       <section className="booking-loading-page" aria-live="polite">
-        <div className="booking-loader">
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <div className="booking-loader" aria-hidden="true" />
         <p>LOADING...</p>
         <small>Sending booking securely</small>
       </section>
