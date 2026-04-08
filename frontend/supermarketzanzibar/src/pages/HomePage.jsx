@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
+const HOME_AUTO_RETRY_MS = 6000;
 
 function productListFromResponse(data) {
   if (Array.isArray(data)) return data;
@@ -17,7 +18,6 @@ function productListFromResponse(data) {
 function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -31,27 +31,28 @@ function HomePage() {
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
-    setSlowLoading(false);
     setError("");
     try {
       const response = await http.get("/api/products/");
       setProducts(productListFromResponse(response.data));
-    } catch (err) {
-      setError(err.code === "ECONNABORTED" ? "Products are taking too long to load. Please retry." : "Failed to load products.");
+    } catch {
+      setError("Refresh. Products will appear soon...");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!loading) return undefined;
-    const timer = window.setTimeout(() => setSlowLoading(true), 7000);
-    return () => window.clearTimeout(timer);
-  }, [loading]);
-
-  useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    if (!error || products.length) return undefined;
+    const retryTimer = window.setTimeout(() => {
+      loadProducts();
+    }, HOME_AUTO_RETRY_MS);
+    return () => window.clearTimeout(retryTimer);
+  }, [error, loadProducts, products.length]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -209,7 +210,7 @@ function HomePage() {
           </div>
         ) : null}
       </header>
-      {loading && !products.length ? <p>{slowLoading ? "Refresh. Products will appear soon..." : "Loading products..."}</p> : null}
+      {loading && !products.length ? <p>Loading products...</p> : null}
       {error ? (
         <div className="load-error-panel">
           <p className="error">{error}</p>
