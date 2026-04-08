@@ -148,7 +148,7 @@ async function downloadReceipt(receipt) {
   ctx.fillText(receipt.productName, 316, 815);
   ctx.fillStyle = "#8f8a99";
   ctx.font = "600 24px Arial";
-  ctx.fillText("Zansupermarket Zanzibar", 316, 846);
+  ctx.fillText("Supermarket Zanzibar", 316, 846);
   if (productImage) {
     ctx.save();
     ctx.beginPath();
@@ -336,7 +336,7 @@ function PaymentPage() {
             {receipt.productImageUrl ? <img src={receipt.productImageUrl} alt={receipt.productName} /> : <span />}
             <div>
               <strong>{receipt.productName}</strong>
-              <p>Zansupermarket Zanzibar</p>
+              <p>Supermarket Zanzibar</p>
             </div>
           </div>
           <div className="receipt-barcode-wrap">
@@ -387,7 +387,7 @@ function PaymentPage() {
         <div className="payment-invoice">
           <div className="invoice-printer" />
           <div className="invoice-paper">
-            <p className="invoice-title">Order Invoice - Zansupermarket</p>
+            <p className="invoice-title">Order Invoice - Supermarket</p>
             <div className="invoice-row">
               <span>Total</span>
               <strong>TZS {orderTotal}</strong>

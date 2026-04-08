@@ -47,7 +47,7 @@ function MainNav({ theme, onToggleTheme }) {
           <span />
         </button>
         <Link to="/home" className="brand">
-          Zansupermarket
+          Supermarket
         </Link>
       </header>
 

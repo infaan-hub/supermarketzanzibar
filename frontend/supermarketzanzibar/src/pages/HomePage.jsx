@@ -100,10 +100,47 @@ function HomePage() {
     navigate(`/products/${productId}`);
   };
 
+  const aboutLinks = [
+    {
+      label: "WhatsApp",
+      href: "https://wa.me/255711252758",
+      value: "+255 711 252 758",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4a8 8 0 0 0-6.94 11.98L4 20l4.18-1.03A8 8 0 1 0 12 4Z" />
+          <path d="M9.25 8.7c.16-.36.33-.37.48-.38h.41c.14 0 .36.05.55.45.19.41.63 1.55.69 1.66.06.11.1.24.02.38-.08.14-.12.23-.24.35-.12.12-.25.27-.35.36-.12.11-.24.24-.1.46.14.23.63 1.04 1.34 1.68.92.82 1.69 1.08 1.93 1.2.24.12.38.1.52-.06.14-.16.57-.67.72-.9.15-.23.31-.19.52-.11.21.08 1.34.63 1.57.74.23.11.38.17.43.27.05.1.05.59-.14 1.15-.19.56-1.11 1.07-1.53 1.12-.39.05-.88.07-1.43-.12-.33-.11-.75-.24-1.28-.47-2.26-.98-3.74-3.38-3.85-3.53-.11-.15-.92-1.22-.92-2.33 0-1.11.58-1.64.78-1.87Z" />
+        </svg>
+      ),
+    },
+    {
+      label: "Instagram",
+      href: "https://instagram.com/_.infaan_",
+      value: "@_.infaan_",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4.5" y="4.5" width="15" height="15" rx="4" />
+          <circle cx="12" cy="12" r="3.7" />
+          <circle cx="17.2" cy="6.9" r="1" />
+        </svg>
+      ),
+    },
+    {
+      label: "Email",
+      href: "mailto:infaanhameed@gmail.com",
+      value: "infaanhameed@gmail.com",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="6" width="17" height="12" rx="2" />
+          <path d="M4.5 7.5 12 13l7.5-5.5" />
+        </svg>
+      ),
+    },
+  ];
+
   return (
     <section className="page-wrap">
       <header className="marketplace-return" aria-label="Marketplace quick actions">
-        <h1>Marketplace</h1>
+        <h1>Supermarket</h1>
         <div className="marketplace-actions">
           <button
             type="button"
@@ -212,6 +249,32 @@ function HomePage() {
         ))}
       </div>
       {!loading && !visibleProducts.length ? <p className="muted">No products match your search.</p> : null}
+      <section className="about-home-section" aria-labelledby="about-us-title">
+        <div className="about-home-card">
+          <div className="about-home-copy">
+            <p className="auth-eyebrow">About Us</p>
+            <h2 id="about-us-title" className="section-title">
+              Supermarket Zanzibar
+            </h2>
+            <p className="muted">
+              Supermarket Zanzibar serves customers across Zanzibar with everyday groceries, snacks, drinks, household
+              items, and quick delivery support. We focus on making shopping simple, reliable, and friendly for local
+              families, visitors, and busy customers who want trusted products in one place.
+            </p>
+          </div>
+          <div className="about-home-links" aria-label="Contact Supermarket Zanzibar">
+            {aboutLinks.map((link) => (
+              <a key={link.label} className="about-contact-btn" href={link.href} target="_blank" rel="noreferrer">
+                <span className="about-contact-icon">{link.icon}</span>
+                <span className="about-contact-copy">
+                  <strong>{link.label}</strong>
+                  <span>{link.value}</span>
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
       {!isAuthenticated ? (
         <p className="callout">
           New customer? <Link to="/register">Create account</Link> to open products, add cart, and checkout.

@@ -388,6 +388,112 @@ img {
   margin: 1.2rem 0 1rem;
 }
 
+.about-home-section {
+  margin-top: 2rem;
+}
+
+.about-home-card {
+  display: grid;
+  gap: 1.2rem;
+  padding: 1.4rem;
+  border-radius: 28px;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--surface-strong) 90%, white 10%), color-mix(in srgb, var(--surface-soft) 92%, transparent));
+  border: 1px solid color-mix(in srgb, var(--glass-border) 78%, transparent);
+  box-shadow:
+    -12px -12px 24px var(--neo-highlight),
+    18px 18px 36px var(--neo-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.about-home-copy .section-title {
+  margin-top: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.about-home-copy .muted {
+  display: block;
+  max-width: 68ch;
+  line-height: 1.75;
+}
+
+.about-home-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.about-contact-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  border-radius: 22px;
+  text-decoration: none;
+  color: inherit;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(232, 241, 234, 0.64));
+  border: 1px solid color-mix(in srgb, var(--icon-button-border) 90%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 14px 28px rgba(5, 16, 8, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.about-contact-btn:hover,
+.about-contact-btn:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--accent-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 18px 30px rgba(5, 16, 8, 0.16);
+}
+
+.about-contact-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 40%, transparent);
+  outline-offset: 4px;
+}
+
+.about-contact-icon {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 3rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 18px;
+  color: var(--accent-strong);
+  background: var(--icon-button-bg);
+  border: 1px solid var(--icon-button-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 10px 20px rgba(5, 16, 8, 0.14);
+}
+
+.about-contact-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.about-contact-copy {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.about-contact-copy strong {
+  font-size: 0.98rem;
+}
+
+.about-contact-copy span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
 .dashboard-section {
   margin-top: 1.4rem;
 }
@@ -2216,6 +2322,14 @@ form {
 
   .market-action-btn {
     border-radius: 20px;
+  }
+
+  .about-home-card {
+    padding: 1.15rem;
+  }
+
+  .about-home-links {
+    grid-template-columns: 1fr;
   }
 
   .card-image img,
