@@ -18,6 +18,24 @@ function cardBrand(cardNumber) {
   return "visa";
 }
 
+function VisaLogo() {
+  return (
+    <svg viewBox="0 0 64 24" aria-hidden="true" className="card-brand-logo visa-logo">
+      <path fill="#1434CB" d="M25.4 16.8l2.2-9.7h3.5l-2.2 9.7zm14.6-9.5c-.7-.3-1.9-.6-3.4-.6-3.7 0-6.2 1.8-6.2 4.4 0 1.9 1.9 3 3.3 3.6 1.5.7 2 1.1 2 1.8 0 .9-1.2 1.4-2.3 1.4-1.5 0-2.4-.2-3.6-.8l-.5-.2-.5 2.9c.9.4 2.5.7 4.2.7 3.9 0 6.5-1.8 6.5-4.5 0-1.5-1-2.7-3.1-3.6-1.3-.6-2.1-1-2.1-1.7 0-.6.8-1.2 2.4-1.2 1.3 0 2.2.2 2.9.5l.4.2zm9.2 9.5h3.1L49.6 7.1h-2.9c-.7 0-1.2.2-1.5.9L40.5 16.8H44l.7-1.9H49zm-3.4-4.3l1.8-4.4 1 4.4zm-25.2-5.4l-3.4 6.6-.4-1.7c-.6-1.8-2.3-3.8-4.2-4.8l3.1 9.6h3.6l5.4-9.7zM7 7.1H1.5l-.1.3c4.3 1 7.2 3.5 8.4 6.4l-1.2-5.8c-.2-.7-.7-.9-1.6-.9"/>
+    </svg>
+  );
+}
+
+function MastercardLogo() {
+  return (
+    <svg viewBox="0 0 64 24" aria-hidden="true" className="card-brand-logo mastercard-logo">
+      <circle cx="25" cy="12" r="8.5" fill="#EB001B" />
+      <circle cx="39" cy="12" r="8.5" fill="#F79E1B" />
+      <path fill="#FF5F00" d="M32 5.2a8.4 8.4 0 0 0 0 13.6 8.4 8.4 0 0 0 0-13.6" />
+    </svg>
+  );
+}
+
 function downloadReceipt(receipt) {
   const barcodeImage = receipt.barcodeImageUrl
     ? `<img class="barcode" src="${receipt.barcodeImageUrl}" alt="Receipt barcode" />`
@@ -45,6 +63,8 @@ function PaymentPage() {
     cardHolder: "",
     expiry: "",
     cvv: "",
+    brand: "visa",
+    wantsDelivery: false,
     deliveryLocation: "",
   });
   const [status, setStatus] = useState("unpaid");
@@ -54,11 +74,37 @@ function PaymentPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const brand = useMemo(() => cardBrand(form.cardNumber), [form.cardNumber]);
+  const inferredBrand = useMemo(() => cardBrand(form.cardNumber), [form.cardNumber]);
+  const brand = form.brand || inferredBrand;
   const orderTotal = total.toFixed(2);
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const chooseBrand = (nextBrand) => {
+    setForm((current) => ({ ...current, brand: nextBrand }));
+  };
+
+  const useCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      setError("This browser cannot access current location.");
+      return;
+    }
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        updateForm(
+          "deliveryLocation",
+          `Current location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+        );
+        updateForm("wantsDelivery", true);
+      },
+      () => {
+        setError("Current location could not be retrieved. Please allow location permission or enter the address manually.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   useEffect(() => {
@@ -76,6 +122,10 @@ function PaymentPage() {
       setError("Fill in all payment card details.");
       return;
     }
+    if (form.wantsDelivery && !form.deliveryLocation.trim()) {
+      setError("Enter a delivery location or use your current location.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -85,7 +135,7 @@ function PaymentPage() {
       const response = await http.post("/api/customer/checkout/", {
         items: cartSnapshot.map((item) => ({ product: item.product.id, quantity: item.quantity })),
         payment_method: brand,
-        delivery_location: form.deliveryLocation,
+        delivery_location: form.wantsDelivery ? form.deliveryLocation.trim() : "",
         terms_accepted: true,
       });
       const firstProduct = cartSnapshot[0]?.product;
@@ -196,7 +246,7 @@ function PaymentPage() {
           </button>
           <h2>Payment Status</h2>
           <button type="button" className="payment-icon-btn" aria-label="Share payment">
-            <span aria-hidden="true">^</span>
+            <span aria-hidden="true">+</span>
           </button>
         </header>
 
@@ -219,8 +269,22 @@ function PaymentPage() {
                 <strong>{brand === "mastercard" ? "Mastercard" : "Visa"}</strong>
               </div>
               <div className="gateway-card-brand-row" aria-label="Supported payment cards">
-                <span className={`gateway-brand ${brand === "visa" ? "active" : ""}`}>Visa</span>
-                <span className={`gateway-brand mastercard ${brand === "mastercard" ? "active" : ""}`}>Mastercard</span>
+                <button
+                  type="button"
+                  className={`gateway-brand ${brand === "visa" ? "active" : ""}`}
+                  onClick={() => chooseBrand("visa")}
+                >
+                  <VisaLogo />
+                  <span>Visa</span>
+                </button>
+                <button
+                  type="button"
+                  className={`gateway-brand mastercard ${brand === "mastercard" ? "active" : ""}`}
+                  onClick={() => chooseBrand("mastercard")}
+                >
+                  <MastercardLogo />
+                  <span>Mastercard</span>
+                </button>
               </div>
               <label>
                 Card Number
@@ -229,7 +293,12 @@ function PaymentPage() {
                   name="card_number"
                   placeholder="4242 4242 4242 4242"
                   value={form.cardNumber}
-                  onChange={(event) => updateForm("cardNumber", formatCardNumber(event.target.value))}
+                  onChange={(event) => {
+                    const nextValue = formatCardNumber(event.target.value);
+                    updateForm("cardNumber", nextValue);
+                    const detectedBrand = cardBrand(nextValue);
+                    if (detectedBrand) updateForm("brand", detectedBrand);
+                  }}
                 />
               </label>
               <label>
@@ -262,15 +331,38 @@ function PaymentPage() {
                   />
                 </label>
               </div>
-              <label>
-                Delivery Location
-                <input
-                  name="delivery_location"
-                  placeholder="Delivery location optional"
-                  value={form.deliveryLocation}
-                  onChange={(event) => updateForm("deliveryLocation", event.target.value)}
-                />
-              </label>
+              <div className="delivery-panel">
+                <label className="delivery-toggle">
+                  <input
+                    type="checkbox"
+                    name="wants_delivery"
+                    checked={form.wantsDelivery}
+                    onChange={(event) => updateForm("wantsDelivery", event.target.checked)}
+                  />
+                  <span>Need delivery?</span>
+                </label>
+                {form.wantsDelivery ? (
+                  <div className="delivery-fields">
+                    <div className="delivery-field-row">
+                      <button type="button" className="ghost-btn" onClick={useCurrentLocation}>
+                        Use Present Location
+                      </button>
+                      <span className="muted">Driver receives this delivery location automatically after payment.</span>
+                    </div>
+                    <label>
+                      Delivery Location
+                      <input
+                        name="delivery_location"
+                        placeholder="Enter address or landmark for delivery"
+                        value={form.deliveryLocation}
+                        onChange={(event) => updateForm("deliveryLocation", event.target.value)}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <p className="muted">Pickup is selected. Turn on delivery only if the driver should bring the order to you.</p>
+                )}
+              </div>
             </div>
 
             <div className="payment-progress-card">
@@ -292,7 +384,7 @@ function PaymentPage() {
         <div className="payment-method-row">
           <span>Payment Method</span>
           <strong>{brand === "mastercard" ? "Mastercard" : "Visa"} Ending {form.cardNumber.slice(-4) || "----"}</strong>
-          <span className={`card-color-chip ${brand}`} />
+          <span className={`card-logo-chip ${brand}`}>{brand === "mastercard" ? <MastercardLogo /> : <VisaLogo />}</span>
         </div>
         <button type="button" className="payment-pay-btn" onClick={submitPayment}>
           Pay Now
