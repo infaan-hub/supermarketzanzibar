@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
@@ -15,11 +15,16 @@ function productListFromResponse(data) {
 
 function HomePage() {
   const [products, setProducts] = useState([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const searchInputRef = useRef(null);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -45,6 +50,37 @@ function HomePage() {
     loadProducts();
   }, [loadProducts]);
 
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const categories = useMemo(() => {
+    const names = products.map((product) => product.category_name || "General");
+    return ["all", ...Array.from(new Set(names))];
+  }, [products]);
+
+  const visibleProducts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return products.filter((product) => {
+      const category = product.category_name || "General";
+      const matchesCategory = activeCategory === "all" || category === activeCategory;
+      const matchesSearch =
+        !normalizedQuery ||
+        [product.name, product.description, product.category_name]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeCategory, products, query]);
+
+  const resetProductView = () => {
+    setQuery("");
+    setActiveCategory("all");
+    setSearchOpen(false);
+    setFilterOpen(false);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const openProduct = (productId) => {
     if (!isAuthenticated) {
       alert("Please login first to open product details.");
@@ -59,28 +95,56 @@ function HomePage() {
       <header className="marketplace-return" aria-label="Marketplace quick actions">
         <h1>Marketplace</h1>
         <div className="marketplace-actions">
-          <a className="market-action-btn" href="#products" aria-label="Search products">
+          <button type="button" className="market-action-btn" onClick={() => setSearchOpen((current) => !current)} aria-label="Search products">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="10.5" cy="10.5" r="5.5" />
               <path d="M15 15l4 4" />
             </svg>
-          </a>
-          <a className="market-action-btn" href="#products" aria-label="Filter products">
+          </button>
+          <button type="button" className="market-action-btn" onClick={() => setFilterOpen((current) => !current)} aria-label="Filter products">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 7h14" />
               <path d="M8 12h8" />
               <path d="M11 17h2" />
             </svg>
-          </a>
-          <a className="market-action-btn" href="#products" aria-label="View products">
+          </button>
+          <button type="button" className="market-action-btn" onClick={resetProductView} aria-label="View all products">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="5" y="5" width="5" height="5" rx="1" />
               <rect x="14" y="5" width="5" height="5" rx="1" />
               <rect x="5" y="14" width="5" height="5" rx="1" />
               <rect x="14" y="14" width="5" height="5" rx="1" />
             </svg>
-          </a>
+          </button>
         </div>
+        {(searchOpen || filterOpen) ? (
+          <div className="marketplace-tools">
+            {searchOpen ? (
+              <input
+                ref={searchInputRef}
+                name="product_search"
+                type="search"
+                placeholder="Search product name, description, or category"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            ) : null}
+            {filterOpen ? (
+              <div className="category-filter-row" aria-label="Product categories">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={category === activeCategory ? "category-filter active" : "category-filter"}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {category === "all" ? "All" : category}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </header>
       {loading && !products.length ? <p>{slowLoading ? "Backend is waking up. Products will appear soon..." : "Loading products..."}</p> : null}
       {error ? (
@@ -93,7 +157,7 @@ function HomePage() {
       ) : null}
       <h2 id="products" className="section-title">Products</h2>
       <div className="grid-products product-grid">
-        {products.map((product) => (
+        {visibleProducts.map((product) => (
           <article
             className="product-card"
             key={product.id}
@@ -122,6 +186,7 @@ function HomePage() {
           </article>
         ))}
       </div>
+      {!loading && !visibleProducts.length ? <p className="muted">No products match your search.</p> : null}
       {!isAuthenticated ? (
         <p className="callout">
           New customer? <Link to="/register">Create account</Link> to open products, add cart, and checkout.

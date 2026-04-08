@@ -65,10 +65,17 @@ function getBarcodeDetector() {
   }
 }
 
+async function createZxingReader() {
+  const { BrowserMultiFormatReader } = await import("@zxing/browser");
+  return new BrowserMultiFormatReader();
+}
+
 function SupplierScanPage() {
   const videoRef = useRef(null);
   const scanTimerRef = useRef(null);
   const streamRef = useRef(null);
+  const zxingControlsRef = useRef(null);
+  const zxingReaderRef = useRef(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
@@ -79,6 +86,7 @@ function SupplierScanPage() {
   const [result, setResult] = useState(null);
 
   const detectorSupported = typeof window !== "undefined" && "BarcodeDetector" in window;
+  const scannerEngine = detectorSupported ? "BarcodeDetector" : "ZXing fallback";
 
   const productCount = products.length;
 
@@ -111,8 +119,11 @@ function SupplierScanPage() {
       window.clearTimeout(scanTimerRef.current);
       scanTimerRef.current = null;
     }
+    zxingControlsRef.current?.stop();
+    zxingControlsRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
   }, []);
 
@@ -139,12 +150,28 @@ function SupplierScanPage() {
   const startCamera = async () => {
     setError("");
     setStatus("");
-    if (!detectorSupported) {
-      setError("This browser does not support camera barcode scanning. Use manual entry or upload a receipt image.");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("This browser cannot open the camera. Please use HTTPS, allow camera permission, or upload a receipt image.");
       return;
     }
 
     try {
+      if (!detectorSupported) {
+        if (!zxingReaderRef.current) zxingReaderRef.current = await createZxingReader();
+        setCameraActive(true);
+        setStatus("Camera permission requested. Scanning with ZXing fallback.");
+        zxingControlsRef.current = await zxingReaderRef.current.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (scanResult) => {
+            if (!scanResult) return;
+            setScanResult(scanResult.getText(), "Camera scan");
+            stopCamera();
+          }
+        );
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
         audio: false,
@@ -155,7 +182,7 @@ function SupplierScanPage() {
       setCameraActive(true);
       const detector = getBarcodeDetector();
       if (!detector) {
-        setError("This browser does not support camera barcode scanning.");
+        setError("Camera opened, but barcode scanning could not start.");
         stopCamera();
         return;
       }
@@ -173,7 +200,14 @@ function SupplierScanPage() {
     setReceiptPreview(URL.createObjectURL(file));
 
     if (!detectorSupported) {
-      setError("This browser cannot scan barcodes from images. Enter the receipt/product code manually.");
+      try {
+        if (!zxingReaderRef.current) zxingReaderRef.current = await createZxingReader();
+        const imageUrl = URL.createObjectURL(file);
+        const code = await zxingReaderRef.current.decodeFromImageUrl(imageUrl);
+        setScanResult(code.getText(), "Receipt image");
+      } catch {
+        setError("No QR/barcode found in the receipt image. Try a clearer image or enter the code manually.");
+      }
       return;
     }
 
@@ -273,7 +307,7 @@ function SupplierScanPage() {
         <article className="panel scanner-card">
           <h3>Scan Result</h3>
           <p className="muted">Assigned products loaded: {loading ? "Loading..." : productCount}</p>
-          {!detectorSupported ? <p className="pending">Camera/image scanning depends on browser BarcodeDetector support. Manual check is available.</p> : null}
+          <p className="muted">Scanner engine: {scannerEngine}</p>
           {status ? <p className={result?.matched ? "ok" : "pending"}>{status}</p> : null}
           {error ? <p className="error">{error}</p> : null}
           {result ? (

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
@@ -12,15 +11,10 @@ function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [qty, setQty] = useState(1);
-  const [deliveryLocation, setDeliveryLocation] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("mobile_money");
-  const [checkoutInfo, setCheckoutInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
-  const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { addToCart, checkoutSingleProduct } = useCart();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,27 +40,20 @@ function ProductDetailPage() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
-  const buyNow = async () => {
-    if (user?.role !== "customer") {
-      setError("Only customers can buy.");
-      return;
-    }
-    if (!termsAccepted) {
-      setError("Accept terms to continue.");
-      return;
-    }
-    try {
-      const response = await http.post("/api/customer/checkout/", {
-        items: [{ product: product.id, quantity: Number(qty) }],
-        payment_method: paymentMethod,
-        delivery_location: deliveryLocation,
-        terms_accepted: termsAccepted,
-      });
-      setCheckoutInfo(response.data);
-      setError("");
-    } catch (err) {
-      setError(err.response?.data?.detail || "Buy now failed.");
-    }
+  const maxQty = Math.max(1, Number(product?.quantity) || 1);
+  const selectedQty = Math.min(maxQty, Math.max(1, Number(qty) || 1));
+
+  const reduceQty = () => {
+    setQty((current) => Math.max(1, Number(current) - 1));
+  };
+
+  const addQty = () => {
+    setQty((current) => Math.min(maxQty, Number(current) + 1));
+  };
+
+  const buyNow = () => {
+    checkoutSingleProduct(product, selectedQty);
+    navigate("/payment");
   };
 
   if (loading) return <p className="page-wrap">{slowLoading ? "Backend is waking up. Product will appear soon..." : "Loading product..."}</p>;
@@ -86,13 +73,21 @@ function ProductDetailPage() {
           <p>{product.description || "No description available."}</p>
           <p className="price">TZS {product.price}</p>
           <p>Available stock: {product.quantity}</p>
-          <div className="row">
-            <input name="quantity" type="number" min="1" max={product.quantity} value={qty} onChange={(e) => setQty(e.target.value)} />
+          <div className="product-detail-actions">
+            <div className="quantity-stepper product-detail-stepper" aria-label={`Quantity for ${product.name}`}>
+              <button type="button" onClick={reduceQty} disabled={selectedQty <= 1} aria-label="Reduce quantity">
+                -
+              </button>
+              <span>{selectedQty}</span>
+              <button type="button" onClick={addQty} disabled={selectedQty >= maxQty} aria-label="Add quantity">
+                +
+              </button>
+            </div>
             <button
               type="button"
               className="primary-btn"
               onClick={() => {
-                addToCart(product, Number(qty));
+                addToCart(product, selectedQty);
                 navigate("/cart");
               }}
             >
@@ -102,35 +97,6 @@ function ProductDetailPage() {
               Buy Now
             </button>
           </div>
-          <select name="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            <option value="mobile_money">Mobile Money</option>
-            <option value="cash">Cash</option>
-            <option value="bank_transfer">Bank Transfer</option>
-          </select>
-          <textarea
-            name="delivery_location"
-            placeholder="Delivery location (optional)"
-            value={deliveryLocation}
-            onChange={(e) => setDeliveryLocation(e.target.value)}
-          />
-          <label className="checkbox-row">
-            <input name="terms_accepted" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />
-            I accept terms and payment process.
-          </label>
-          {checkoutInfo ? (
-            <div className="order-card checkout-result">
-              <div>
-                <h4>Order Created Successfully</h4>
-                <p>Order ID: #{checkoutInfo.sale?.id}</p>
-                <p>Control Number: {checkoutInfo.payment?.control_number}</p>
-                <p className="pending">Payment Status: {checkoutInfo.payment?.status}</p>
-                <p>Payment is pending admin confirmation. A request has been sent to admin and details were sent to your email.</p>
-              </div>
-              <button type="button" className="primary-btn" onClick={() => navigate("/customer/dashboard")}>
-                View My Orders
-              </button>
-            </div>
-          ) : null}
           {error ? <p className="error">{error}</p> : null}
         </div>
       </div>

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { toMediaUrl } from "../lib/media.jsx";
 
 function formatCardNumber(value) {
   return value
@@ -17,6 +18,25 @@ function cardBrand(cardNumber) {
   return "visa";
 }
 
+function downloadReceipt(receipt) {
+  const barcodeImage = receipt.barcodeImageUrl
+    ? `<img class="barcode" src="${receipt.barcodeImageUrl}" alt="Receipt barcode" />`
+    : `<div class="barcode-fallback">${receipt.ticketId}</div>`;
+  const productImage = receipt.productImageUrl
+    ? `<img class="product" src="${receipt.productImageUrl}" alt="${receipt.productName}" />`
+    : "";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${receipt.ticketId}</title><style>body{margin:0;background:#f3f2ff;font-family:Georgia,serif}.card{width:330px;margin:40px auto;padding:34px 34px 24px;background:#fff;border-radius:28px;color:#17151d;text-align:center}.check{width:42px;height:42px;margin:auto;border-radius:50%;background:#6d5df7;color:#fff;line-height:42px;font:700 24px sans-serif}.muted{color:#8f8a99}.line{border-top:1px dashed #ddd;margin:28px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;text-align:left}.label{font-size:11px;color:#aaa;text-transform:uppercase}.value{font-weight:700}.pay{display:flex;gap:12px;align-items:center;margin:28px 0;padding:14px;background:#f6f7ff;border-radius:12px;text-align:left}.product{width:42px;height:42px;object-fit:cover;border-radius:10px}.barcode{width:190px;height:52px;object-fit:contain}.barcode-fallback{font-family:monospace;letter-spacing:3px}.id{font-size:12px;color:#8f8a99}</style></head><body><main class="card"><div class="check">&#10003;</div><h1>Thank you!</h1><p class="muted">Your booking has been issued successfully</p><div class="line"></div><section class="grid"><div><div class="label">Ticket ID</div><div class="value">${receipt.ticketId}</div></div><div><div class="label">Amount</div><div class="value">TZS ${receipt.total}</div></div><div><div class="label">Date & Time</div><div class="value">${receipt.dateTime}</div></div></section><div class="pay">${productImage}<div><strong>${receipt.productName}</strong><br><span class="muted">Zansupermarket Zanzibar</span></div></div>${barcodeImage}<p class="id">${receipt.ticketId}</p></main></body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `receipt-${receipt.ticketId}.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function PaymentPage() {
   const { items, total, clearCart } = useCart();
   const navigate = useNavigate();
@@ -29,6 +49,8 @@ function PaymentPage() {
   });
   const [status, setStatus] = useState("unpaid");
   const [paymentResult, setPaymentResult] = useState(null);
+  const [receipt, setReceipt] = useState(null);
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +60,12 @@ function PaymentPage() {
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  useEffect(() => {
+    if (!receipt || autoDownloaded) return;
+    downloadReceipt(receipt);
+    setAutoDownloaded(true);
+  }, [autoDownloaded, receipt]);
 
   const submitPayment = async () => {
     if (!items.length) {
@@ -51,14 +79,29 @@ function PaymentPage() {
 
     setLoading(true);
     setError("");
+    const cartSnapshot = items.map((item) => ({ product: item.product, quantity: item.quantity }));
+    const snapshotTotal = cartSnapshot.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
     try {
       const response = await http.post("/api/customer/checkout/", {
-        items: items.map((item) => ({ product: item.product.id, quantity: item.quantity })),
+        items: cartSnapshot.map((item) => ({ product: item.product.id, quantity: item.quantity })),
         payment_method: brand,
         delivery_location: form.deliveryLocation,
         terms_accepted: true,
       });
+      const firstProduct = cartSnapshot[0]?.product;
+      const payment = response.data.payment || {};
+      const sale = response.data.sale || {};
+      const ticketId = payment.ticket_id || payment.control_number || String(sale.id || Date.now());
       setPaymentResult(response.data);
+      setReceipt({
+        ticketId,
+        total: snapshotTotal.toFixed(2),
+        dateTime: new Date(payment.created_at || sale.created_at || Date.now()).toLocaleString(),
+        productName: firstProduct?.name || "Marketplace Product",
+        productImageUrl: toMediaUrl(firstProduct?.image_url || firstProduct?.image),
+        barcodeImageUrl: payment.barcode_image_url,
+        receiptUrl: sale.receipt_url,
+      });
       setStatus("paid");
       clearCart();
     } catch (err) {
@@ -68,16 +111,92 @@ function PaymentPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <section className="booking-loading-page" aria-live="polite">
+        <div className="booking-loader">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <p>LOADING...</p>
+        <small>Sending booking securely</small>
+      </section>
+    );
+  }
+
+  if (receipt) {
+    return (
+      <section className="receipt-page">
+        <article className="ticket-receipt-card">
+          <div className="receipt-check">OK</div>
+          <h2>Thank you!</h2>
+          <p className="muted">Your booking has been issued successfully</p>
+          <div className="receipt-dash" />
+          <div className="receipt-grid">
+            <div>
+              <span>Ticket ID</span>
+              <strong>{receipt.ticketId}</strong>
+            </div>
+            <div>
+              <span>Amount</span>
+              <strong>TZS {receipt.total}</strong>
+            </div>
+            <div className="receipt-full">
+              <span>Date & Time</span>
+              <strong>{receipt.dateTime}</strong>
+            </div>
+          </div>
+          <div className="receipt-product-row">
+            {receipt.productImageUrl ? <img src={receipt.productImageUrl} alt={receipt.productName} /> : <span />}
+            <div>
+              <strong>{receipt.productName}</strong>
+              <p>Zansupermarket Zanzibar</p>
+            </div>
+          </div>
+          <div className="receipt-barcode-wrap">
+            {receipt.barcodeImageUrl ? (
+              <img src={receipt.barcodeImageUrl} alt={`Scannable barcode ${receipt.ticketId}`} />
+            ) : (
+              <div className="barcode-fallback">{receipt.ticketId}</div>
+            )}
+            <p>{receipt.ticketId}</p>
+          </div>
+          {paymentResult ? (
+            <p className="payment-result-text">
+              Order #{paymentResult.sale?.id} created. Control Number: {paymentResult.payment?.control_number || "Pending"}.
+            </p>
+          ) : null}
+          <div className="receipt-actions">
+            <button type="button" className="ghost-btn" onClick={() => downloadReceipt(receipt)}>
+              Download Receipt
+            </button>
+            <button type="button" className="primary-btn" onClick={() => navigate("/customer/dashboard")}>
+              Return Dashboard
+            </button>
+          </div>
+        </article>
+      </section>
+    );
+  }
+
   return (
     <section className="payment-page">
       <div className="payment-phone-card">
         <header className="payment-topbar">
           <button type="button" className="payment-icon-btn" onClick={() => navigate("/cart")} aria-label="Back to cart">
-            <span aria-hidden="true">←</span>
+            <span aria-hidden="true">&lt;</span>
           </button>
           <h2>Payment Status</h2>
           <button type="button" className="payment-icon-btn" aria-label="Share payment">
-            <span aria-hidden="true">↗</span>
+            <span aria-hidden="true">^</span>
           </button>
         </header>
 
@@ -165,11 +284,6 @@ function PaymentPage() {
                 <span />
                 <span />
               </div>
-              {paymentResult ? (
-                <p className="payment-result-text">
-                  Order #{paymentResult.sale?.id} created. Control Number: {paymentResult.payment?.control_number || "Pending"}.
-                </p>
-              ) : null}
             </div>
           </div>
         </div>
@@ -180,8 +294,8 @@ function PaymentPage() {
           <strong>{brand === "mastercard" ? "Mastercard" : "Visa"} Ending {form.cardNumber.slice(-4) || "----"}</strong>
           <span className={`card-color-chip ${brand}`} />
         </div>
-        <button type="button" className="payment-pay-btn" onClick={submitPayment} disabled={loading || status === "paid"}>
-          {loading ? "Processing..." : status === "paid" ? "Paid" : "Pay Now"}
+        <button type="button" className="payment-pay-btn" onClick={submitPayment}>
+          Pay Now
         </button>
       </div>
     </section>

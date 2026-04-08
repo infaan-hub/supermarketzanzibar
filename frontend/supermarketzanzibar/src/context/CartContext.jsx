@@ -21,6 +21,10 @@ export function CartProvider({ children }) {
     setItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
+  const checkoutSingleProduct = (product, quantity = 1) => {
+    setItems([{ product, quantity: Math.max(1, Number(quantity) || 1) }]);
+  };
+
   const updateQuantity = (productId, quantity) => {
     const nextQuantity = Number(quantity);
     setItems((prev) =>
@@ -51,6 +55,7 @@ export function CartProvider({ children }) {
       items,
       addToCart,
       removeFromCart,
+      checkoutSingleProduct,
       updateQuantity,
       incrementQuantity,
       decrementQuantity,
