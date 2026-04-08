@@ -15,7 +15,7 @@ function MainNav({ theme, onToggleTheme }) {
   };
 
   const navItems = [
-    { to: "/home", label: "Home", show: true },
+    { to: user?.role === "customer" ? "/customer/dashboard" : "/home", label: "Home", show: true },
     { to: "/cart", label: `Cart (${count})`, show: user?.role === "customer" },
     { to: "/profile", label: "Profile", show: isAuthenticated },
     { to: "/admin/dashboard", label: "Admin Dashboard", show: user?.role === "admin" },
