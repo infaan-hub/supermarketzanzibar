@@ -171,7 +171,7 @@ function HomePage() {
           </div>
         ) : null}
       </header>
-      {loading && !products.length ? <p>{slowLoading ? "Backend is waking up. Products will appear soon..." : "Loading products..."}</p> : null}
+      {loading && !products.length ? <p>{slowLoading ? "Refresh. Products will appear soon..." : "Loading products..."}</p> : null}
       {error ? (
         <div className="load-error-panel">
           <p className="error">{error}</p>
