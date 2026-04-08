@@ -62,8 +62,9 @@ function HomePage() {
   const visibleProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return products.filter((product) => {
-      const category = product.category_name || "General";
-      const matchesCategory = activeCategory === "all" || category === activeCategory;
+      const category = String(product.category_name || "General");
+      const matchesCategory =
+        activeCategory === "all" || category.toLowerCase() === activeCategory.toLowerCase();
       const matchesSearch =
         !normalizedQuery ||
         [product.name, product.description, product.category_name]
@@ -72,6 +73,18 @@ function HomePage() {
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, products, query]);
+
+  const toggleSearch = () => {
+    setSearchOpen((current) => !current);
+    setFilterOpen(false);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const toggleFilter = () => {
+    setFilterOpen((current) => !current);
+    setSearchOpen(false);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const resetProductView = () => {
     setQuery("");
@@ -95,13 +108,25 @@ function HomePage() {
       <header className="marketplace-return" aria-label="Marketplace quick actions">
         <h1>Marketplace</h1>
         <div className="marketplace-actions">
-          <button type="button" className="market-action-btn" onClick={() => setSearchOpen((current) => !current)} aria-label="Search products">
+          <button
+            type="button"
+            className={searchOpen ? "market-action-btn active" : "market-action-btn"}
+            onClick={toggleSearch}
+            aria-label="Search products"
+            aria-pressed={searchOpen}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="10.5" cy="10.5" r="5.5" />
               <path d="M15 15l4 4" />
             </svg>
           </button>
-          <button type="button" className="market-action-btn" onClick={() => setFilterOpen((current) => !current)} aria-label="Filter products">
+          <button
+            type="button"
+            className={filterOpen ? "market-action-btn active" : "market-action-btn"}
+            onClick={toggleFilter}
+            aria-label="Filter products"
+            aria-pressed={filterOpen}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 7h14" />
               <path d="M8 12h8" />
@@ -136,7 +161,10 @@ function HomePage() {
                     key={category}
                     type="button"
                     className={category === activeCategory ? "category-filter active" : "category-filter"}
-                    onClick={() => setActiveCategory(category)}
+                    onClick={() => {
+                      setActiveCategory(category);
+                      document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
                   >
                     {category === "all" ? "All" : category}
                   </button>
