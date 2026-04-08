@@ -36,23 +36,152 @@ function MastercardLogo() {
   );
 }
 
-function downloadReceipt(receipt) {
-  const barcodeImage = receipt.barcodeImageUrl
-    ? `<img class="barcode" src="${receipt.barcodeImageUrl}" alt="Receipt barcode" />`
-    : `<div class="barcode-fallback">${receipt.ticketId}</div>`;
-  const productImage = receipt.productImageUrl
-    ? `<img class="product" src="${receipt.productImageUrl}" alt="${receipt.productName}" />`
-    : "";
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${receipt.ticketId}</title><style>body{margin:0;background:#f3f2ff;font-family:Georgia,serif}.card{width:330px;margin:40px auto;padding:34px 34px 24px;background:#fff;border-radius:28px;color:#17151d;text-align:center}.check{width:42px;height:42px;margin:auto;border-radius:50%;background:#6d5df7;color:#fff;line-height:42px;font:700 24px sans-serif}.muted{color:#8f8a99}.line{border-top:1px dashed #ddd;margin:28px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;text-align:left}.label{font-size:11px;color:#aaa;text-transform:uppercase}.value{font-weight:700}.pay{display:flex;gap:12px;align-items:center;margin:28px 0;padding:14px;background:#f6f7ff;border-radius:12px;text-align:left}.product{width:42px;height:42px;object-fit:cover;border-radius:10px}.barcode{width:190px;height:52px;object-fit:contain}.barcode-fallback{font-family:monospace;letter-spacing:3px}.id{font-size:12px;color:#8f8a99}</style></head><body><main class="card"><div class="check">&#10003;</div><h1>Thank you!</h1><p class="muted">Your booking has been issued successfully</p><div class="line"></div><section class="grid"><div><div class="label">Ticket ID</div><div class="value">${receipt.ticketId}</div></div><div><div class="label">Amount</div><div class="value">TZS ${receipt.total}</div></div><div><div class="label">Date & Time</div><div class="value">${receipt.dateTime}</div></div></section><div class="pay">${productImage}<div><strong>${receipt.productName}</strong><br><span class="muted">Zansupermarket Zanzibar</span></div></div>${barcodeImage}<p class="id">${receipt.ticketId}</p></main></body></html>`;
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function downloadReceipt(receipt) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 1600;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const [productImage, barcodeImage] = await Promise.all([
+    loadImage(receipt.productImageUrl).catch(() => null),
+    loadImage(receipt.barcodeImageUrl).catch(() => null),
+  ]);
+
+  ctx.fillStyle = "#f3f2ff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cardX = 150;
+  const cardY = 150;
+  const cardWidth = 600;
+  const cardHeight = 1060;
+  const radius = 28;
+
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(105, 96, 145, 0.16)";
+  ctx.shadowBlur = 60;
+  ctx.shadowOffsetY = 24;
+  ctx.beginPath();
+  ctx.moveTo(cardX + radius, cardY);
+  ctx.arcTo(cardX + cardWidth, cardY, cardX + cardWidth, cardY + cardHeight, radius);
+  ctx.arcTo(cardX + cardWidth, cardY + cardHeight, cardX, cardY + cardHeight, radius);
+  ctx.arcTo(cardX, cardY + cardHeight, cardX, cardY, radius);
+  ctx.arcTo(cardX, cardY, cardX + cardWidth, cardY, radius);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  for (let i = 0; i < 6; i += 1) {
+    const notchX = cardX + 60 + (i * 96);
+    ctx.beginPath();
+    ctx.arc(notchX, cardY + cardHeight, 24, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.fillStyle = "#16a34a";
+  ctx.beginPath();
+  ctx.arc(450, 238, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(436, 238);
+  ctx.lineTo(446, 250);
+  ctx.lineTo(468, 224);
+  ctx.stroke();
+
+  ctx.fillStyle = "#17151d";
+  ctx.font = "700 48px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Thank you!", 450, 332);
+  ctx.fillStyle = "#8f8a99";
+  ctx.font = "400 28px Arial";
+  ctx.fillText("Your ticket has been issued", 450, 378);
+  ctx.fillText("successfully", 450, 414);
+
+  ctx.strokeStyle = "#d9d6e3";
+  ctx.setLineDash([10, 10]);
+  ctx.beginPath();
+  ctx.moveTo(210, 488);
+  ctx.lineTo(690, 488);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#aaa4b6";
+  ctx.font = "700 20px Arial";
+  ctx.fillText("TICKET ID", 200, 560);
+  ctx.fillText("DATE & TIME", 200, 675);
+  ctx.fillText("Amount", 560, 560);
+
+  ctx.fillStyle = "#1e1a25";
+  ctx.font = "700 34px Arial";
+  ctx.fillText(receipt.ticketId, 200, 600);
+  ctx.fillText(receipt.dateTime, 200, 715);
+  ctx.fillText(`TZS ${receipt.total}`, 560, 600);
+
+  ctx.fillStyle = "#f6f7ff";
+  ctx.beginPath();
+  ctx.roundRect(200, 770, 500, 86, 18);
+  ctx.fill();
+  ctx.fillStyle = "#1e1a25";
+  ctx.font = "700 28px Arial";
+  ctx.fillText(receipt.productName, 316, 815);
+  ctx.fillStyle = "#8f8a99";
+  ctx.font = "600 24px Arial";
+  ctx.fillText("Zansupermarket Zanzibar", 316, 846);
+  if (productImage) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(220, 788, 56, 56, 14);
+    ctx.clip();
+    ctx.drawImage(productImage, 220, 788, 56, 56);
+    ctx.restore();
+  }
+
+  ctx.strokeStyle = "#ece9f5";
+  ctx.beginPath();
+  ctx.moveTo(200, 920);
+  ctx.lineTo(700, 920);
+  ctx.stroke();
+
+  if (barcodeImage) {
+    ctx.drawImage(barcodeImage, 255, 960, 390, 120);
+  } else {
+    ctx.fillStyle = "#111111";
+    ctx.fillRect(255, 990, 390, 70);
+  }
+  ctx.fillStyle = "#8f8a99";
+  ctx.font = "500 22px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(receipt.ticketId, 450, 1110);
+
+  const url = canvas.toDataURL("image/jpeg", 0.94);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `receipt-${receipt.ticketId}.html`;
+  link.download = `receipt-${receipt.ticketId}.jpeg`;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
 }
 
 function PaymentPage() {
@@ -109,8 +238,7 @@ function PaymentPage() {
 
   useEffect(() => {
     if (!receipt || autoDownloaded) return;
-    downloadReceipt(receipt);
-    setAutoDownloaded(true);
+    downloadReceipt(receipt).finally(() => setAutoDownloaded(true));
   }, [autoDownloaded, receipt]);
 
   const submitPayment = async () => {
@@ -186,7 +314,7 @@ function PaymentPage() {
     return (
       <section className="receipt-page">
         <article className="ticket-receipt-card">
-          <div className="receipt-check">OK</div>
+          <div className="receipt-check">✓</div>
           <h2>Thank you!</h2>
           <p className="muted">Your booking has been issued successfully</p>
           <div className="receipt-dash" />

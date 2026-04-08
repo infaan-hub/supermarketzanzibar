@@ -1556,8 +1556,29 @@ button:not(:disabled):hover {
   border-radius: 30px;
   color: #1d1a24;
   text-align: center;
-  background: #ffffff;
+  position: relative;
+  background:
+    linear-gradient(180deg, #ffffff, #fcfcff);
   box-shadow: 0 26px 60px rgba(105, 96, 145, 0.16);
+}
+
+.ticket-receipt-card::before,
+.ticket-receipt-card::after {
+  content: "";
+  position: absolute;
+  top: 10.2rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: #f3f2ff;
+}
+
+.ticket-receipt-card::before {
+  left: -0.9rem;
+}
+
+.ticket-receipt-card::after {
+  right: -0.9rem;
 }
 
 .receipt-check {
@@ -1568,10 +1589,10 @@ button:not(:disabled):hover {
   margin: 0 auto 0.7rem;
   border-radius: 50%;
   color: #ffffff;
-  background: #6d5df7;
+  background: #16a34a;
   font-family: "Outfit", "DM Sans", sans-serif;
   font-weight: 900;
-  box-shadow: 0 12px 22px rgba(109, 93, 247, 0.22);
+  box-shadow: 0 12px 22px rgba(22, 163, 74, 0.22);
 }
 
 .ticket-receipt-card h2 {
@@ -1670,6 +1691,23 @@ button:not(:disabled):hover {
 .receipt-actions {
   display: grid;
   gap: 0.7rem;
+}
+
+.ticket-receipt-card {
+  overflow: hidden;
+}
+
+.ticket-receipt-card .receipt-actions::after {
+  content: "";
+  display: block;
+  height: 1.4rem;
+  margin-top: 0.8rem;
+  background:
+    radial-gradient(circle at 1rem 0.2rem, transparent 0.95rem, #f3f2ff 1rem),
+    radial-gradient(circle at 4.9rem 0.2rem, transparent 0.95rem, #f3f2ff 1rem),
+    radial-gradient(circle at 8.8rem 0.2rem, transparent 0.95rem, #f3f2ff 1rem),
+    radial-gradient(circle at 12.7rem 0.2rem, transparent 0.95rem, #f3f2ff 1rem),
+    radial-gradient(circle at 16.6rem 0.2rem, transparent 0.95rem, #f3f2ff 1rem);
 }
 
 [data-theme="dark"] .receipt-page {
