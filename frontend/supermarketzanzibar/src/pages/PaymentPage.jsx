@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
-import gatewaySprite from "../assets/Free Payment Method & Credit Card Icon Set.jpg";
+import amexLogo from "../assets/BEST SELLERS.jpg";
+import mastercardLogo from "../assets/Beds - French Furniture Orlando.jpg";
+import paypalLogo from "../assets/Paypal free icons designed by Roundicons.jpg";
+import visaLogo from "../assets/Visa free icons designed by Roundicons.jpg";
+import yasmixxLogo from "../assets/Yas Mixx Logo PNG Vector (EPS) Free Download.jpg";
 import { useCart } from "../context/CartContext.jsx";
 import { toMediaUrl } from "../lib/media.jsx";
 
 const PAYMENT_GATEWAYS = [
-  { key: "paypal", label: "PayPal", cropX: 0 },
-  { key: "visa", label: "Visa", cropX: 1 },
-  { key: "mastercard", label: "Mastercard", cropX: 2 },
-  { key: "amex", label: "American Express", cropX: 3 },
+  { key: "paypal", label: "PayPal", image: paypalLogo },
+  { key: "visa", label: "Visa", image: visaLogo },
+  { key: "mastercard", label: "Mastercard", image: mastercardLogo },
+  { key: "amex", label: "American Express", image: amexLogo },
+  { key: "yasmixx", label: "Yas Mixx", image: yasmixxLogo },
 ];
 
 function formatCardNumber(value) {
@@ -33,13 +38,7 @@ function getGatewayMeta(gatewayKey) {
 
 function GatewayLogo({ gatewayKey, className = "" }) {
   const gateway = getGatewayMeta(gatewayKey);
-  return (
-    <span
-      aria-hidden="true"
-      className={`gateway-sprite${className ? ` ${className}` : ""}`}
-      style={{ "--gateway-position": gateway.cropX }}
-    />
-  );
+  return <img src={gateway.image} alt={gateway.label} className={className} />;
 }
 
 function loadImage(src) {
@@ -66,7 +65,7 @@ async function downloadReceipt(receipt) {
   const [productImage, barcodeImage, gatewayImage] = await Promise.all([
     loadImage(receipt.productImageUrl).catch(() => null),
     loadImage(receipt.barcodeImageUrl).catch(() => null),
-    loadImage(gatewaySprite).catch(() => null),
+    loadImage(getGatewayMeta(receipt.gateway).image).catch(() => null),
   ]);
 
   ctx.fillStyle = "#f3f2ff";
@@ -166,14 +165,11 @@ async function downloadReceipt(receipt) {
   }
 
   if (gatewayImage) {
-    const sliceWidth = gatewayImage.width / 4;
-    const sliceHeight = gatewayImage.height;
-    const gateway = getGatewayMeta(receipt.gateway);
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(540, 778, 138, 58, 16);
     ctx.clip();
-    ctx.drawImage(gatewayImage, sliceWidth * gateway.cropX, 0, sliceWidth, sliceHeight, 540, 778, 138, 58);
+    ctx.drawImage(gatewayImage, 540, 778, 138, 58);
     ctx.restore();
   }
 
@@ -212,6 +208,8 @@ function PaymentPage() {
     expiry: "",
     cvv: "",
     paypalEmail: "",
+    mobileNumber: "",
+    mobilePin: "",
     gateway: "visa",
     wantsDelivery: false,
     deliveryLocation: "",
@@ -223,7 +221,7 @@ function PaymentPage() {
   const [loading, setLoading] = useState(false);
 
   const inferredBrand = useMemo(() => cardBrand(form.cardNumber), [form.cardNumber]);
-  const gateway = form.gateway === "paypal" ? "paypal" : (form.gateway || inferredBrand);
+  const gateway = form.gateway === "paypal" || form.gateway === "yasmixx" ? form.gateway : (form.gateway || inferredBrand);
   const gatewayMeta = getGatewayMeta(gateway);
   const orderTotal = total.toFixed(2);
 
@@ -271,6 +269,11 @@ function PaymentPage() {
         setError("Fill in your PayPal email and account name.");
         return;
       }
+    } else if (gateway === "yasmixx") {
+      if (!form.mobileNumber || !form.cardHolder || !form.mobilePin) {
+        setError("Fill in your Yas Mixx number, account name, and PIN.");
+        return;
+      }
     } else if (!form.cardNumber || !form.cardHolder || !form.expiry || !form.cvv) {
       setError("Fill in all payment details for the selected gateway.");
       return;
@@ -305,7 +308,12 @@ function PaymentPage() {
         barcodeImageUrl: payment.barcode_image_url,
         gateway,
         gatewayLabel: gatewayMeta.label,
-        gatewayAccount: gateway === "paypal" ? form.paypalEmail : form.cardNumber.slice(-4),
+        gatewayAccount:
+          gateway === "paypal"
+            ? form.paypalEmail
+            : gateway === "yasmixx"
+              ? form.mobileNumber
+              : form.cardNumber.slice(-4),
         receiptUrl: sale.receipt_url,
       });
       clearCart();
@@ -359,7 +367,7 @@ function PaymentPage() {
             </span>
           </div>
           <p className="payment-result-text">
-            {receipt.gatewayLabel} {receipt.gateway === "paypal" ? receipt.gatewayAccount : `Ending ${receipt.gatewayAccount || "----"}`}
+            {receipt.gatewayLabel} {receipt.gateway === "paypal" ? receipt.gatewayAccount : receipt.gateway === "yasmixx" ? receipt.gatewayAccount : `Ending ${receipt.gatewayAccount || "----"}`}
           </p>
           <div className="receipt-barcode-wrap">
             {receipt.barcodeImageUrl ? (
@@ -448,6 +456,17 @@ function PaymentPage() {
                     onChange={(event) => updateForm("paypalEmail", event.target.value)}
                   />
                 </label>
+              ) : gateway === "yasmixx" ? (
+                <label>
+                  Yas Mixx Number
+                  <input
+                    inputMode="tel"
+                    name="mobile_number"
+                    placeholder="+255 7xx xxx xxx"
+                    value={form.mobileNumber}
+                    onChange={(event) => updateForm("mobileNumber", event.target.value)}
+                  />
+                </label>
               ) : (
                 <label>
                   {gateway === "amex" ? "American Express Number" : "Card Number"}
@@ -466,7 +485,7 @@ function PaymentPage() {
                 </label>
               )}
               <label>
-                {gateway === "paypal" ? "PayPal Account Name" : "Cardholder Name"}
+                {gateway === "paypal" ? "PayPal Account Name" : gateway === "yasmixx" ? "Yas Mixx Account Name" : "Cardholder Name"}
                 <input
                   name="card_holder"
                   placeholder="Full name"
@@ -474,7 +493,18 @@ function PaymentPage() {
                   onChange={(event) => updateForm("cardHolder", event.target.value)}
                 />
               </label>
-              {gateway !== "paypal" ? (
+              {gateway === "yasmixx" ? (
+                <label>
+                  Yas Mixx PIN
+                  <input
+                    inputMode="numeric"
+                    name="mobile_pin"
+                    placeholder="****"
+                    value={form.mobilePin}
+                    onChange={(event) => updateForm("mobilePin", event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  />
+                </label>
+              ) : gateway !== "paypal" ? (
                 <div className="gateway-form-grid">
                   <label>
                     Expiry
@@ -536,7 +566,14 @@ function PaymentPage() {
         {error ? <p className="error payment-error">{error}</p> : null}
         <div className="payment-method-row">
           <span>Payment Method</span>
-          <strong>{gatewayMeta.label} {gateway === "paypal" ? (form.paypalEmail || "Account") : `Ending ${form.cardNumber.slice(-4) || "----"}`}</strong>
+          <strong>
+            {gatewayMeta.label}{" "}
+            {gateway === "paypal"
+              ? (form.paypalEmail || "Account")
+              : gateway === "yasmixx"
+                ? (form.mobileNumber || "Wallet")
+                : `Ending ${form.cardNumber.slice(-4) || "----"}`}
+          </strong>
           <span className={`card-logo-chip ${gateway}`}>
             <GatewayLogo gatewayKey={gateway} className="card-logo-chip-sprite" />
           </span>
