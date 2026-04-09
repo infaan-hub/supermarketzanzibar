@@ -15,15 +15,15 @@ function MainNav({ theme, onToggleTheme }) {
   };
 
   const navItems = [
-    { to: user?.role === "customer" ? "/customer/dashboard" : "/home", label: "Home", show: true },
+    { to: "/home", label: "Home", show: true },
     { to: "/cart", label: `Cart (${count})`, show: user?.role === "customer" },
     { to: "/profile", label: "Profile", show: isAuthenticated },
+    { to: "/customer/dashboard", label: "Dashboard", show: user?.role === "customer" },
     { to: "/admin/dashboard", label: "Admin Dashboard", show: user?.role === "admin" },
     { to: "/supplier/dashboard", label: "Supplier Dashboard", show: user?.role === "supplier" },
     { to: "/supplier/dashboard/scan", label: "Supplier Scanner", show: user?.role === "supplier" },
     { to: "/supplier/calculator", label: "Supplier Calculator", show: user?.role === "supplier" },
     { to: "/driver/dashboard", label: "Driver Dashboard", show: user?.role === "driver" },
-    { to: "/customer/dashboard", label: "My Orders", show: user?.role === "customer" },
   ];
 
   const guestActions = [
