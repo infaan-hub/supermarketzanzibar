@@ -4,6 +4,7 @@ import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import StoreQrCard from "../components/StoreQrCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
@@ -35,8 +36,8 @@ function HomePage() {
     try {
       const response = await http.get("/api/products/");
       setProducts(productListFromResponse(response.data));
-    } catch {
-      setError("Refresh. Products will appear soon...");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Products could not load right now."));
     } finally {
       setLoading(false);
     }

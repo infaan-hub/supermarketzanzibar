@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { useCart } from "../context/CartContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
@@ -26,7 +27,7 @@ function ProductDetailPage() {
         const response = await http.get(`/api/products/${id}/`);
         setProduct(response.data);
       } catch (err) {
-        setError(err.code === "ECONNABORTED" ? "Product is taking too long to load. Please retry." : "Failed to load product details.");
+        setError(getApiErrorMessage(err, "Failed to load product details."));
       } finally {
         setLoading(false);
       }

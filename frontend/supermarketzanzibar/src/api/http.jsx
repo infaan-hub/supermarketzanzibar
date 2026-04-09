@@ -2,9 +2,11 @@ import axios from "axios";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "../lib/storage.jsx";
 import { API_BASE_URL } from "../config/apiBaseUrl.js";
 
+const GET_RETRY_DELAY_MS = 1200;
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 120000,
 });
 
 http.interceptors.request.use((config) => {
@@ -20,6 +22,13 @@ http.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    const isSafeGetRequest = String(originalRequest?.method || "").toLowerCase() === "get";
+
+    if (!originalRequest?._networkRetry && !error.response && isSafeGetRequest) {
+      originalRequest._networkRetry = true;
+      await new Promise((resolve) => window.setTimeout(resolve, GET_RETRY_DELAY_MS));
+      return http(originalRequest);
+    }
 
     if (
       status === 401 &&

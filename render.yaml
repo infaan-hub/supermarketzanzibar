@@ -26,7 +26,7 @@ services:
       - key: CORS_ALLOW_ALL_ORIGINS
         value: False
       - key: DATABASE_URL
-        value: postgresql://neondb_owner:npg_5RNWQXv0ZgBd@ep-odd-truth-adpy5dqz-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+        value: postgresql://neondb_owner:npg_mIKHiep8S4Xv@ep-crimson-haze-anvgurjk-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: MEDIA_ROOT
         value: /var/data/media
       - key: GOOGLE_CLIENT_ID

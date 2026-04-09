@@ -1301,6 +1301,21 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return serialized_products
 
+    def get_object(self):
+        lookup_value = self.kwargs.get(self.lookup_field)
+        queryset = self.filter_queryset(self.get_queryset())
+
+        try:
+            if lookup_value is not None and str(lookup_value).isdigit():
+                obj = queryset.get(pk=int(lookup_value))
+            else:
+                obj = queryset.get(slug=lookup_value)
+        except Product.DoesNotExist as exc:
+            raise Http404 from exc
+
+        self.check_object_permissions(self.request, obj)
+        return obj
+
     def _product_storage_error_response(self, action_name):
         logger.exception("Product %s failed because uploaded media could not be saved.", action_name)
         return Response(
