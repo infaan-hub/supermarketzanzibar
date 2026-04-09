@@ -1207,8 +1207,6 @@ class AdminRegisterView(APIView):
 
     def post(self, request):
         try:
-            if User.objects.filter(role="admin").exists():
-                return Response({"detail": "Admin already exists. Use /admin/login."}, status=status.HTTP_403_FORBIDDEN)
             serializer = AdminRegisterSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             user = serializer.save()

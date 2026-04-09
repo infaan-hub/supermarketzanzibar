@@ -3,12 +3,26 @@ import axios from "axios";
 import { http } from "../api/http.jsx";
 import { API_BASE_URL } from "../config/apiBaseUrl.js";
 import { clearTokens, getAccessToken, setTokens } from "../lib/storage.jsx";
+
 const AuthContext = createContext(null);
 const authHttp = axios.create({
   baseURL: API_BASE_URL,
   timeout: 120000,
 });
 const SCHEDULED_ACCESS_ROLES = new Set(["supplier", "driver"]);
+const AUTH_RETRY_DELAY_MS = 1500;
+
+async function authPostWithRetry(path, payload, config) {
+  try {
+    return await authHttp.post(path, payload, config);
+  } catch (error) {
+    if (error?.response || error?.code === "ERR_CANCELED") {
+      throw error;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, AUTH_RETRY_DELAY_MS));
+    return authHttp.post(path, payload, config);
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -27,7 +41,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginByPath = useCallback(async (path, credentials) => {
-    const loginRes = await authHttp.post(path, credentials);
+    const loginRes = await authPostWithRetry(path, credentials);
     setTokens({
       access: loginRes.data.access,
       refresh: loginRes.data.refresh,
@@ -42,7 +56,7 @@ export function AuthProvider({ children }) {
   const loginDriver = useCallback((credentials) => loginByPath("/api/auth/driver/login/", credentials), [loginByPath]);
 
   const startGoogleLogin = useCallback(async (credential) => {
-    const response = await authHttp.post("/api/auth/google/", { credential });
+    const response = await authPostWithRetry("/api/auth/google/", { credential });
     setTokens({
       access: response.data.access,
       refresh: response.data.refresh,

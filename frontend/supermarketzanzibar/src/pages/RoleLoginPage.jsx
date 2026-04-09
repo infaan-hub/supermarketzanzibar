@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import GoogleAuthPanel from "../components/GoogleAuthPanel.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 
 const ROLE_CONFIG = {
   customer: {
@@ -52,7 +53,7 @@ function RoleLoginPage({ role }) {
       const fromPath = typeof location.state?.from === "string" ? location.state.from : null;
       navigate(role === "customer" && fromPath ? fromPath : config.next, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.detail || "Login failed.");
+      setError(getApiErrorMessage(err, "Login failed."));
     } finally {
       setLoading(false);
     }
