@@ -6,7 +6,7 @@ import { clearTokens, getAccessToken, setTokens } from "../lib/storage.jsx";
 const AuthContext = createContext(null);
 const authHttp = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000,
+  timeout: 120000,
 });
 const SCHEDULED_ACCESS_ROLES = new Set(["supplier", "driver"]);
 
