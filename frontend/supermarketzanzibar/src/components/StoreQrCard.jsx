@@ -1,5 +1,4 @@
-import mastercardLogo from "../assets/mastercard-logo.svg";
-import visaLogo from "../assets/visa-logo.svg";
+import cardBrandsImage from "../assets/download (3).jpg";
 
 const STORE_URL = "https://supermarketzanzibar.vercel.app/";
 const QR_IMAGE_URL = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(STORE_URL)}`;
@@ -12,11 +11,8 @@ function StoreQrCard({ className = "" }) {
         <h3>Scan To Open Supermarket</h3>
         <p className="muted">Scanning this QR code opens the live store at `supermarketzanzibar.vercel.app`.</p>
         <div className="store-brand-row" aria-label="Accepted payment cards">
-          <span className="store-brand-chip">
-            <img className="store-brand-logo" src={visaLogo} alt="Visa" />
-          </span>
-          <span className="store-brand-chip">
-            <img className="store-brand-logo" src={mastercardLogo} alt="Mastercard" />
+          <span className="store-brand-chip store-brand-chip-image">
+            <img className="store-brand-logo store-brand-logo-image" src={cardBrandsImage} alt="Visa and Mastercard" />
           </span>
         </div>
       </div>

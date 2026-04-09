@@ -538,9 +538,24 @@ img {
   box-shadow: 0 8px 16px rgba(5, 16, 8, 0.08);
 }
 
+.store-brand-chip-image {
+  width: min(140px, 100%);
+  min-width: min(140px, 100%);
+  min-height: auto;
+  padding: 0.18rem;
+  justify-self: start;
+}
+
 .store-brand-logo {
   width: 2.7rem;
   height: 1rem;
+}
+
+.store-brand-logo-image {
+  width: 100%;
+  height: auto;
+  border-radius: 999px;
+  object-fit: contain;
 }
 
 .store-qr-link {
