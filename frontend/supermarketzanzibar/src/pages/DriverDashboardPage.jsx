@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { STORE_LOCATION, STORE_NAME } from "../lib/storeInfo.js";
 
 const STORE_ROUTE_ORIGIN = STORE_LOCATION;
@@ -50,6 +53,8 @@ function formatStatus(status) {
 }
 
 function DriverDashboardPage() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState({ active_deliveries: [] });
   const [error, setError] = useState("");
   const [selectedSaleId, setSelectedSaleId] = useState(null);
@@ -63,8 +68,13 @@ function DriverDashboardPage() {
     try {
       const response = await http.get("/api/driver/dashboard/");
       setData(response.data);
-    } catch {
-      setError("Unable to load driver dashboard.");
+    } catch (err) {
+      if ([401, 403].includes(err.response?.status)) {
+        logout();
+        navigate("/driver/login", { replace: true });
+        return;
+      }
+      setError(getApiErrorMessage(err, "Unable to load driver dashboard."));
     }
   };
 

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
 
 const PRODUCT_PLACEHOLDER = productPlaceholder;
 
 function SupplierDashboardPage() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -34,8 +38,13 @@ function SupplierDashboardPage() {
     try {
       const response = await http.get("/api/supplier/dashboard/");
       setData(response.data);
-    } catch {
-      setError("Cannot load supplier dashboard.");
+    } catch (err) {
+      if ([401, 403].includes(err.response?.status)) {
+        logout();
+        navigate("/supplier/login", { replace: true });
+        return;
+      }
+      setError(getApiErrorMessage(err, "Cannot load supplier dashboard."));
     }
   };
 

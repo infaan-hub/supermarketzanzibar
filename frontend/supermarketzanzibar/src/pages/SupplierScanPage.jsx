@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { getApiErrorMessage } from "../lib/apiErrors.js";
 
 const DETECTOR_FORMATS = [
   "qr_code",
@@ -71,6 +73,8 @@ async function createZxingReader() {
 }
 
 function SupplierScanPage() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const scanTimerRef = useRef(null);
   const streamRef = useRef(null);
@@ -107,12 +111,17 @@ function SupplierScanPage() {
     try {
       const response = await http.get("/api/supplier/dashboard/");
       setProducts(Array.isArray(response.data?.products) ? response.data.products : []);
-    } catch {
-      setError("Cannot load supplier products for scanner.");
+    } catch (err) {
+      if ([401, 403].includes(err.response?.status)) {
+        logout();
+        navigate("/supplier/login", { replace: true });
+        return;
+      }
+      setError(getApiErrorMessage(err, "Cannot load supplier products for scanner."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logout, navigate]);
 
   const stopCamera = useCallback(() => {
     if (scanTimerRef.current) {
