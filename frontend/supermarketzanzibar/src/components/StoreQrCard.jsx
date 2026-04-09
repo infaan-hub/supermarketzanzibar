@@ -1,4 +1,4 @@
-import cardBrandsImage from "../assets/download (3).jpg";
+import cardBrandsImage from "../assets/Free Payment Method & Credit Card Icon Set.jpg";
 
 const STORE_URL = "https://supermarketzanzibar.vercel.app/";
 const QR_IMAGE_URL = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(STORE_URL)}`;

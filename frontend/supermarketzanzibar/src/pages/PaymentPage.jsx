@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { http } from "../api/http.jsx";
+import gatewaySprite from "../assets/Free Payment Method & Credit Card Icon Set.jpg";
 import { useCart } from "../context/CartContext.jsx";
 import { toMediaUrl } from "../lib/media.jsx";
+
+const PAYMENT_GATEWAYS = [
+  { key: "paypal", label: "PayPal", cropX: 0 },
+  { key: "visa", label: "Visa", cropX: 1 },
+  { key: "mastercard", label: "Mastercard", cropX: 2 },
+  { key: "amex", label: "American Express", cropX: 3 },
+];
 
 function formatCardNumber(value) {
   return value
@@ -14,25 +22,23 @@ function formatCardNumber(value) {
 
 function cardBrand(cardNumber) {
   const digits = cardNumber.replace(/\D/g, "");
+  if (digits.startsWith("34") || digits.startsWith("37")) return "amex";
   if (digits.startsWith("5")) return "mastercard";
   return "visa";
 }
 
-function VisaLogo() {
-  return (
-    <svg viewBox="0 0 64 24" aria-hidden="true" className="card-brand-logo visa-logo">
-      <path fill="#1434CB" d="M25.4 16.8l2.2-9.7h3.5l-2.2 9.7zm14.6-9.5c-.7-.3-1.9-.6-3.4-.6-3.7 0-6.2 1.8-6.2 4.4 0 1.9 1.9 3 3.3 3.6 1.5.7 2 1.1 2 1.8 0 .9-1.2 1.4-2.3 1.4-1.5 0-2.4-.2-3.6-.8l-.5-.2-.5 2.9c.9.4 2.5.7 4.2.7 3.9 0 6.5-1.8 6.5-4.5 0-1.5-1-2.7-3.1-3.6-1.3-.6-2.1-1-2.1-1.7 0-.6.8-1.2 2.4-1.2 1.3 0 2.2.2 2.9.5l.4.2zm9.2 9.5h3.1L49.6 7.1h-2.9c-.7 0-1.2.2-1.5.9L40.5 16.8H44l.7-1.9H49zm-3.4-4.3l1.8-4.4 1 4.4zm-25.2-5.4l-3.4 6.6-.4-1.7c-.6-1.8-2.3-3.8-4.2-4.8l3.1 9.6h3.6l5.4-9.7zM7 7.1H1.5l-.1.3c4.3 1 7.2 3.5 8.4 6.4l-1.2-5.8c-.2-.7-.7-.9-1.6-.9"/>
-    </svg>
-  );
+function getGatewayMeta(gatewayKey) {
+  return PAYMENT_GATEWAYS.find((item) => item.key === gatewayKey) || PAYMENT_GATEWAYS[1];
 }
 
-function MastercardLogo() {
+function GatewayLogo({ gatewayKey, className = "" }) {
+  const gateway = getGatewayMeta(gatewayKey);
   return (
-    <svg viewBox="0 0 64 24" aria-hidden="true" className="card-brand-logo mastercard-logo">
-      <circle cx="25" cy="12" r="8.5" fill="#EB001B" />
-      <circle cx="39" cy="12" r="8.5" fill="#F79E1B" />
-      <path fill="#FF5F00" d="M32 5.2a8.4 8.4 0 0 0 0 13.6 8.4 8.4 0 0 0 0-13.6" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={`gateway-sprite${className ? ` ${className}` : ""}`}
+      style={{ "--gateway-position": gateway.cropX }}
+    />
   );
 }
 
@@ -57,9 +63,10 @@ async function downloadReceipt(receipt) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const [productImage, barcodeImage] = await Promise.all([
+  const [productImage, barcodeImage, gatewayImage] = await Promise.all([
     loadImage(receipt.productImageUrl).catch(() => null),
     loadImage(receipt.barcodeImageUrl).catch(() => null),
+    loadImage(gatewaySprite).catch(() => null),
   ]);
 
   ctx.fillStyle = "#f3f2ff";
@@ -158,6 +165,18 @@ async function downloadReceipt(receipt) {
     ctx.restore();
   }
 
+  if (gatewayImage) {
+    const sliceWidth = gatewayImage.width / 4;
+    const sliceHeight = gatewayImage.height;
+    const gateway = getGatewayMeta(receipt.gateway);
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(540, 778, 138, 58, 16);
+    ctx.clip();
+    ctx.drawImage(gatewayImage, sliceWidth * gateway.cropX, 0, sliceWidth, sliceHeight, 540, 778, 138, 58);
+    ctx.restore();
+  }
+
   ctx.strokeStyle = "#ece9f5";
   ctx.beginPath();
   ctx.moveTo(200, 920);
@@ -192,11 +211,11 @@ function PaymentPage() {
     cardHolder: "",
     expiry: "",
     cvv: "",
-    brand: "visa",
+    paypalEmail: "",
+    gateway: "visa",
     wantsDelivery: false,
     deliveryLocation: "",
   });
-  const [status, setStatus] = useState("unpaid");
   const [paymentResult, setPaymentResult] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [autoDownloaded, setAutoDownloaded] = useState(false);
@@ -204,7 +223,8 @@ function PaymentPage() {
   const [loading, setLoading] = useState(false);
 
   const inferredBrand = useMemo(() => cardBrand(form.cardNumber), [form.cardNumber]);
-  const brand = form.brand || inferredBrand;
+  const gateway = form.gateway === "paypal" ? "paypal" : (form.gateway || inferredBrand);
+  const gatewayMeta = getGatewayMeta(gateway);
   const orderTotal = total.toFixed(2);
 
   const updateForm = (field, value) => {
@@ -212,7 +232,7 @@ function PaymentPage() {
   };
 
   const chooseBrand = (nextBrand) => {
-    setForm((current) => ({ ...current, brand: nextBrand }));
+    setForm((current) => ({ ...current, gateway: nextBrand }));
   };
 
   const useCurrentLocation = async () => {
@@ -246,8 +266,13 @@ function PaymentPage() {
       setError("Your cart is empty.");
       return;
     }
-    if (!form.cardNumber || !form.cardHolder || !form.expiry || !form.cvv) {
-      setError("Fill in all payment card details.");
+    if (gateway === "paypal") {
+      if (!form.paypalEmail || !form.cardHolder) {
+        setError("Fill in your PayPal email and account name.");
+        return;
+      }
+    } else if (!form.cardNumber || !form.cardHolder || !form.expiry || !form.cvv) {
+      setError("Fill in all payment details for the selected gateway.");
       return;
     }
     if (form.wantsDelivery && !form.deliveryLocation.trim()) {
@@ -262,7 +287,7 @@ function PaymentPage() {
     try {
       const response = await http.post("/api/customer/checkout/", {
         items: cartSnapshot.map((item) => ({ product: item.product.id, quantity: item.quantity })),
-        payment_method: brand,
+        payment_method: gateway,
         delivery_location: form.wantsDelivery ? form.deliveryLocation.trim() : "",
         terms_accepted: true,
       });
@@ -278,9 +303,11 @@ function PaymentPage() {
         productName: firstProduct?.name || "Marketplace Product",
         productImageUrl: toMediaUrl(firstProduct?.image_url || firstProduct?.image),
         barcodeImageUrl: payment.barcode_image_url,
+        gateway,
+        gatewayLabel: gatewayMeta.label,
+        gatewayAccount: gateway === "paypal" ? form.paypalEmail : form.cardNumber.slice(-4),
         receiptUrl: sale.receipt_url,
       });
-      setStatus("paid");
       clearCart();
     } catch (err) {
       setError(err.response?.data?.detail || "Payment could not be completed right now.");
@@ -327,7 +354,13 @@ function PaymentPage() {
               <strong>{receipt.productName}</strong>
               <p>Supermarket Zanzibar</p>
             </div>
+            <span className="receipt-gateway-logo-wrap">
+              <GatewayLogo gatewayKey={receipt.gateway} className="receipt-gateway-logo" />
+            </span>
           </div>
+          <p className="payment-result-text">
+            {receipt.gatewayLabel} {receipt.gateway === "paypal" ? receipt.gatewayAccount : `Ending ${receipt.gatewayAccount || "----"}`}
+          </p>
           <div className="receipt-barcode-wrap">
             {receipt.barcodeImageUrl ? (
               <img src={receipt.barcodeImageUrl} alt={`Scannable barcode ${receipt.ticketId}`} />
@@ -389,43 +422,51 @@ function PaymentPage() {
             <div className="payment-gateway-panel">
               <div className="gateway-heading">
                 <span>Payment Gateway</span>
-                <strong>{brand === "mastercard" ? "Mastercard" : "Visa"}</strong>
+                <strong>{gatewayMeta.label}</strong>
               </div>
               <div className="gateway-card-brand-row" aria-label="Supported payment cards">
-                <button
-                  type="button"
-                  className={`gateway-brand ${brand === "visa" ? "active" : ""}`}
-                  onClick={() => chooseBrand("visa")}
-                >
-                  <VisaLogo />
-                  <span>Visa</span>
-                </button>
-                <button
-                  type="button"
-                  className={`gateway-brand mastercard ${brand === "mastercard" ? "active" : ""}`}
-                  onClick={() => chooseBrand("mastercard")}
-                >
-                  <MastercardLogo />
-                  <span>Mastercard</span>
-                </button>
+                {PAYMENT_GATEWAYS.map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    className={`gateway-brand ${gateway === entry.key ? "active" : ""}`}
+                    onClick={() => chooseBrand(entry.key)}
+                  >
+                    <GatewayLogo gatewayKey={entry.key} className="card-brand-logo" />
+                    <span>{entry.label}</span>
+                  </button>
+                ))}
               </div>
+              {gateway === "paypal" ? (
+                <label>
+                  PayPal Email
+                  <input
+                    inputMode="email"
+                    name="paypal_email"
+                    placeholder="paypal@email.com"
+                    value={form.paypalEmail}
+                    onChange={(event) => updateForm("paypalEmail", event.target.value)}
+                  />
+                </label>
+              ) : (
+                <label>
+                  {gateway === "amex" ? "American Express Number" : "Card Number"}
+                  <input
+                    inputMode="numeric"
+                    name="card_number"
+                    placeholder={gateway === "amex" ? "3782 822463 10005" : "4242 4242 4242 4242"}
+                    value={form.cardNumber}
+                    onChange={(event) => {
+                      const nextValue = formatCardNumber(event.target.value);
+                      updateForm("cardNumber", nextValue);
+                      const detectedBrand = cardBrand(nextValue);
+                      if (gateway !== "paypal" && detectedBrand) updateForm("gateway", detectedBrand);
+                    }}
+                  />
+                </label>
+              )}
               <label>
-                Card Number
-                <input
-                  inputMode="numeric"
-                  name="card_number"
-                  placeholder="4242 4242 4242 4242"
-                  value={form.cardNumber}
-                  onChange={(event) => {
-                    const nextValue = formatCardNumber(event.target.value);
-                    updateForm("cardNumber", nextValue);
-                    const detectedBrand = cardBrand(nextValue);
-                    if (detectedBrand) updateForm("brand", detectedBrand);
-                  }}
-                />
-              </label>
-              <label>
-                Cardholder Name
+                {gateway === "paypal" ? "PayPal Account Name" : "Cardholder Name"}
                 <input
                   name="card_holder"
                   placeholder="Full name"
@@ -433,27 +474,29 @@ function PaymentPage() {
                   onChange={(event) => updateForm("cardHolder", event.target.value)}
                 />
               </label>
-              <div className="gateway-form-grid">
-                <label>
-                  Expiry
-                  <input
-                    name="card_expiry"
-                    placeholder="MM/YY"
-                    value={form.expiry}
-                    onChange={(event) => updateForm("expiry", event.target.value.slice(0, 5))}
-                  />
-                </label>
-                <label>
-                  CVV
-                  <input
-                    inputMode="numeric"
-                    name="card_cvv"
-                    placeholder="123"
-                    value={form.cvv}
-                    onChange={(event) => updateForm("cvv", event.target.value.replace(/\D/g, "").slice(0, 4))}
-                  />
-                </label>
-              </div>
+              {gateway !== "paypal" ? (
+                <div className="gateway-form-grid">
+                  <label>
+                    Expiry
+                    <input
+                      name="card_expiry"
+                      placeholder="MM/YY"
+                      value={form.expiry}
+                      onChange={(event) => updateForm("expiry", event.target.value.slice(0, 5))}
+                    />
+                  </label>
+                  <label>
+                    {gateway === "amex" ? "CID" : "CVV"}
+                    <input
+                      inputMode="numeric"
+                      name="card_cvv"
+                      placeholder={gateway === "amex" ? "1234" : "123"}
+                      value={form.cvv}
+                      onChange={(event) => updateForm("cvv", event.target.value.replace(/\D/g, "").slice(0, 4))}
+                    />
+                  </label>
+                </div>
+              ) : null}
               <div className="delivery-panel">
                 <label className="delivery-toggle">
                   <input
@@ -487,27 +530,16 @@ function PaymentPage() {
                 )}
               </div>
             </div>
-
-            <div className="payment-progress-card">
-              <div className="gateway-heading">
-                <span>Payment Status</span>
-                <strong>{status.toUpperCase()}</strong>
-              </div>
-              <div className={`payment-progress ${status}`}>
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
           </div>
         </div>
 
         {error ? <p className="error payment-error">{error}</p> : null}
         <div className="payment-method-row">
           <span>Payment Method</span>
-          <strong>{brand === "mastercard" ? "Mastercard" : "Visa"} Ending {form.cardNumber.slice(-4) || "----"}</strong>
-          <span className={`card-logo-chip ${brand}`}>{brand === "mastercard" ? <MastercardLogo /> : <VisaLogo />}</span>
+          <strong>{gatewayMeta.label} {gateway === "paypal" ? (form.paypalEmail || "Account") : `Ending ${form.cardNumber.slice(-4) || "----"}`}</strong>
+          <span className={`card-logo-chip ${gateway}`}>
+            <GatewayLogo gatewayKey={gateway} className="card-logo-chip-sprite" />
+          </span>
         </div>
         <button type="button" className="payment-pay-btn" onClick={submitPayment}>
           Pay Now

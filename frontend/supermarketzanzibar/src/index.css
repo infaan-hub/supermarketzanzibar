@@ -236,9 +236,21 @@ img {
   transform: translateX(0);
 }
 
+.sidebar-header {
+  position: relative;
+  padding-top: 0.2rem;
+}
+
 .sidebar-header h2,
 .sidebar-header p {
   margin: 0;
+}
+
+.sidebar-toggle-inline {
+  position: absolute;
+  top: -3.85rem;
+  left: 0;
+  z-index: 2;
 }
 
 .sidebar-kicker {
@@ -539,8 +551,8 @@ img {
 }
 
 .store-brand-chip-image {
-  width: min(140px, 100%);
-  min-width: min(140px, 100%);
+  width: min(180px, 100%);
+  min-width: min(180px, 100%);
   min-height: auto;
   padding: 0.18rem;
   justify-self: start;
@@ -1470,16 +1482,15 @@ button:not(:disabled):hover {
 }
 
 .gateway-card-brand-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
 .gateway-brand {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
   padding: 0.58rem 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 14px;
@@ -1496,14 +1507,22 @@ button:not(:disabled):hover {
   box-shadow: 0 14px 24px rgba(37, 77, 228, 0.22);
 }
 
-.gateway-brand.mastercard.active {
-  background: linear-gradient(90deg, #ea001b, #ff9f00);
+.card-brand-logo {
+  width: 100%;
+  max-width: 108px;
+  height: 2.25rem;
+  flex: 0 0 auto;
 }
 
-.card-brand-logo {
-  width: 2.6rem;
-  height: 1rem;
-  flex: 0 0 auto;
+.gateway-sprite {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  background-image: url("./assets/Free Payment Method & Credit Card Icon Set.jpg");
+  background-repeat: no-repeat;
+  background-size: 400% 100%;
+  background-position: calc(var(--gateway-position, 0) * 33.333%) 50%;
 }
 
 .payment-gateway-panel label {
@@ -1560,46 +1579,6 @@ button:not(:disabled):hover {
   gap: 0.6rem;
 }
 
-.payment-progress-card {
-  margin-top: 1rem;
-  padding: 0.9rem;
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: 16px;
-  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
-}
-
-.payment-progress {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.55rem;
-  align-items: center;
-  margin-top: 1.1rem;
-}
-
-.payment-progress span {
-  height: 0.45rem;
-  border-radius: 999px;
-  background: #151a27;
-  position: relative;
-}
-
-.payment-progress span::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: #10b981;
-  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.28);
-}
-
-.payment-progress.unpaid span:last-child::before {
-  background: #111827;
-}
-
 .payment-result-text,
 .payment-error {
   margin: 0.85rem 0 0;
@@ -1613,8 +1592,8 @@ button:not(:disabled):hover {
 }
 
 .card-logo-chip {
-  width: 3rem;
-  height: 1.65rem;
+  width: 4.8rem;
+  height: 2.5rem;
   display: inline-grid;
   place-items: center;
   border-radius: 8px;
@@ -1622,6 +1601,11 @@ button:not(:disabled):hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.card-logo-chip-sprite {
+  width: 4rem;
+  height: 1.9rem;
 }
 
 .payment-pay-btn {
@@ -1670,6 +1654,11 @@ button:not(:disabled):hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .gateway-brand.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, rgba(27, 108, 224, 0.96), rgba(21, 84, 175, 0.96));
 }
 
 [data-theme="dark"] .delivery-toggle,
@@ -1853,7 +1842,8 @@ button:not(:disabled):hover {
 }
 
 .receipt-product-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.85rem;
   margin: 1.75rem 0;
@@ -1877,6 +1867,22 @@ button:not(:disabled):hover {
   margin: 0.2rem 0 0;
   color: #8f8a99;
   font-size: 0.86rem;
+}
+
+.receipt-gateway-logo-wrap {
+  display: inline-grid;
+  place-items: center;
+  width: 4.8rem;
+  height: 2.5rem;
+  padding: 0.2rem;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.receipt-gateway-logo {
+  width: 4rem;
+  height: 1.9rem;
 }
 
 .receipt-barcode-wrap {
@@ -1935,6 +1941,10 @@ button:not(:disabled):hover {
 [data-theme="dark"] .ticket-receipt-card {
   color: #f8fafc;
   background: #1f2937;
+}
+
+[data-theme="dark"] .receipt-gateway-logo-wrap {
+  background: rgba(255, 255, 255, 0.92);
 }
 
 [data-theme="dark"] .receipt-grid strong {

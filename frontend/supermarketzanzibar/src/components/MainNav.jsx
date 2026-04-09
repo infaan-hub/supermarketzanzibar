@@ -57,6 +57,17 @@ function MainNav({ theme, onToggleTheme }) {
 
       <aside className={`sidebar${sidebarOpen ? " open" : ""}`} aria-label="Main sidebar">
         <div className="sidebar-header">
+          <button
+            type="button"
+            className="sidebar-toggle sidebar-toggle-inline active"
+            aria-label="Close sidebar"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <p className="sidebar-kicker">Control Panel</p>
           <h2>Navigation</h2>
           <p className="muted">All actions are moved here for the new layout.</p>
