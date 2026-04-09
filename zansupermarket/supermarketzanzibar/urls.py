@@ -1,6 +1,5 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
 from .views import *
 
 router = DefaultRouter()
@@ -27,7 +26,7 @@ urlpatterns = [
     path('auth/admin/create-user/', AdminCreateUserView.as_view(), name='auth_admin_create_user'),
     path('auth/schedule-task/', ScheduledAccessListView.as_view(), name='schedule_task_list'),
     path('auth/schedule-task/<int:user_id>/', ScheduledAccessDetailView.as_view(), name='schedule_task_detail'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/token/refresh/', SafeTokenRefreshView.as_view(), name='token_refresh'),
     path('customer/checkout/', CheckoutView.as_view(), name='customer_checkout'),
     path('customer/orders/', CustomerOrdersView.as_view(), name='customer_orders'),
     path('customer/orders/<int:sale_id>/', CustomerOrderHistoryItemView.as_view(), name='customer_order_history_item'),

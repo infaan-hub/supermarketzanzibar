@@ -21,6 +21,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Category, Customer, Payment, Product, Sale, SaleItem, StockMovement, Supplier
 from .serializers import (
@@ -1185,6 +1186,22 @@ class SupplierLoginView(RoleLoginView):
 
 class DriverLoginView(RoleLoginView):
     required_role = "driver"
+
+
+class SafeTokenRefreshView(TokenRefreshView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except exceptions.APIException:
+            raise
+        except Exception:
+            logger.exception("Token refresh failed unexpectedly.")
+            return Response(
+                {"detail": "Session refresh failed. Please login again."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
 
 class RegisterView(APIView):

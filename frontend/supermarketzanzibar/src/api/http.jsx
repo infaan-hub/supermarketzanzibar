@@ -3,6 +3,7 @@ import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "../lib/
 import { API_BASE_URL } from "../config/apiBaseUrl.js";
 
 const GET_RETRY_DELAY_MS = 1200;
+const FORCE_RELOGIN_PATTERNS = ["/api/supplier/", "/api/driver/", "/api/auth/me/"];
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
@@ -23,11 +24,18 @@ http.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
     const isSafeGetRequest = String(originalRequest?.method || "").toLowerCase() === "get";
+    const requestUrl = String(originalRequest?.url || "");
+    const requiresFreshLogin = FORCE_RELOGIN_PATTERNS.some((pattern) => requestUrl.includes(pattern));
 
     if (!originalRequest?._networkRetry && !error.response && isSafeGetRequest) {
       originalRequest._networkRetry = true;
       await new Promise((resolve) => window.setTimeout(resolve, GET_RETRY_DELAY_MS));
       return http(originalRequest);
+    }
+
+    if ((status === 401 || status === 403) && requiresFreshLogin) {
+      clearTokens();
+      return Promise.reject(error);
     }
 
     if (
