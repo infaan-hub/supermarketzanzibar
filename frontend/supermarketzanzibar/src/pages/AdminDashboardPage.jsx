@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import productPlaceholder from "../assets/product-placeholder.svg";
 import { http } from "../api/http.jsx";
 import { applyImageFallback, toMediaUrl } from "../lib/media.jsx";
@@ -155,6 +156,16 @@ function AdminDashboardPage() {
 
   return (
     <section className="page-wrap two-col">
+      <div className="panel full-span">
+        <h2>Schedule Control</h2>
+        <p className="muted">Set supplier and driver login windows from the admin schedule page.</p>
+        <div className="row">
+          <Link className="primary-btn" to="/schedule-task">
+            Open Schedule Task
+          </Link>
+        </div>
+      </div>
+
       <div className="panel">
         <h2>Create Supplier/Driver/Customer</h2>
         <form onSubmit={createUser}>

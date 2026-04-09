@@ -8,6 +8,7 @@ const authHttp = axios.create({
   baseURL: API_BASE_URL,
   timeout: 20000,
 });
+const SCHEDULED_ACCESS_ROLES = new Set(["supplier", "driver"]);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -82,6 +83,43 @@ export function AuthProvider({ children }) {
     };
     init();
   }, [loadMe]);
+
+  useEffect(() => {
+    if (!user || !SCHEDULED_ACCESS_ROLES.has(user.role)) return undefined;
+    if (!user.has_active_scheduled_access || !user.access_window_end) {
+      logout();
+      return undefined;
+    }
+
+    const logoutAt = new Date(user.access_window_end).getTime();
+    const delay = logoutAt - Date.now();
+    if (delay <= 0) {
+      logout();
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      logout();
+    }, delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [logout, user]);
+
+  useEffect(() => {
+    if (!user || !SCHEDULED_ACCESS_ROLES.has(user.role)) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      loadMe();
+    }, 30000);
+    const handleFocus = () => loadMe();
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadMe, user]);
 
   const value = useMemo(
     () => ({

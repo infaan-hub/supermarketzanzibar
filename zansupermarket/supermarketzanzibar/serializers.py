@@ -75,6 +75,8 @@ class UserSerializer(serializers.ModelSerializer):
     profile_image = serializers.ImageField(required=False, allow_null=True, write_only=True)
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     profile_image_url = serializers.SerializerMethodField()
+    schedule_status = serializers.CharField(read_only=True)
+    has_active_scheduled_access = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
@@ -89,11 +91,23 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_image_url",
             "role",
             "is_active",
+            "access_window_start",
+            "access_window_end",
+            "schedule_status",
+            "has_active_scheduled_access",
             "created_at",
             "updated_at",
             "password",
         )
-        read_only_fields = ("created_at", "updated_at", "role")
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+            "role",
+            "access_window_start",
+            "access_window_end",
+            "schedule_status",
+            "has_active_scheduled_access",
+        )
 
     def get_profile_image_url(self, obj):
         return binary_file_data_url(obj.profile_image_data, obj.profile_image_content_type)
@@ -230,6 +244,52 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
         if user.role == "customer":
             Customer.objects.get_or_create(user=user, defaults={"phone": user.phone})
         return user
+
+
+class ScheduledAccessSerializer(serializers.ModelSerializer):
+    schedule_status = serializers.CharField(read_only=True)
+    has_active_scheduled_access = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "full_name",
+            "phone",
+            "role",
+            "is_active",
+            "access_window_start",
+            "access_window_end",
+            "schedule_status",
+            "has_active_scheduled_access",
+        )
+        read_only_fields = (
+            "id",
+            "username",
+            "email",
+            "full_name",
+            "phone",
+            "role",
+            "is_active",
+            "schedule_status",
+            "has_active_scheduled_access",
+        )
+
+    def validate(self, attrs):
+        start = attrs.get("access_window_start", getattr(self.instance, "access_window_start", None))
+        end = attrs.get("access_window_end", getattr(self.instance, "access_window_end", None))
+
+        if (start is None) ^ (end is None):
+            raise serializers.ValidationError(
+                {"detail": "Set both start and end time, or clear both fields to disable access."}
+            )
+
+        if start and end and end <= start:
+            raise serializers.ValidationError({"detail": "End time must be after start time."})
+
+        return attrs
 
 
 class CategorySerializer(serializers.ModelSerializer):

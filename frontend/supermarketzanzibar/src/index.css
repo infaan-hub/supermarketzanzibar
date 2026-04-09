@@ -2036,6 +2036,65 @@ button:not(:disabled):hover {
   backdrop-filter: blur(14px);
 }
 
+.schedule-user-card {
+  align-items: start;
+}
+
+.schedule-user-meta {
+  min-width: min(320px, 100%);
+}
+
+.schedule-user-meta h4,
+.schedule-user-meta p {
+  margin: 0.18rem 0;
+}
+
+.schedule-user-kicker {
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schedule-task-grid {
+  display: grid;
+  gap: 0.85rem;
+  flex: 1 1 340px;
+}
+
+.schedule-task-grid label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.schedule-task-grid label span {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.schedule-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(31, 143, 58, 0.12);
+  color: var(--accent-strong);
+}
+
+.schedule-status-not_scheduled,
+.schedule-status-expired {
+  background: rgba(191, 67, 67, 0.14);
+  color: #b33a3a;
+}
+
+.schedule-status-upcoming {
+  background: rgba(212, 146, 24, 0.16);
+  color: #9c6700;
+}
+
 .section-note {
   margin: 0.35rem 0 0;
   color: var(--muted);

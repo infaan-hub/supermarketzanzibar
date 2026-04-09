@@ -17,6 +17,7 @@ import RoleLoginPage from "./pages/RoleLoginPage.jsx";
 import SupplierDashboardPage from "./pages/SupplierDashboardPage.jsx";
 import SupplierCalculatorPage from "./pages/SupplierCalculatorPage.jsx";
 import SupplierScanPage from "./pages/SupplierScanPage.jsx";
+import ScheduleTaskPage from "./pages/ScheduleTaskPage.jsx";
 
 function AppLayout() {
   const [theme, setTheme] = useState(() => {
@@ -110,6 +111,14 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["admin"]}>
               <AdminDashboardPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/schedule-task"
+          element={
+            <RoleRoute roles={["admin"]}>
+              <ScheduleTaskPage />
             </RoleRoute>
           }
         />

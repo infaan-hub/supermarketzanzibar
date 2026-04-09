@@ -82,6 +82,8 @@ class CustomUser(AbstractUser):
     profile_image_content_type = models.CharField(max_length=100, blank=True, default="")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
+    access_window_start = models.DateTimeField(null=True, blank=True)
+    access_window_end = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -90,6 +92,32 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+    @property
+    def requires_scheduled_access(self):
+        return self.role in ("supplier", "driver")
+
+    @property
+    def schedule_status(self):
+        if not self.requires_scheduled_access:
+            return "not_required"
+        if not self.access_window_start or not self.access_window_end:
+            return "not_scheduled"
+        now = timezone.now()
+        if now < self.access_window_start:
+            return "upcoming"
+        if now >= self.access_window_end:
+            return "expired"
+        return "active"
+
+    @property
+    def has_active_scheduled_access(self):
+        if not self.requires_scheduled_access:
+            return True
+        if not self.access_window_start or not self.access_window_end:
+            return False
+        now = timezone.now()
+        return self.access_window_start <= now < self.access_window_end
 
     @property
     def has_profile_image(self):

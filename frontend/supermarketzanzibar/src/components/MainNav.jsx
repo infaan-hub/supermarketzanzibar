@@ -20,6 +20,7 @@ function MainNav({ theme, onToggleTheme }) {
     { to: "/profile", label: "Profile", show: isAuthenticated },
     { to: "/customer/dashboard", label: "Dashboard", show: user?.role === "customer" },
     { to: "/admin/dashboard", label: "Admin Dashboard", show: user?.role === "admin" },
+    { to: "/schedule-task", label: "Schedule Task", show: user?.role === "admin" },
     { to: "/supplier/dashboard", label: "Supplier Dashboard", show: user?.role === "supplier" },
     { to: "/supplier/dashboard/scan", label: "Supplier Scanner", show: user?.role === "supplier" },
     { to: "/supplier/calculator", label: "Supplier Calculator", show: user?.role === "supplier" },
@@ -28,6 +29,10 @@ function MainNav({ theme, onToggleTheme }) {
 
   const guestActions = [
     { to: "/login", label: "Customer Login" },
+    {
+      href: "https://supermarketzanzibar.vercel.app/register",
+      label: "Customer Register",
+    },
   ];
 
   return (
@@ -94,14 +99,25 @@ function MainNav({ theme, onToggleTheme }) {
           </button>
           {!isAuthenticated
             ? guestActions.map((action) => (
-                <NavLink
-                  key={action.to}
-                  to={action.to}
-                  className="ghost-btn"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  {action.label}
-                </NavLink>
+                action.href ? (
+                  <a
+                    key={action.href}
+                    href={action.href}
+                    className="ghost-btn"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    {action.label}
+                  </a>
+                ) : (
+                  <NavLink
+                    key={action.to}
+                    to={action.to}
+                    className="ghost-btn"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    {action.label}
+                  </NavLink>
+                )
               ))
             : (
               <button type="button" className="ghost-btn" onClick={onLogout}>

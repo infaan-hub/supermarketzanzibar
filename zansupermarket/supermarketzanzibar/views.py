@@ -38,6 +38,7 @@ from .serializers import (
     SaleSerializer,
     StockSerializer,
     SupplierSerializer,
+    ScheduledAccessSerializer,
     UserSerializer,
 )
 
@@ -53,6 +54,7 @@ STORE_EMAIL = "info@supermarketzanzibar"
 STORE_LOCATION = "Stone Town, Zanzibar"
 GOOGLE_TOKENINFO_ENDPOINT = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+SCHEDULED_ACCESS_ROLES = ("supplier", "driver")
 RECEIPT_ABOUT_CARDS = [
     (
         "Fresh supply",
@@ -147,6 +149,55 @@ def _customer_user_from_google_profile(profile):
     user.save(update_fields=["password"])
     Customer.objects.get_or_create(user=user, defaults={"phone": user.phone})
     return user
+
+
+def user_requires_scheduled_access(user):
+    return bool(user and getattr(user, "role", None) in SCHEDULED_ACCESS_ROLES)
+
+
+def user_has_active_scheduled_access(user, *, at_time=None):
+    if not user_requires_scheduled_access(user):
+        return True
+
+    start = getattr(user, "access_window_start", None)
+    end = getattr(user, "access_window_end", None)
+    if not start or not end:
+        return False
+
+    current_time = at_time or timezone.now()
+    return start <= current_time < end
+
+
+def scheduled_access_denial_detail(user, *, at_time=None):
+    if not user_requires_scheduled_access(user):
+        return "Access schedule is not required for this account."
+
+    start = getattr(user, "access_window_start", None)
+    end = getattr(user, "access_window_end", None)
+    if not start or not end:
+        return (
+            f"Admin has not scheduled access for this {user.role} account yet. "
+            "Please contact admin to set your date and time."
+        )
+
+    current_time = at_time or timezone.now()
+    if current_time < start:
+        return (
+            f"Your {user.role} access starts at {timezone.localtime(start).strftime('%Y-%m-%d %H:%M:%S %Z')}. "
+            "You cannot login before that time."
+        )
+    if current_time >= end:
+        return (
+            f"Your {user.role} access ended at {timezone.localtime(end).strftime('%Y-%m-%d %H:%M:%S %Z')}. "
+            "Ask admin to schedule a new date and time."
+        )
+    return ""
+
+
+def enforce_scheduled_access_or_raise(user):
+    if user_has_active_scheduled_access(user):
+        return
+    raise exceptions.PermissionDenied(scheduled_access_denial_detail(user))
 
 
 def build_whatsapp_order_url(sale, payment, sale_items):
@@ -1026,7 +1077,12 @@ class IsAdminRole(permissions.BasePermission):
 
 class IsSupplierRole(permissions.BasePermission):
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == "supplier")
+        if not (request.user and request.user.is_authenticated and request.user.role == "supplier"):
+            return False
+        if not user_has_active_scheduled_access(request.user):
+            self.message = scheduled_access_denial_detail(request.user)
+            return False
+        return True
 
 
 class IsAdminOrSupplierRole(permissions.BasePermission):
@@ -1040,7 +1096,12 @@ class IsAdminOrSupplierRole(permissions.BasePermission):
 
 class IsDriverRole(permissions.BasePermission):
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == "driver")
+        if not (request.user and request.user.is_authenticated and request.user.role == "driver"):
+            return False
+        if not user_has_active_scheduled_access(request.user):
+            self.message = scheduled_access_denial_detail(request.user)
+            return False
+        return True
 
 
 class IsCustomerRole(permissions.BasePermission):
@@ -1070,6 +1131,11 @@ class RoleLoginView(APIView):
                 return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
             if self.required_role and user.role != self.required_role:
                 return Response({"detail": f"Only {self.required_role} can login here."}, status=status.HTTP_403_FORBIDDEN)
+            if user_requires_scheduled_access(user) and not user_has_active_scheduled_access(user):
+                return Response(
+                    {"detail": scheduled_access_denial_detail(user)},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             return Response(token_payload_for_user(user), status=status.HTTP_200_OK)
         except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "Authentication is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -1157,6 +1223,7 @@ class MeView(APIView):
 
     def get(self, request):
         try:
+            enforce_scheduled_access_or_raise(request.user)
             return Response(
                 serialize_or_raise(UserSerializer, request.user, context={"request": request}),
                 status=status.HTTP_200_OK,
@@ -1166,6 +1233,7 @@ class MeView(APIView):
 
     def patch(self, request):
         try:
+            enforce_scheduled_access_or_raise(request.user)
             serializer = UserSerializer(
                 request.user,
                 data=request.data,
@@ -1533,6 +1601,48 @@ class AdminCreateUserView(APIView):
             )
         except (DatabaseError, API_SERIALIZATION_ERRORS):
             return Response({"detail": "User creation is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class ScheduledAccessListView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        try:
+            users = User.objects.filter(role__in=SCHEDULED_ACCESS_ROLES).order_by("role", "full_name", "username")
+            return Response(
+                serialize_or_raise(ScheduledAccessSerializer, users, many=True, context={"request": request}),
+                status=status.HTTP_200_OK,
+            )
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return Response(
+                {"detail": "Scheduled access list is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
+class ScheduledAccessDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
+
+    def patch(self, request, user_id):
+        try:
+            user = User.objects.filter(id=user_id, role__in=SCHEDULED_ACCESS_ROLES).first()
+            if not user:
+                return Response({"detail": "Scheduled user not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = ScheduledAccessSerializer(
+                user,
+                data=request.data,
+                partial=True,
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except (DatabaseError, API_SERIALIZATION_ERRORS):
+            return Response(
+                {"detail": "Scheduled access update is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class CheckoutView(APIView):
