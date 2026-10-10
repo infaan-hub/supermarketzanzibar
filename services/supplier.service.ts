@@ -3,18 +3,13 @@
 // Ports Django `Supplier` model and related views.
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { CurrentUser } from "@/lib/auth/request";
 
 export interface SupplierFindOptions {
-  where?: {
-    id?: bigint;
-    userId?: bigint;
-  };
-  include?: {
-    user?: boolean;
-    products?: boolean;
-  };
-  orderBy?: { id?: "asc" | "desc" };
+  where?: Prisma.SupplierWhereInput;
+  include?: Prisma.SupplierInclude;
+  orderBy?: Prisma.SupplierOrderByWithRelationInput;
   take?: number;
   skip?: number;
 }
@@ -23,7 +18,7 @@ export interface SupplierCreateInput {
   companyName: string;
   phone: string;
   address?: string;
-  userId?: bigint;
+  userId: bigint;
 }
 
 export async function findSupplier(options: SupplierFindOptions) {
@@ -42,7 +37,7 @@ export async function findSupplierByUserId(userId: bigint) {
 }
 
 export async function findSupplierByCompanyName(companyName: string) {
-  return prisma.supplier.findUnique({ where: { companyName } });
+  return prisma.supplier.findFirst({ where: { companyName } });
 }
 
 export async function findManySuppliers(options: SupplierFindOptions = {}) {
@@ -65,7 +60,9 @@ export async function deleteSupplier(id: bigint) {
   return prisma.supplier.delete({ where: { id } });
 }
 
-export async function countSuppliers(options: { where?: { isActive?: boolean } } = {}) {
+export async function countSuppliers(
+  options: { where?: Prisma.SupplierWhereInput } = {},
+) {
   return prisma.supplier.count(options);
 }
 

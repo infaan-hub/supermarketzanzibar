@@ -2,6 +2,8 @@
 //
 // List and manage products (read-only for now).
 
+"use client";
+
 import { useState, useEffect } from "react";
 
 interface Product {

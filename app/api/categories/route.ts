@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { findManyCategories, countCategories } from "@/lib/categories";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where = { isActive: true };
+    const where: Prisma.CategoryWhereInput = {};
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" as const } },
@@ -26,11 +27,11 @@ export async function GET(request: Request) {
     const [categories, total] = await Promise.all([
       findManyCategories({
         where,
-        take,
+        take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
         orderBy: { name: "asc" },
       }),
-      countCategories(where),
+      countCategories({ where }),
     ]);
 
     return NextResponse.json({
@@ -38,8 +39,7 @@ export async function GET(request: Request) {
         id: c.id.toString(),
         name: c.name,
         description: c.description,
-        image_available: Boolean(c.imageData),
-        isActive: c.isActive,
+        image_available: false,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),

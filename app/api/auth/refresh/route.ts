@@ -2,11 +2,11 @@
 //
 // Uses the `refresh_token` cookie to issue a new access token.
 
-import { NextResponse } from "next/server";
-import { verifyRefreshToken } from "@/lib/auth/jwt";
+import { NextResponse, type NextRequest } from "next/server";
+import { verifyRefreshToken, signAccessToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/db";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const cookie = request.cookies.get("refresh_token");
     if (!cookie) {
@@ -57,19 +57,8 @@ export async function POST(request: Request) {
     return res;
   } catch (error) {
     console.error("Refresh failed:", error);
-    return NextResponse.json(
-      { detail: "An unexpected error occurred." },
-      { status: 500 },
-    );
+    return NextResponse.json({ detail: "An unexpected error occurred." }, {
+      status: 500,
+    });
   }
-}
-
-async function signAccessToken(user: {
-  id: bigint;
-  role: string;
-  username: string;
-}): Promise<string> {
-  const { signAccessToken: jwtSignAccessToken } =
-    await import("@/lib/auth/jwt");
-  return jwtSignAccessToken(user);
 }

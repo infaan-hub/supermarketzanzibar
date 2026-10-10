@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { findManyCustomers, countCustomers } from "@/lib/customers";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where = {};
+    const where: Prisma.UserWhereInput = {};
     if (search) {
       where.OR = [
         { fullName: { contains: search, mode: "insensitive" as const } },
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
           isActive: true,
           createdAt: true,
         },
-        take,
+        take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
         orderBy: { createdAt: "desc" },
       }),

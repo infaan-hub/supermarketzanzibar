@@ -50,7 +50,7 @@ export async function compressProductImage(bytes: Uint8Array): Promise<Buffer> {
       withoutEnlargement: true,
     });
   }
-  let current = pipeline.jpeg({ quality: 85, mozjpeg: false });
+  const current = pipeline.jpeg({ quality: 85, mozjpeg: false });
   let payload = await current.toBuffer();
   if (payload.length <= MAX_PRODUCT_IMAGE_BYTES) {
     // Try lower qualities first pass already handled; Django iterates qualities.

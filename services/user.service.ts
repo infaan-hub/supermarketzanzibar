@@ -87,11 +87,16 @@ export async function findManyUsers(options: UserFindOptions = {}) {
   });
 }
 
-export async function createUser(data: UserCreateInput) {
+export async function createUser(
+  data: UserCreateInput & { role: Role },
+) {
   return prisma.user.create({ data });
 }
 
-export async function updateUser(id: bigint, data: Partial<UserCreateInput>) {
+export async function updateUser(
+  id: bigint,
+  data: Partial<UserCreateInput & { role: Role }>,
+) {
   return prisma.user.update({ where: { id }, data });
 }
 

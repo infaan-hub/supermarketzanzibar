@@ -3,17 +3,12 @@
 // Ports Django `Category` model and related views.
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 
 export interface CategoryFindOptions {
-  where?: {
-    id?: bigint;
-    name?: string;
-    description?: string;
-  };
-  include?: {
-    products?: boolean;
-  };
-  orderBy?: { id?: "asc" | "desc"; name?: "asc" | "desc" };
+  where?: Prisma.CategoryWhereInput;
+  include?: Prisma.CategoryInclude;
+  orderBy?: Prisma.CategoryOrderByWithRelationInput;
   take?: number;
   skip?: number;
 }
@@ -35,7 +30,7 @@ export async function findCategoryById(id: bigint) {
 }
 
 export async function findCategoryByName(name: string) {
-  return prisma.category.findUnique({ where: { name } });
+  return prisma.category.findFirst({ where: { name } });
 }
 
 export async function findManyCategories(options: CategoryFindOptions = {}) {
@@ -58,7 +53,9 @@ export async function deleteCategory(id: bigint) {
   return prisma.category.delete({ where: { id } });
 }
 
-export async function countCategories(options: { where?: { isActive?: boolean } } = {}) {
+export async function countCategories(
+  options: { where?: Prisma.CategoryWhereInput } = {},
+) {
   return prisma.category.count(options);
 }
 

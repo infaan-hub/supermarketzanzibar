@@ -3,24 +3,27 @@
 // Creates an order, processes payment, generates receipt, and sends email.
 
 import { NextResponse } from "next/server";
-import { createSale, listItems } from "@/lib/sales";
-import { processPayment } from "@/lib/payments";
 import { generateReceipt } from "@/lib/receipt";
 import { sendOrderEmail } from "@/lib/mail";
 import { isEmailValid, text as cleanText } from "@/lib/validation";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+
+const TAX_RATE = new Prisma.Decimal("0.15");
+
+interface CheckoutItem {
+  productId: string;
+  quantity: number;
+  price: number;
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const items = (body.items ?? []) as {
-      productId: string;
-      quantity: number;
-      price: number;
-    }[];
+    const items = (body.items ?? []) as CheckoutItem[];
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { detail: "At least one item is required." },
         { status: 400 },
@@ -34,128 +37,160 @@ export async function POST(request: Request) {
       );
     }
 
-    const customerEmail = cleanText(body.customerEmail);
-    const customerFullName = cleanText(body.customerFullName);
+    const customerEmail = cleanText(body.customerEmail) ?? "";
+    const customerFullName = cleanText(body.customerFullName) ?? "";
+    const customerPhone = cleanText(body.customerPhone) ?? "";
+    const customerAddress = cleanText(body.customerAddress) ?? "";
     const paymentMethod = body.paymentMethod
       ? (body.paymentMethod as "cash" | "mobile_money" | "card")
       : "mobile_money";
 
-    // Start transaction: lock rows, deduct stock, create sale, process payment
-    const prisma = await import("@/lib/db").then((m) => m.prisma);
-
     const sale = await prisma.$transaction(async (tx) => {
-      // 1. Lock product rows and verify stock
+      // 1. Lock product rows and verify stock.
       const products = await tx.product.findMany({
         where: {
           id: { in: items.map((i) => BigInt(i.productId)) },
+          isActive: true,
         },
         select: {
           id: true,
           name: true,
-          stockQuantity: true,
+          quantity: true,
           price: true,
           barcode: true,
         },
       });
+
+      const lines: {
+        productId: bigint;
+        productName: string;
+        quantity: number;
+        price: Prisma.Decimal;
+        total: Prisma.Decimal;
+      }[] = [];
 
       for (const item of items) {
         const product = products.find((p) => p.id === BigInt(item.productId));
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`);
         }
-        if (product.stockQuantity < item.quantity) {
+        if (product.quantity < item.quantity) {
           throw new Error(
-            `Insufficient stock for "${product.name}". Available: ${product.stockQuantity}, requested: ${item.quantity}`,
+            `Insufficient stock for "${product.name}". Available: ${product.quantity}, requested: ${item.quantity}`,
           );
         }
-      }
-
-      // 2. Deduct stock
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: BigInt(item.productId) },
-          data: { stockQuantity: { decrement: item.quantity } },
+        const price = new Prisma.Decimal(item.price);
+        lines.push({
+          productId: product.id,
+          productName: product.name,
+          quantity: item.quantity,
+          price,
+          total: price.times(item.quantity),
         });
       }
 
-      // 3. Create sale
-      const now = new Date().toISOString();
-      const sale = await tx.sale.create({
+      // 2. Deduct stock and record the movements.
+      for (const line of lines) {
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { quantity: { decrement: line.quantity } },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: line.productId,
+            quantity: line.quantity,
+            movementType: "OUT",
+          },
+        });
+      }
+
+      const totalAmount = lines.reduce(
+        (sum, l) => sum.plus(l.total),
+        new Prisma.Decimal(0),
+      );
+      const taxAmount = totalAmount.times(TAX_RATE);
+      const finalAmount = totalAmount.plus(taxAmount);
+
+      // 3. Create the sale and its items.
+      const created = await tx.sale.create({
         data: {
+          totalAmount,
+          tax: taxAmount,
+          discount: new Prisma.Decimal(0),
+          finalAmount,
+          paymentMethod,
+          paymentConfirmed: true,
+          termsAccepted: true,
           customerFullName,
           customerEmail,
-          paymentMethod,
-          createdAt: now,
-          updatedAt: now,
+          customerPhone,
+          customerAddress,
           status: "completed",
-          subtotal: items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-          taxAmount: items.reduce(
-            (sum, i) => sum + i.price * i.quantity * 0.15,
-            0,
-          ),
-          grandTotal: items.reduce(
-            (sum, i) => sum + i.price * i.quantity * 1.15,
-            0,
-          ),
+          date: new Date(),
           items: {
-            create: items.map((i) => ({
-              productId: BigInt(i.productId),
-              productName: "",
-              price: i.price,
-              quantity: i.quantity,
-              lineTotal: i.price * i.quantity,
+            create: lines.map((l) => ({
+              productId: l.productId,
+              quantity: l.quantity,
+              price: l.price,
+              total: l.total,
             })),
           },
         },
-        include: { items: true },
+        include: { items: true, payment: true },
       });
 
-      // 4. Process payment
+      // 4. Process the payment.
+      const controlNumber = `ZN${new Date().getFullYear().toString().slice(2)}${String(
+        new Date().getMonth() + 1,
+      ).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${Math.floor(
+        Math.random() * 100000000,
+      )
+        .toString()
+        .padStart(8, "0")}`;
+
       const payment = await tx.payment.create({
         data: {
-          saleId: sale.id,
-          amount: sale.grandTotal,
+          saleId: created.id,
+          controlNumber,
           paymentMethod,
-          status: "completed",
-          referenceNumber: `ZN${new Date().getFullYear().toString().slice(2)}${
-            String(new Date().getMonth() + 1).padStart(2, "0")
-          }${String(new Date().getDate()).padStart(2, "0")}${Math.floor(
-            Math.random() * 100000000,
-          )
-            .toString()
-            .padStart(8, "0")}`,
-          createdAt: now,
-          updatedAt: now,
+          status: "confirmed",
         },
       });
 
-      return {
-        ...sale,
-        payment,
-      };
+      return { ...created, payment, lines };
     });
 
-    // Generate receipt
+    const subtotal = Number(sale.totalAmount);
+    const taxAmount = Number(sale.tax);
+    const grandTotal = Number(sale.finalAmount);
+
+    // Generate receipt.
     const receipt = generateReceipt({
       saleId: sale.id.toString(),
       customerFullName,
       customerEmail,
-      items: sale.items.map((i) => ({
-        productId: i.productId.toString(),
-        productName: i.productName,
-        price: i.price,
-        quantity: i.quantity,
-        lineTotal: i.lineTotal,
-      })),
-      subtotal: sale.subtotal,
-      taxAmount: sale.taxAmount,
-      grandTotal: sale.grandTotal,
+      items: sale.items.map((i) => {
+        const line = sale.lines.find(
+          (l: { productId: bigint }) => l.productId === i.productId,
+        );
+        return {
+          productId: i.productId.toString(),
+          productName: line?.productName ?? "",
+          price: Number(i.price),
+          quantity: i.quantity,
+          lineTotal: Number(i.total),
+        };
+      }),
+      subtotal,
+      taxAmount,
+      grandTotal,
       paymentMethod: sale.paymentMethod,
-      paymentStatus: sale.paymentStatus,
+      paymentStatus: sale.payment.status,
       createdAt: sale.createdAt,
     });
 
-    // Send email
+    // Send email.
     await sendOrderEmail(customerEmail, "Order Receipt", receipt);
 
     return NextResponse.json({
@@ -165,10 +200,11 @@ export async function POST(request: Request) {
         customerEmail,
         paymentMethod: sale.paymentMethod,
         status: sale.status,
-        subtotal: sale.subtotal,
-        taxAmount: sale.taxAmount,
-        grandTotal: sale.grandTotal,
-        paymentStatus: sale.paymentStatus,
+        subtotal,
+        taxAmount,
+        grandTotal,
+        paymentStatus: sale.payment.status,
+        controlNumber: sale.payment.controlNumber,
         createdAt: sale.createdAt,
       },
       receipt,

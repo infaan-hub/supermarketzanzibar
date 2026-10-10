@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { findManySuppliers, countSuppliers } from "@/lib/suppliers";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -12,13 +13,21 @@ export async function GET(request: Request) {
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where = {};
+    const where: Prisma.SupplierWhereInput = {};
     if (search) {
       where.OR = [
         { companyName: { contains: search, mode: "insensitive" as const } },
-        { contactName: { contains: search, mode: "insensitive" as const } },
         { phone: { contains: search, mode: "insensitive" as const } },
-        { email: { contains: search, mode: "insensitive" as const } },
+        {
+          user: {
+            is: {
+              OR: [
+                { fullName: { contains: search, mode: "insensitive" as const } },
+                { email: { contains: search, mode: "insensitive" as const } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -28,17 +37,7 @@ export async function GET(request: Request) {
     const [suppliers, total] = await Promise.all([
       findManySuppliers({
         where,
-        select: {
-          id: true,
-          companyName: true,
-          contactName: true,
-          phone: true,
-          email: true,
-          address: true,
-          isActive: true,
-          createdAt: true,
-        },
-        take,
+        take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
       }),
       countSuppliers(where),

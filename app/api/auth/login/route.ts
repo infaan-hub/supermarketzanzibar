@@ -2,13 +2,13 @@
 //
 // Verifies credentials and returns access + refresh tokens.
 
-import { NextResponse } from "next/server";
-import { authenticate, type CurrentUser } from "@/lib/auth/request";
+import { NextResponse, type NextRequest } from "next/server";
+import { authenticate } from "@/lib/auth/request";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { validatePassword, type LoginInput } from "@/lib/auth/password";
 import { prisma } from "@/lib/db";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as LoginInput;
     const user = await prisma.user.findUnique({
@@ -39,48 +39,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const auth = await authenticate(request as unknown as Request);
-    if (!auth.ok) {
-      const accessToken = await signAccessToken({
-        id: user.id,
-        role: user.role,
-        username: user.username,
-      });
-      const refreshToken = await signRefreshToken({
-        id: user.id,
-        role: user.role,
-        username: user.username,
-      });
-
-      const res = NextResponse.json({
-        access: accessToken,
-        refresh: refreshToken,
-        user: {
-          id: user.id.toString(),
-          username: user.username,
-          email: user.email,
-          full_name: user.fullName,
-          phone: user.phone,
-          role: user.role,
-          is_active: user.isActive,
-        },
-      });
-
-      const refreshExpires = new Date();
-      refreshExpires.setDate(refreshExpires.getDate() + 7);
-
-      res.cookies.set("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60,
-        path: "/",
-      });
-
-      return res;
+    const auth = await authenticate(request);
+    if (auth.ok) {
+      return NextResponse.json(
+        { detail: "Already authenticated." },
+        { status: 400 },
+      );
     }
 
-    return NextResponse.json({ detail: auth.error }, { status: 401 });
+    const accessToken = await signAccessToken({
+      id: user.id,
+      role: user.role,
+      username: user.username,
+    });
+    const refreshToken = await signRefreshToken({
+      id: user.id,
+      role: user.role,
+      username: user.username,
+    });
+
+    const res = NextResponse.json({
+      access: accessToken,
+      refresh: refreshToken,
+      user: {
+        id: user.id.toString(),
+        username: user.username,
+        email: user.email,
+        full_name: user.fullName,
+        phone: user.phone,
+        role: user.role,
+        is_active: user.isActive,
+      },
+    });
+
+    res.cookies.set("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+      path: "/",
+    });
+
+    return res;
   } catch (error) {
     console.error("Login failed:", error);
     return NextResponse.json(

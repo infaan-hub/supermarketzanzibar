@@ -9,10 +9,9 @@ export async function GET() {
   try {
     const [categories, total] = await Promise.all([
       findManyCategories({
-        where: { isActive: true },
         orderBy: { name: "asc" },
       }),
-      countCategories({ where: { isActive: true } }),
+      countCategories(),
     ]);
 
     return NextResponse.json({
@@ -20,7 +19,7 @@ export async function GET() {
         id: c.id.toString(),
         name: c.name,
         description: c.description,
-        image_available: Boolean(c.imageData),
+        image_available: false,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),

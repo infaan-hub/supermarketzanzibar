@@ -3,26 +3,20 @@
 // Ports Django `Customer` model and related views.
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { CurrentUser } from "@/lib/auth/request";
 
 export interface CustomerFindOptions {
-  where?: {
-    id?: bigint;
-    userId?: bigint;
-    phone?: string;
-  };
-  include?: {
-    user?: boolean;
-    sales?: boolean;
-  };
-  orderBy?: { id?: "asc" | "desc" };
+  where?: Prisma.CustomerWhereInput;
+  include?: Prisma.CustomerInclude;
+  orderBy?: Prisma.CustomerOrderByWithRelationInput;
   take?: number;
   skip?: number;
 }
 
 export interface CustomerCreateInput {
   phone: string;
-  userId?: bigint;
+  userId: bigint;
 }
 
 export async function findCustomer(options: CustomerFindOptions) {
@@ -41,7 +35,7 @@ export async function findCustomerByUserId(userId: bigint) {
 }
 
 export async function findCustomerByPhone(phone: string) {
-  return prisma.customer.findUnique({ where: { phone } });
+  return prisma.customer.findFirst({ where: { phone } });
 }
 
 export async function findManyCustomers(options: CustomerFindOptions = {}) {
@@ -96,6 +90,8 @@ export async function getCustomerSalesWithHistory(customerId: bigint) {
   });
 }
 
-export async function countCustomers(options: { where?: { isActive?: boolean } } = {}) {
+export async function countCustomers(
+  options: { where?: Prisma.CustomerWhereInput } = {},
+) {
   return prisma.customer.count(options);
 }

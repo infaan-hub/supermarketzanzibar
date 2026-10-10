@@ -77,6 +77,15 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(expected, candidate);
 }
 
+export interface LoginInput {
+  username: string;
+  password: string;
+}
+
+export function validatePassword(input: string, stored: string): boolean {
+  return verifyPassword(input, stored);
+}
+
 export function isUsablePassword(stored: string | null | undefined): boolean {
   // Google-only accounts have an unusable password starting with "!".
   return Boolean(stored) && !stored!.startsWith("!");

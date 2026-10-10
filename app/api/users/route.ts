@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { findManyUsers, countUsers } from "@/lib/users";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -13,10 +14,7 @@ export async function GET(request: Request) {
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where: {
-      OR?: { username: string; fullName: string }[];
-      role?: string;
-    } = {};
+    const where: Prisma.UserWhereInput = {};
     if (search) {
       where.OR = [
         { username: { contains: search, mode: "insensitive" as const } },
@@ -41,7 +39,7 @@ export async function GET(request: Request) {
           isActive: true,
           createdAt: true,
         },
-        take,
+        take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
       }),
       countUsers(where),

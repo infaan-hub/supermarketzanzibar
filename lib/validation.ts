@@ -43,11 +43,23 @@ export function requireInt(value: unknown, field: string, min = 0): number {
   if (n < min) fail(field, `Ensure this value is greater than or equal to ${min}.`);
   return n;
 }
-
 // Parse a value that may be a JSON string (multipart form) or already parsed.
 export function asBool(value: unknown, fallback = false): boolean {
   if (value === undefined || value === null || value === "") return fallback;
   if (typeof value === "boolean") return value;
   const s = String(value).toLowerCase();
   return s === "true" || s === "1" || s === "on" || s === "yes";
+}
+
+// Extract a trimmed text string from a value.
+export function text(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const s = String(value).trim();
+  return s === "" ? undefined : s;
+}
+
+// Validate an email address.
+export function isEmailValid(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }

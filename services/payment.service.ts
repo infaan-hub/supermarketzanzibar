@@ -3,6 +3,7 @@
 // Ports Django `Payment` model and related views.
 
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import type { CurrentUser } from "@/lib/auth/request";
 
 export type PaymentStatus = "pending" | "confirmed" | "failed" | "cancelled" | "refunded";
@@ -14,7 +15,7 @@ export interface PaymentCreateInput {
   controlNumber: string;
   paymentMethod: PaymentMethod;
   status?: PaymentStatus;
-  proofImageData?: Uint8Array | null;
+  proofImageData?: Uint8Array<ArrayBuffer> | null;
   proofImageName?: string;
   proofImageContentType?: string;
   confirmedById?: bigint;
@@ -104,18 +105,18 @@ export async function getConfirmedPayments() {
 }
 
 export async function getPaymentSummary() {
-  const summary = await prisma.payment.groupBy({
-    by: ["status"],
-    _count: { id: true },
-    _sum: { sale: { finalAmount: true } },
+  const payments = await prisma.payment.findMany({
+    include: { sale: { select: { finalAmount: true } } },
   });
 
-  const result = {} as Record<string, { count: number; totalAmount: string }>;
-  for (const s of summary) {
-    result[s.status] = {
-      count: s._count.id,
-      totalAmount: s._sum?.sale?.finalAmount?.toFixed(2) ?? "0.00",
-    };
+  const result: Record<string, { count: number; totalAmount: string }> = {};
+  for (const payment of payments) {
+    const entry = result[payment.status] ?? { count: 0, totalAmount: "0.00" };
+    entry.count += 1;
+    entry.totalAmount = new Prisma.Decimal(entry.totalAmount)
+      .plus(payment.sale.finalAmount)
+      .toFixed(2);
+    result[payment.status] = entry;
   }
   return result;
 }

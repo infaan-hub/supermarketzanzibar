@@ -3,6 +3,8 @@
 // Shows key metrics: total sales today, total sales week, low stock count,
 // pending payments, and recent orders.
 
+"use client";
+
 import { useState, useEffect } from "react";
 
 interface DashboardStats {

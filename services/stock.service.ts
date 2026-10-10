@@ -1,4 +1,4 @@
-// Stock management service: stock movements, low-stock alerts.
+﻿// Stock management service: stock movements, low-stock alerts.
 //
 // Ports Django `StockMovement` model and related views.
 
@@ -35,7 +35,7 @@ export async function findMovement(options: StockMovementFindOptions) {
 
 export async function findMovements(options: StockMovementFindOptions = {}) {
   return prisma.stockMovement.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
     ...options,
   });
 }
@@ -43,21 +43,21 @@ export async function findMovements(options: StockMovementFindOptions = {}) {
 export async function findMovementsByProduct(productId: bigint) {
   return prisma.stockMovement.findMany({
     where: { productId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
   });
 }
 
 export async function findMovementsBySaleItem(saleItemId: bigint) {
   return prisma.stockMovement.findMany({
     where: { saleItemId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
   });
 }
 
 export async function findMovementsByType(movementType: MovementType) {
   return prisma.stockMovement.findMany({
     where: { movementType },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
   });
 }
 
@@ -67,7 +67,7 @@ export async function getProductStockLevels() {
     _sum: { quantity: true },
   });
 
-  const totals = new Map<bigint, { [key in MovementType]?: number }>();
+  const totals = new Map<bigint, Record<string, number>>();
 
   for (const m of movements) {
     const current = totals.get(m.productId) ?? {};
@@ -81,7 +81,7 @@ export async function getProductStockLevels() {
   const entries = Array.from(totals.entries());
   for (const [productId, types] of entries) {
     let net = 0;
-    for (const type of Object.keys(types) as MovementType[]) {
+    for (const type of Object.keys(types)) {
       if (type === "IN" || type === "RETURN" || type === "SALE") {
         net += types[type] ?? 0;
       } else if (type === "OUT") {
@@ -103,7 +103,7 @@ export async function getStockLevelsByProductIds(ids: bigint[]) {
     where: { productId: { in: ids } },
   });
 
-  const totals = new Map<bigint, { [key in MovementType]?: number }>();
+  const totals = new Map<bigint, Record<string, number>>();
 
   for (const m of movements) {
     const current = totals.get(m.productId) ?? {};
@@ -116,9 +116,9 @@ export async function getStockLevelsByProductIds(ids: bigint[]) {
   const result = [];
   for (const id of ids) {
     let net = 0;
-    const details = {};
+    const details: Record<string, number> = {};
     const types = totals.get(id) ?? {};
-    for (const type of Object.keys(types) as MovementType[]) {
+    for (const type of Object.keys(types)) {
       const qty = types[type] ?? 0;
       details[type] = qty;
       if (type === "IN" || type === "RETURN" || type === "SALE") {
@@ -142,7 +142,7 @@ export async function countMovements(options: { where?: { movementType?: Movemen
 export async function getStockMovementHistory(productId: bigint, limit = 100) {
   return prisma.stockMovement.findMany({
     where: { productId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
     take: limit,
   });
 }

@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { findManySales, countSales } from "@/lib/sales";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -14,19 +15,16 @@ export async function GET(request: Request) {
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where: {
-      OR?: { status: string }[];
-      createdAt?: { gte?: string; lte?: string };
-    } = {};
+    const where: Prisma.SaleWhereInput = {};
 
     if (status) {
-      where.OR = [{ status: status as "pending" | "completed" | "cancelled" }];
+      where.status = status;
     }
 
     if (start || end) {
       where.createdAt = {};
-      if (start) where.createdAt.gte = start;
-      if (end) where.createdAt.lte = end;
+      if (start) where.createdAt.gte = new Date(start);
+      if (end) where.createdAt.lte = new Date(end);
     }
 
     const takeNum = take ? Math.min(Number(take), 100) : 20;
@@ -35,20 +33,7 @@ export async function GET(request: Request) {
     const [sales, total] = await Promise.all([
       findManySales({
         where,
-        select: {
-          id: true,
-          customer: true,
-          totalAmount: true,
-          taxAmount: true,
-          changeDue: true,
-          grandTotal: true,
-          status: true,
-          paymentMethod: true,
-          paymentStatus: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        take,
+        take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
         orderBy: { createdAt: "desc" },
       }),
@@ -63,6 +48,7 @@ export async function GET(request: Request) {
           : null,
         totalAmount: s.totalAmount,
         taxAmount: s.taxAmount,
+        discount: s.discount,
         changeDue: s.changeDue,
         grandTotal: s.grandTotal,
         status: s.status,

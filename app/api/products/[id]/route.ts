@@ -1,11 +1,11 @@
 // GET /api/products/[id] - Get a single product by ID.
 
 import { NextResponse } from "next/server";
-import { getProductById, getProductsByCategory } from "@/lib/products";
+import { getProductById } from "@/lib/products";
 import { getCategoryById } from "@/lib/categories";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {

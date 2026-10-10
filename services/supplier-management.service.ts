@@ -44,7 +44,9 @@ export async function importProductsForSupplier(data: SupplierProductImportInput
     }),
   );
 
-  const validCreated = created.filter((p): p is { id: bigint } => p !== null);
+  const validCreated = created.filter(
+    (p): p is NonNullable<typeof p> => p !== null,
+  );
 
   return {
     supplierId,
