@@ -1,6 +1,34 @@
-__pycache__/
-*.py[cod]
-dist/
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# testing
+/coverage
+
+# backups of the legacy database/media (user data — never commit)
+/backups/
+
+# misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+
+# env files — never commit secrets
 .env
 .env.*
 !.env.example
+
+# legacy python
+__pycache__/
+*.py[cod]
+
+# legacy frontend build
+dist/
+
+
+/generated/prisma

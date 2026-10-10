@@ -1,8 +1,47 @@
 {
-  "name": "zansupermarket-root",
+  "name": "supermarketzanzibar",
   "private": true,
+  "version": "1.0.0",
   "scripts": {
-    "install:frontend": "npm --prefix frontend/supermarketzanzibar install",
-    "build": "npm --prefix frontend/supermarketzanzibar run build"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
+    "axios": "^1.20.0",
+    "bwip-js": "^4.11.4",
+    "jose": "^6.2.12",
+    "next": "^15.5.27",
+    "nodemailer": "^10.0.16",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^7.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "dotenv": "^17.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.5.27",
+    "prisma": "^6.19.3",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
   }
 }
