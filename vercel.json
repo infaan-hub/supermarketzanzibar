@@ -1,7 +1,6 @@
 {
-  "installCommand": "npm --prefix frontend/supermarketzanzibar install",
-  "buildCommand": "npm --prefix frontend/supermarketzanzibar run build",
-  "outputDirectory": "frontend/supermarketzanzibar/dist",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "rewrites": [
     {
       "source": "/(.*)",
