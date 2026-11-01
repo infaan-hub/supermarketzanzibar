@@ -2,14 +2,14 @@
 //
 // Returns product-stock pairs for inventory management.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findStockLevels } from "@/lib/stock";
 
 export async function GET() {
   try {
     const stock = await findStockLevels();
 
-    return NextResponse.json({
+    return json({
       stock: stock.map((s) => ({
         productId: s.productId.toString(),
         productName: s.productName,
@@ -23,7 +23,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("List stock failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );

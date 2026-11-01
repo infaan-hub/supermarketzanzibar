@@ -2,7 +2,7 @@
 //
 // Returns customer records for look-up and order history.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManyCustomers, countCustomers } from "@/lib/customers";
 import type { Prisma } from "@prisma/client";
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       countCustomers(where),
     ]);
 
-    return NextResponse.json({
+    return json({
       customers: customers.map((c) => ({
         id: c.id.toString(),
         name: c.fullName,
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List customers failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to manage customers." },
     { status: 403 },
   );

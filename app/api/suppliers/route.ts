@@ -2,7 +2,7 @@
 //
 // Returns supplier records for vendor management.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManySuppliers, countSuppliers } from "@/lib/suppliers";
 import type { Prisma } from "@prisma/client";
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       countSuppliers(where),
     ]);
 
-    return NextResponse.json({
+    return json({
       suppliers: suppliers.map((s) => ({
         id: s.id.toString(),
         companyName: s.companyName,
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List suppliers failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to manage suppliers." },
     { status: 403 },
   );

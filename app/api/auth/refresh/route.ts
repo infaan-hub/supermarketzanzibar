@@ -2,7 +2,8 @@
 //
 // Uses the `refresh_token` cookie to issue a new access token.
 
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { json } from "@/lib/http";
 import { verifyRefreshToken, signAccessToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/db";
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const cookie = request.cookies.get("refresh_token");
     if (!cookie) {
-      return NextResponse.json(
+      return json(
         { detail: "Refresh token not found." },
         { status: 401 },
       );
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     try {
       claims = await verifyRefreshToken(cookie.value);
     } catch {
-      return NextResponse.json(
+      return json(
         { detail: "Invalid or expired refresh token." },
         { status: 401 },
       );
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user || !user.isActive) {
-      return NextResponse.json(
+      return json(
         { detail: "User not found or inactive." },
         { status: 401 },
       );
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       username: user.username,
     });
 
-    const res = NextResponse.json({
+    const res = json({
       access: accessToken,
       user: {
         id: user.id.toString(),
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     return res;
   } catch (error) {
     console.error("Refresh failed:", error);
-    return NextResponse.json({ detail: "An unexpected error occurred." }, {
+    return json({ detail: "An unexpected error occurred." }, {
       status: 500,
     });
   }

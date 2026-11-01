@@ -2,7 +2,7 @@
 //
 // Returns order records for the POS dashboard.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManySales, countSales } from "@/lib/sales";
 import type { Prisma } from "@prisma/client";
 
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       countSales(where),
     ]);
 
-    return NextResponse.json({
+    return json({
       sales: sales.map((s) => ({
         id: s.id.toString(),
         customer: s.customer
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List sales failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the POS / checkout flow to create sales." },
     { status: 403 },
   );

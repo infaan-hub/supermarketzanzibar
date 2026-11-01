@@ -1,6 +1,6 @@
 // GET /api/products/[id] - Get a single product by ID.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { getProductById } from "@/lib/products";
 import { getCategoryById } from "@/lib/categories";
 
@@ -12,14 +12,14 @@ export async function GET(
     const { id } = await params;
     const product = await getProductById(BigInt(id));
     if (!product) {
-      return NextResponse.json({ detail: "Product not found." }, { status: 404 });
+      return json({ detail: "Product not found." }, { status: 404 });
     }
 
     const category = product.category
       ? await getCategoryById(product.category.id)
       : null;
 
-    return NextResponse.json({
+    return json({
       id: product.id.toString(),
       name: product.name,
       slug: product.slug,
@@ -38,7 +38,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Get product failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );

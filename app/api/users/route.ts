@@ -2,7 +2,7 @@
 //
 // Returns user accounts for admin management.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManyUsers, countUsers } from "@/lib/users";
 import type { Prisma } from "@prisma/client";
 
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       countUsers(where),
     ]);
 
-    return NextResponse.json({
+    return json({
       users: users.map((u) => ({
         id: u.id.toString(),
         username: u.username,
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List users failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to manage users." },
     { status: 403 },
   );

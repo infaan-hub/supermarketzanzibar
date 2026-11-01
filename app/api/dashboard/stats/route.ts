@@ -3,7 +3,7 @@
 // Computed from the same Prisma models that back the other API routes, so the
 // dashboard stays consistent with the rest of the system.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { prisma } from "@/lib/db";
 
 // Default inventory threshold (mirrors lib/stock.ts).
@@ -61,7 +61,7 @@ export async function GET() {
       }),
     ]);
 
-    return NextResponse.json({
+    return json({
       totalSalesToday: toNumber(salesToday._sum.finalAmount ?? 0),
       totalSalesWeek: toNumber(salesWeek._sum.finalAmount ?? 0),
       totalSalesMonth: toNumber(salesMonth._sum.finalAmount ?? 0),
@@ -72,7 +72,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Dashboard stats failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );

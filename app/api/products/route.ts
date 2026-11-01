@@ -2,7 +2,7 @@
 //
 // Returns active products with basic info for display.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManyProducts, countProducts } from "@/lib/products";
 
 export async function GET(request: Request) {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       countProducts(where),
     ]);
 
-    return NextResponse.json({
+    return json({
       products: products.map((p) => ({
         id: p.id.toString(),
         name: p.name,
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List products failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to create products." },
     { status: 403 },
   );

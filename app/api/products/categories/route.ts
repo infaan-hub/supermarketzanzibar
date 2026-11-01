@@ -2,7 +2,7 @@
 //
 // Used by the product picker and category filter.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManyCategories, countCategories } from "@/lib/categories";
 
 export async function GET() {
@@ -14,7 +14,7 @@ export async function GET() {
       countCategories(),
     ]);
 
-    return NextResponse.json({
+    return json({
       categories: categories.map((c) => ({
         id: c.id.toString(),
         name: c.name,
@@ -27,7 +27,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("List categories failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to manage categories." },
     { status: 403 },
   );

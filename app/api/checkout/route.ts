@@ -2,7 +2,7 @@
 //
 // Creates an order, processes payment, generates receipt, and sends email.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { generateReceipt } from "@/lib/receipt";
 import { sendOrderEmail } from "@/lib/mail";
 import { isEmailValid, text as cleanText } from "@/lib/validation";
@@ -24,14 +24,14 @@ export async function POST(request: Request) {
     const items = (body.items ?? []) as CheckoutItem[];
 
     if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
+      return json(
         { detail: "At least one item is required." },
         { status: 400 },
       );
     }
 
     if (!isEmailValid(body.customerEmail)) {
-      return NextResponse.json(
+      return json(
         { detail: "A valid customer email is required." },
         { status: 400 },
       );
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     // Send email.
     await sendOrderEmail(customerEmail, "Order Receipt", receipt);
 
-    return NextResponse.json({
+    return json({
       sale: {
         id: sale.id.toString(),
         customerFullName,
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Checkout failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: error instanceof Error ? error.message : "An unexpected error occurred." },
       { status: 500 },
     );

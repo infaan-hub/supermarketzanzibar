@@ -2,7 +2,8 @@
 //
 // Verifies credentials and returns access + refresh tokens.
 
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { json } from "@/lib/http";
 import { authenticate } from "@/lib/auth/request";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { validatePassword, type LoginInput } from "@/lib/auth/password";
@@ -26,14 +27,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user || !validatePassword(body.password, user.password)) {
-      return NextResponse.json(
+      return json(
         { detail: "Invalid credentials." },
         { status: 401 },
       );
     }
 
     if (!user.isActive) {
-      return NextResponse.json(
+      return json(
         { detail: "Account is disabled." },
         { status: 403 },
       );
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const auth = await authenticate(request);
     if (auth.ok) {
-      return NextResponse.json(
+      return json(
         { detail: "Already authenticated." },
         { status: 400 },
       );
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       username: user.username,
     });
 
-    const res = NextResponse.json({
+    const res = json({
       access: accessToken,
       refresh: refreshToken,
       user: {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     return res;
   } catch (error) {
     console.error("Login failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -91,5 +92,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ detail: "Use POST to log in." }, { status: 405 });
+  return json({ detail: "Use POST to log in." }, { status: 405 });
 }

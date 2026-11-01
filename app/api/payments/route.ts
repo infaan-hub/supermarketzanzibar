@@ -2,7 +2,7 @@
 //
 // Handles cash, mobile money, and card payment methods.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { processPayment } from "@/lib/payments";
 
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     };
 
     if (!saleId || amount == null) {
-      return NextResponse.json(
+      return json(
         { detail: "saleId and amount are required." },
         { status: 400 },
       );
@@ -30,10 +30,10 @@ export async function POST(request: Request) {
       reference,
     });
 
-    return NextResponse.json(result);
+    return json(result);
   } catch (error) {
     console.error("Payment failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return NextResponse.json(
+  return json(
     { detail: "POST /api/payments to process a payment." },
     { status: 405 },
   );

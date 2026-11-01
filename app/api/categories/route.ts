@@ -2,7 +2,7 @@
 //
 // Returns category groups for filtering and display.
 
-import { NextResponse } from "next/server";
+import { json } from "@/lib/http";
 import { findManyCategories, countCategories } from "@/lib/categories";
 import type { Prisma } from "@prisma/client";
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       countCategories({ where }),
     ]);
 
-    return NextResponse.json({
+    return json({
       categories: categories.map((c) => ({
         id: c.id.toString(),
         name: c.name,
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("List categories failed:", error);
-    return NextResponse.json(
+    return json(
       { detail: "An unexpected error occurred." },
       { status: 500 },
     );
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  return NextResponse.json(
+  return json(
     { detail: "Use the admin dashboard to manage categories." },
     { status: 403 },
   );
