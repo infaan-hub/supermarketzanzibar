@@ -151,11 +151,11 @@ export async function fetchPayments(): Promise<PaymentsResponse> {
 /* ------------------------------------------------------------------ */
 
 export async function fetchDashboard(): Promise<DashboardResponse> {
-  const [stats, recentSales] = await Promise.all([
+  const [stats, salesResponse] = await Promise.all([
     request<DashboardResponse["stats"]>("/api/dashboard/stats"),
-    request<DashboardResponse["recentSales"]>(
+    request<{ sales: DashboardResponse["recentSales"] }>(
       "/api/sales?take=5&page=1",
     ),
   ]);
-  return { stats, recentSales };
+  return { stats, recentSales: salesResponse.sales };
 }
