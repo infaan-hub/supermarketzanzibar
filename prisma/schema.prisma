@@ -94,7 +94,7 @@ model Product {
   categoryId       BigInt?  @map("category_id")
   supplierId       BigInt?  @map("supplier_id")
   price            Decimal  @db.Decimal(10, 2)
-  costPrice        Decimal  @db.Decimal(10, 2)
+  costPrice        Decimal  @map("cost_price") @db.Decimal(10, 2)
   quantity         Int      @default(0)
   barcode          String   @unique @db.VarChar(100)
   imageData        Bytes?   @map("image_data")
