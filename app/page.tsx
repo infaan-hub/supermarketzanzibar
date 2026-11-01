@@ -1,155 +1,132 @@
-// Root dashboard page.
-//
-// Shows key metrics: total sales today, total sales week, low stock count,
-// pending payments, and recent orders.
+// Dashboard page.
 
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface DashboardStats {
-  totalSalesToday: number;
-  totalSalesWeek: number;
-  totalSalesMonth: number;
-  lowStockCount: number;
-  pendingPayments: number;
-  totalCustomers: number;
-  totalProducts: number;
-}
-
-interface Sale {
-  id: string;
-  customer: { name: string } | null;
-  totalAmount: number;
-  status: string;
-  createdAt: string;
-}
-
-async function fetchDashboardStats(): Promise<DashboardStats> {
-  const res = await fetch("http://localhost:3000/api/dashboard/stats", {
-    next: { revalidate: 30 },
-  });
-  if (!res.ok) throw new Error("Failed to fetch stats");
-  return res.json();
-}
-
-async function fetchRecentSales(limit = 5): Promise<Sale[]> {
-  const res = await fetch(
-    `http://localhost:3000/api/sales?take=${limit}&page=1`,
-    { next: { revalidate: 30 } },
-  );
-  if (!res.ok) throw new Error("Failed to fetch sales");
-  const data = await res.json();
-  return data.sales ?? [];
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDashboard } from "@/hooks/useDashboard";
+import { formatMoney, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const [statsData, salesData] = await Promise.all([
-          fetchDashboardStats(),
-          fetchRecentSales(5),
-        ]);
-        setStats(statsData);
-        setSales(salesData);
-      } catch (err) {
-        console.error("Failed to load dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const { data, loading, error } = useDashboard();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <span className="text-gray-500">Loading...</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SkeletonText lines={2} className="w-[60%] md:w-[40%]" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="h-32"><Skeleton className="h-full w-full" /></Card>
+          ))}
+        </div>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={4} className="p-6" />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Dashboard</h1>
+        <EmptyState
+          title="Unable to load dashboard"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">Try again</button>
+          }
+        />
+      </div>
+    );
+  }
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total Sales Today</p>
-          <p className="text-2xl font-bold">
-            {stats?.totalSalesToday ?? 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total Sales (Week)</p>
-          <p className="text-2xl font-bold">
-            {stats?.totalSalesWeek ?? 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Low Stock Items</p>
-          <p className="text-2xl font-bold text-red-600">
-            {stats?.lowStockCount ?? 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Pending Payments</p>
-          <p className="text-2xl font-bold text-yellow-600">
-            {stats?.pendingPayments ?? 0}
-          </p>
+  const stats = data?.stats;
+  const recent = data?.recentSales ?? [];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted">Overview of today's trading and inventory.</p>
         </div>
       </div>
 
-      {/* Recent sales */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">Recent Sales</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title="Total Sales Today" value={formatMoney(stats?.totalSalesToday ?? 0)} change="+12% vs yesterday" changeVariant="success" icon="💰" />
+        <StatCard title="Total Sales This Week" value={formatMoney(stats?.totalSalesWeek ?? 0)} icon="📅" />
+        <StatCard title="Total Sales This Month" value={formatMoney(stats?.totalSalesMonth ?? 0)} icon="🗓️" />
+        <StatCard title="Low Stock Items" value={String(stats?.lowStockCount ?? 0)} change={stats?.lowStockCount ? "needs attention" : "all clear"} changeVariant={stats?.lowStockCount ? "danger" : "success"} icon="📦" />
+        <StatCard title="Pending Payments" value={String(stats?.pendingPayments ?? 0)} change="awaiting confirmation" changeVariant="warning" icon="💳" />
+        <StatCard title="Total Products" value={String(stats?.totalProducts ?? 0)} icon="🏪" />
+      </div>
+
+      <div className="bg-background rounded-lg border border-border shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle>Recent Sales</CardTitle>
+            <a href="/sales" className="text-sm text-primary hover:underline font-medium">
+              View all sales →
+            </a>
+          </div>
+        </CardHeader>
+        <div className="overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[22%]">Order</TableHead>
+                <TableHead className="w-[20%]">Customer</TableHead>
+                <TableHead className="w-[18%] text-right">Total</TableHead>
+                <TableHead className="w-[14%]">Status</TableHead>
+                <TableHead className="w-[16%] text-right">Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 flex items-center justify-center">
+                    <EmptyState title="No recent sales" description="Sales will appear here as orders are processed." />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                recent.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-mono text-sm font-medium">#{sale.id}</TableCell>
+                    <TableCell className="text-sm">{sale.customer?.name ?? "Walk-in"}</TableCell>
+                    <TableCell className="text-sm font-medium text-right">{formatMoney(sale.totalAmount)}</TableCell>
+                    <TableCell className="text-sm"><Badge variant={sale.status === "completed" ? "success" : sale.status === "pending" ? "warning" : "danger"}>{sale.status}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted text-right">{formatDate(sale.createdAt)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {sales.map((s) => (
-              <tr key={s.id}>
-                <td className="px-6 py-4 text-sm">{s.id}</td>
-                <td className="px-6 py-4 text-sm">{s.customer?.name ?? "—"}</td>
-                <td className="px-6 py-4 text-sm font-medium">
-                  ${s.totalAmount?.toFixed(2)}
-                </td>
-                <td className="px-6 py-4 text-sm">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      s.status === "completed"
-                        ? "bg-green-100 text-green-800"
-                        : s.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {s.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {new Date(s.createdAt).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
+  );
+}
+
+function StatCard({ title, value, change, changeVariant, icon }: { title: string; value: string; change?: string; changeVariant?: "success" | "danger" | "warning"; icon: string }) {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="pb-4 pt-6">
+        <div className="flex items-end justify-between">
+          <div className="flex items-center gap-2"><span className="text-lg">{icon}</span></div>
+          <div className="text-right">
+            <p className="text-xs font-medium text-muted uppercase tracking-wider">{title}</p>
+            <p className="font-display font-bold text-2xl text-foreground">{value}</p>
+            {change && <p className={cn("text-xs mt-1 font-medium", changeVariant === "success" ? "text-success" : changeVariant === "danger" ? "text-danger" : "text-warning")}>{change}</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

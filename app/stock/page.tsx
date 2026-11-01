@@ -1,100 +1,132 @@
 // Stock page.
 //
-// List products with current stock levels and inventory alerts.
+// Inventory levels with low-stock and reorder alerts, powered by the typed API client.
 
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface StockItem {
-  productId: string;
-  productName: string;
-  category: { id: string; name: string } | null;
-  quantity: number;
-  lowStockThreshold: number;
-  reorderLevel: number;
-}
+import { Badge } from "@/components/ui/badge";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useStock } from "@/hooks/useStock";
+import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export default function StockPage() {
-  const [stock, setStock] = useState<StockItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error } = useStock();
 
-  const loadStock = async () => {
-    const res = await fetch("http://localhost:3000/api/stock");
-    if (res.ok) {
-      const data = await res.json();
-      setStock(data.stock ?? []);
-    }
-    setLoading(false);
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Inventory Stock Levels</h1>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={6} className="p-6" />
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    loadStock();
-  }, []);
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Inventory Stock Levels</h1>
+        <EmptyState
+          title="Unable to load stock"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">
+              Try again
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const stock = data?.stock ?? [];
+
+  if (stock.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Inventory Stock Levels</h1>
+            <p className="text-muted">List products with current stock levels and inventory alerts.</p>
+          </div>
+        </div>
+        <EmptyState title="No stock items" description="Inventory levels will appear here." />
+      </div>
+    );
+  }
+
+  const lowCount = stock.filter((s) => s.quantity <= s.lowStockThreshold).length;
+  const criticalCount = stock.filter((s) => s.quantity <= s.reorderLevel).length;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Inventory Stock Levels</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Inventory Stock Levels</h1>
+          <p className="text-muted">List products with current stock levels and inventory alerts.</p>
+        </div>
+        <div className="flex gap-3">
+          <Badge variant={criticalCount ? "danger" : "success"}>
+            {criticalCount} critical
+          </Badge>
+          <Badge variant={lowCount ? "warning" : "success"}>
+            {lowCount} low stock
+          </Badge>
+        </div>
+      </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-              <th className="px-6 py-3">Product</th>
-              <th className="px-6 py-3">Category</th>
-              <th className="px-6 py-3">Quantity</th>
-              <th className="px-6 py-3">Low Stock</th>
-              <th className="px-6 py-3">Reorder</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={5} className="px-6 py-4">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              : stock.map((s) => {
-                  const isLow = s.quantity <= s.lowStockThreshold;
-                  const isCritical = s.quantity <= s.reorderLevel;
-                  return (
-                    <tr key={s.productId}>
-                      <td className="px-6 py-4 font-medium">{s.productName}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {s.category?.name ?? "—"}
-                      </td>
-                      <td
-                        className={`px-6 py-4 font-medium ${
-                          isCritical
-                            ? "text-red-600"
-                            : isLow
-                            ? "text-yellow-600"
-                            : "text-green-600"
-                        }`}
-                      >
-                        {s.quantity}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm ${
-                          isLow ? "text-yellow-600" : "text-gray-500"
-                        }`}
-                      >
-                        {s.lowStockThreshold}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm ${
-                          isCritical ? "text-red-600" : "text-gray-500"
-                        }`}
-                      >
-                        {s.reorderLevel}
-                      </td>
-                    </tr>
-                  );
-                })}
-          </tbody>
-        </table>
+      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[26%]">Product</TableHead>
+              <TableHead className="w-[16%]">Category</TableHead>
+              <TableHead className="w-[14%] text-right">Quantity</TableHead>
+              <TableHead className="w-[14%] text-right">Low Stock</TableHead>
+              <TableHead className="w-[16%] text-right">Reorder</TableHead>
+              <TableHead className="w-[14%] text-right">Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {stock.map((s) => {
+              const isCritical = s.quantity <= s.reorderLevel;
+              const isLow = s.quantity <= s.lowStockThreshold;
+              return (
+                <TableRow key={s.productId}>
+                  <TableCell className="font-medium">{s.productName}</TableCell>
+                  <TableCell className="text-sm text-muted">
+                    {s.category?.name ?? "—"}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-sm font-medium text-right",
+                      isCritical
+                        ? "text-danger"
+                        : isLow
+                        ? "text-warning"
+                        : "text-success",
+                    )}
+                  >
+                    {s.quantity}
+                  </TableCell>
+                  <TableCell className="text-sm text-right text-muted">
+                    {s.lowStockThreshold}
+                  </TableCell>
+                  <TableCell className="text-sm text-right text-muted">
+                    {s.reorderLevel}
+                  </TableCell>
+                  <TableCell className="text-sm text-right text-muted">
+                    {formatDate(s.updatedAt)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -1,7 +1,83 @@
 @import "tailwindcss";
 
-/*
- * The original Django/Vite theme lives in ./legacy-theme.css. It is not
- * imported: its bare-element rules (input, button, table) target the old SPA
- * and conflict with the Tailwind utility classes the App Router pages use.
- */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap");
+
+@theme {
+  /* Supermarket Zanzibar — green grocer identity, grounded in the legacy theme.
+     Deliberate, opinionated tokens so the UI never reads as a generic default. */
+  --color-background: #ffffff;
+  --color-foreground: #213128;
+
+  --color-primary: #1f8f3a;
+  --color-primary-hover: #15722d;
+  --color-primary-soft: rgba(78, 173, 99, 0.16);
+
+  --color-muted: #668070;
+  --color-muted-foreground: rgba(102, 128, 112, 0.45);
+
+  --color-border: rgba(86, 129, 97, 0.18);
+  --color-border-hover: rgba(86, 129, 97, 0.45);
+  --color-ring: #1f8f3a;
+
+  --color-accent: #1f8f3a;
+  --color-accent-soft: rgba(78, 173, 99, 0.16);
+
+  --color-success: #1d8b38;
+  --color-success-soft: rgba(29, 139, 56, 0.12);
+
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.12);
+
+  --color-warning: #d97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.12);
+
+  --color-sidebar: rgba(255, 255, 255, 0.82);
+  --color-sidebar-border: rgba(86, 129, 97, 0.12);
+
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 16px 34px rgba(63, 91, 69, 0.08);
+  --shadow-soft: 0 18px 40px rgba(64, 84, 70, 0.10);
+  --shadow-sm: 0 4px 12px rgba(63, 91, 69, 0.04);
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+/* Visible keyboard focus — accessibility baseline */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* Reduced motion — respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

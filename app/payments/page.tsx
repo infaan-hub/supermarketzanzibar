@@ -1,95 +1,101 @@
 // Payments page.
-//
-// Process and manage payments (cash, mobile money, card).
 
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface Payment {
-  id: string;
-  saleId: string;
-  amount: number;
-  paymentMethod: string;
-  status: string;
-  referenceNumber: string;
-  createdAt: string;
-}
+import { Badge } from "@/components/ui/badge";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePayments } from "@/hooks/usePayments";
+import { formatMoney, formatDate } from "@/lib/format";
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error } = usePayments();
 
-  const loadPayments = async () => {
-    const res = await fetch("http://localhost:3000/api/payments");
-    if (res.ok) {
-      const data = await res.json();
-      setPayments(data.payments ?? []);
-    }
-    setLoading(false);
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Payments</h1>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={6} className="p-6" />
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    loadPayments();
-  }, []);
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Payments</h1>
+        <EmptyState
+          title="Unable to load payments"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">
+              Try again
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const payments = data?.payments ?? [];
+
+  if (payments.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Payments</h1>
+            <p className="text-muted">Processed payments (cash, mobile money, card).</p>
+          </div>
+        </div>
+        <EmptyState title="No payments" description="Payments will appear here as sales are completed." />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Payments</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Payments</h1>
+          <p className="text-muted">Processed payments (cash, mobile money, card).</p>
+        </div>
+      </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-              <th className="px-6 py-3">ID</th>
-              <th className="px-6 py-3">Sale</th>
-              <th className="px-6 py-3">Amount</th>
-              <th className="px-6 py-3">Method</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Reference</th>
-              <th className="px-6 py-3">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={7} className="px-6 py-4">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              : payments.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-6 py-4 font-mono text-sm">{p.id}</td>
-                    <td className="px-6 py-4 font-medium">{p.saleId}</td>
-                    <td className="px-6 py-4 font-medium">
-                      ${p.amount?.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 capitalize">
-                      {p.paymentMethod}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          p.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                      {p.referenceNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[18%] font-mono text-sm">ID</TableHead>
+              <TableHead className="w-[14%] font-mono text-sm">Sale</TableHead>
+              <TableHead className="w-[16%] text-right">Amount</TableHead>
+              <TableHead className="w-[16%]">Method</TableHead>
+              <TableHead className="w-[14%]">Status</TableHead>
+              <TableHead className="w-[14%] text-right">Reference</TableHead>
+              <TableHead className="w-[16%] text-right">Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {payments.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">#{p.id}</TableCell>
+                <TableCell className="font-mono text-sm">{p.saleId}</TableCell>
+                <TableCell className="text-sm font-medium text-right">{formatMoney(p.amount)}</TableCell>
+                <TableCell className="text-sm text-muted capitalize">{p.paymentMethod}</TableCell>
+                <TableCell className="text-sm">
+                  <Badge variant={p.status === "completed" ? "success" : "secondary"}>
+                    {p.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted text-right font-mono">{p.referenceNumber}</TableCell>
+                <TableCell className="text-sm text-muted text-right">{formatDate(p.createdAt)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

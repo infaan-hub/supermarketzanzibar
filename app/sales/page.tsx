@@ -1,128 +1,148 @@
 // Sales page.
 //
-// List sales/orders with status filtering.
+// Browse orders with status filtering, powered by the typed API client.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Link } from "@/components/ui/link";
+import { useSales } from "@/hooks/useSales";
+import { formatMoney, formatDate } from "@/lib/format";
 
-interface SaleItem {
-  productId: string;
-  productName: string;
-  price: number;
-  quantity: number;
-  lineTotal: number;
-}
-
-interface Sale {
-  id: string;
-  customer: { id: string; name: string } | null;
-  items: SaleItem[];
-  subtotal: number;
-  taxAmount: number;
-  grandTotal: number;
-  status: string;
-  paymentMethod: string;
-  paymentStatus: string;
-  createdAt: string;
-}
+const STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "completed", label: "Completed" },
+  { value: "pending", label: "Pending" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 export default function SalesPage() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
+  const { data, loading, error } = useSales({ status: statusFilter });
 
-  const loadSales = async () => {
-    const params = new URLSearchParams({ take: "50" });
-    if (statusFilter) params.set("status", statusFilter);
-    const res = await fetch(
-      "http://localhost:3000/api/sales?" + params.toString(),
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SkeletonText lines={2} className="w-[40%]" />
+        </div>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={5} className="p-6" />
+        </div>
+      </div>
     );
-    if (res.ok) {
-      const data = await res.json();
-      setSales(data.sales ?? []);
-    }
-    setLoading(false);
-  };
+  }
 
-  useEffect(() => {
-    loadSales();
-  }, [statusFilter]);
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
+        <EmptyState
+          title="Unable to load sales"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">
+              Try again
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const sales = data?.sales ?? [];
+
+  if (sales.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
+            <p className="text-muted">Order records for the POS dashboard.</p>
+          </div>
+          <Button asChild>
+            <Link href="/pos">New Sale</Link>
+          </Button>
+        </div>
+        <EmptyState title="No sales" description="No orders match your filters." />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Sales</h1>
-        <div className="flex gap-2">
-          <select
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
+          <p className="text-muted">Order records for the POS dashboard.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border rounded text-sm"
+            className="w-56"
           >
-            <option value="">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 transition">
-            New Sale
-          </button>
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <Button asChild>
+            <Link href="/pos">New Sale</Link>
+          </Button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-              <th className="px-6 py-3">ID</th>
-              <th className="px-6 py-3">Customer</th>
-              <th className="px-6 py-3">Total</th>
-              <th className="px-6 py-3">Payment</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={6} className="px-6 py-4">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              : sales.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-6 py-4 font-mono text-sm">{s.id}</td>
-                    <td className="px-6 py-4">
-                      {s.customer?.name ?? "Walk-in"}
-                    </td>
-                    <td className="px-6 py-4 font-medium">
-                      ${s.grandTotal?.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {s.paymentMethod}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          s.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : s.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(s.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[16%] font-mono text-sm">Order</TableHead>
+              <TableHead className="w-[20%]">Customer</TableHead>
+              <TableHead className="w-[14%] text-right">Total</TableHead>
+              <TableHead className="w-[14%]">Payment</TableHead>
+              <TableHead className="w-[14%]">Status</TableHead>
+              <TableHead className="w-[22%] text-right">Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sales.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-medium">#{s.id}</TableCell>
+                <TableCell className="text-sm">{s.customer?.name ?? "Walk-in"}</TableCell>
+                <TableCell className="text-sm font-medium text-right">
+                  {formatMoney(s.grandTotal)}
+                </TableCell>
+                <TableCell className="text-sm text-muted capitalize">
+                  {s.paymentMethod}
+                </TableCell>
+                <TableCell className="text-sm">
+                  <Badge
+                    variant={
+                      s.status === "completed"
+                        ? "success"
+                        : s.status === "pending"
+                        ? "warning"
+                        : "danger"
+                    }
+                  >
+                    {s.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted text-right">
+                  {formatDate(s.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -1,104 +1,116 @@
 // Customers page.
 //
-// List and manage customer records.
+// Browse and search customer records, powered by the typed API client.
 
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  is_active: boolean;
-  createdAt: string;
-}
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCustomers } from "@/hooks/useCustomers";
+import { formatDate } from "@/lib/format";
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const { data, loading, error } = useCustomers({ search });
 
-  const loadCustomers = async () => {
-    const params = new URLSearchParams({ take: "100" });
-    if (search) params.set("search", search);
-    const res = await fetch(
-      "http://localhost:3000/api/customers?" + params.toString(),
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SkeletonText lines={2} className="w-[40%]" />
+        </div>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={5} className="p-6" />
+        </div>
+      </div>
     );
-    if (res.ok) {
-      const data = await res.json();
-      setCustomers(data.customers ?? []);
-    }
-    setLoading(false);
-  };
+  }
 
-  useEffect(() => {
-    loadCustomers();
-  }, [search]);
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Customers</h1>
+        <EmptyState
+          title="Unable to load customers"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">
+              Try again
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const customers = data?.customers ?? [];
+
+  if (customers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Customers</h1>
+            <p className="text-muted">Customer records for look-up and order history.</p>
+          </div>
+          <Input
+            placeholder="Search customers…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64 sm:w-80"
+          />
+        </div>
+        <EmptyState title="No customers" description="No customer records match your search." />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Customers</h1>
-        <input
-          placeholder="Search customers..."
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Customers</h1>
+          <p className="text-muted">Customer records for look-up and order history.</p>
+        </div>
+        <Input
+          placeholder="Search customers…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-2 border rounded text-sm"
+          className="w-64 sm:w-80"
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-              <th className="px-6 py-3">Name</th>
-              <th className="px-6 py-3">Email</th>
-              <th className="px-6 py-3">Phone</th>
-              <th className="px-6 py-3">Joined</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={5} className="px-6 py-4">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              : customers.map((c) => (
-                  <tr key={c.id}>
-                    <td className="px-6 py-4">
-                      <div className="font-medium">{c.name}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {c.email}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {c.phone}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          c.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {c.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[25%]">Name</TableHead>
+              <TableHead className="w-[25%]">Email</TableHead>
+              <TableHead className="w-[15%]">Phone</TableHead>
+              <TableHead className="w-[15%]">Joined</TableHead>
+              <TableHead className="w-[20%]">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {customers.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell className="text-sm text-muted">{c.email}</TableCell>
+                <TableCell className="text-sm text-muted">{c.phone}</TableCell>
+                <TableCell className="text-sm text-muted">{formatDate(c.createdAt)}</TableCell>
+                <TableCell className="text-sm">
+                  <Badge variant={c.is_active ? "success" : "secondary"}>
+                    {c.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -1,107 +1,108 @@
 // Suppliers page.
 //
-// List and manage supplier (vendor) records.
+// Browse supplier (vendor) records, powered by the typed API client.
 
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface Supplier {
-  id: string;
-  companyName: string;
-  contactName: string;
-  phone: string;
-  email: string;
-  address: string;
-  is_active: boolean;
-  createdAt: string;
-}
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { formatDate } from "@/lib/format";
 
 export default function SuppliersPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const { data, loading, error } = useSuppliers({ search });
 
-  const loadSuppliers = async () => {
-    const params = new URLSearchParams({ take: "100" });
-    if (search) params.set("search", search);
-    const res = await fetch(
-      "http://localhost:3000/api/suppliers?" + params.toString(),
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SkeletonText lines={2} className="w-[40%]" />
+        </div>
+        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
+          <SkeletonText lines={5} className="p-6" />
+        </div>
+      </div>
     );
-    if (res.ok) {
-      const data = await res.json();
-      setSuppliers(data.suppliers ?? []);
-    }
-    setLoading(false);
-  };
+  }
 
-  useEffect(() => {
-    loadSuppliers();
-  }, [search]);
-
-  return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Suppliers</h1>
-        <input
-          placeholder="Search suppliers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-2 border rounded text-sm"
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">Suppliers</h1>
+        <EmptyState
+          title="Unable to load suppliers"
+          description={error.message}
+          action={
+            <button onClick={() => window.location.reload()} className="btn-try">
+              Try again
+            </button>
+          }
         />
       </div>
+    );
+  }
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-              <th className="px-6 py-3">Company</th>
-              <th className="px-6 py-3">Contact</th>
-              <th className="px-6 py-3">Phone</th>
-              <th className="px-6 py-3">Email</th>
-              <th className="px-6 py-3">Joined</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={6} className="px-6 py-4">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              : suppliers.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-6 py-4 font-medium">{s.companyName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {s.contactName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {s.phone}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {s.email}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(s.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          s.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {s.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+  const suppliers = data?.suppliers ?? [];
+
+  if (suppliers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Suppliers</h1>
+            <p className="text-muted">Supplier (vendor) records.</p>
+          </div>
+          <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 sm:w-80" />
+        </div>
+        <EmptyState title="No suppliers" description="No suppliers match your search." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Suppliers</h1>
+          <p className="text-muted">Supplier (vendor) records.</p>
+        </div>
+        <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 sm:w-80" />
+      </div>
+
+      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[24%]">Company</TableHead>
+              <TableHead className="w-[16%]">Contact</TableHead>
+              <TableHead className="w-[16%]">Phone</TableHead>
+              <TableHead className="w-[18%]">Email</TableHead>
+              <TableHead className="w-[14%]">Joined</TableHead>
+              <TableHead className="w-[12%]">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {suppliers.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-medium">{s.companyName}</TableCell>
+                <TableCell className="text-sm">{s.contactName}</TableCell>
+                <TableCell className="text-sm text-muted">{s.phone}</TableCell>
+                <TableCell className="text-sm text-muted">{s.email}</TableCell>
+                <TableCell className="text-sm text-muted">{formatDate(s.createdAt)}</TableCell>
+                <TableCell className="text-sm">
+                  <Badge variant={s.is_active ? "success" : "secondary"}>
+                    {s.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
