@@ -9,7 +9,6 @@ import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useStock } from "@/hooks/useStock";
-import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default function StockPage() {
@@ -88,7 +87,6 @@ export default function StockPage() {
               <TableHead className="w-[14%] text-right">Quantity</TableHead>
               <TableHead className="w-[14%] text-right">Low Stock</TableHead>
               <TableHead className="w-[16%] text-right">Reorder</TableHead>
-              <TableHead className="w-[14%] text-right">Updated</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -118,9 +116,6 @@ export default function StockPage() {
                   </TableCell>
                   <TableCell className="text-sm text-right text-muted">
                     {s.reorderLevel}
-                  </TableCell>
-                  <TableCell className="text-sm text-right text-muted">
-                    {formatDate(s.updatedAt)}
                   </TableCell>
                 </TableRow>
               );

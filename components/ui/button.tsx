@@ -18,7 +18,7 @@ function baseStyles() {
   );
 }
 
-function variantStyles(variant: ButtonProps["variant"]) {
+function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default") {
   return cn({
     default:
       "bg-primary text-white shadow-sm hover:bg-primary/90 hover:shadow-[0_0_12px_rgba(31,143,58,0.35)]",
@@ -33,7 +33,7 @@ function variantStyles(variant: ButtonProps["variant"]) {
   }[variant]);
 }
 
-function sizeStyles(size: ButtonProps["size"]) {
+function sizeStyles(size: NonNullable<ButtonProps["size"]> = "md") {
   return cn({
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",

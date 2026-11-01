@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Link } from "@/components/ui/link";
+import Link from "@/components/ui/link";
 import { useProducts } from "@/hooks/useProducts";
 import { formatMoney, formatDate } from "@/lib/format";
 
@@ -204,6 +204,10 @@ export default function PosPage() {
             </button>
           }
         />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -261,7 +265,7 @@ export default function PosPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
-                              variant="primary"
+                              variant="default"
                               size="sm"
                               onClick={() => addToCart(p)}
                               disabled={p.quantity <= 0}
@@ -279,6 +283,7 @@ export default function PosPage() {
           </Card>
         </div>
 
+        <div className="space-y-6">
           <Card className="h-full">
             <CardHeader>
               <CardTitle>Shopping Cart</CardTitle>
@@ -450,7 +455,7 @@ export default function PosPage() {
                   Payment: {receipt.paymentMethod.replace("_", " ")} · Thank you for shopping with us!
                 </p>
 
-                <Button variant="outline" className="w-full" onClick={() => setReceipt(null)}>
+                <Button variant="secondary" className="w-full" onClick={() => setReceipt(null)}>
                   New Sale
                 </Button>
               </CardContent>

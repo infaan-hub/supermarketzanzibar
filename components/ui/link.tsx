@@ -4,9 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export interface LinkProps
-  extends React.AnchorHTMLAttributes<HTMLAnchorElement>,
-    React.ComponentPropsWithoutRef<typeof Link> {
+export interface LinkProps extends React.ComponentPropsWithoutRef<typeof Link> {
   asChild?: boolean;
 }
 

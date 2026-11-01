@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Link } from "@/components/ui/link";
+import Link from "@/components/ui/link";
 import { useSales } from "@/hooks/useSales";
 import { formatMoney, formatDate } from "@/lib/format";
 
@@ -66,9 +66,9 @@ export default function SalesPage() {
             <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
             <p className="text-muted">Order records for the POS dashboard.</p>
           </div>
-          <Button asChild>
-            <Link href="/pos">New Sale</Link>
-          </Button>
+          <Link href="/pos" className="inline-flex h-10 items-center justify-center rounded bg-primary px-4 text-sm font-medium text-white shadow-sm hover:bg-primary/90">
+            New Sale
+          </Link>
         </div>
         <EmptyState title="No sales" description="No orders match your filters." />
       </div>
@@ -94,9 +94,9 @@ export default function SalesPage() {
               </option>
             ))}
           </Select>
-          <Button asChild>
-            <Link href="/pos">New Sale</Link>
-          </Button>
+          <Link href="/pos" className="inline-flex h-10 items-center justify-center rounded bg-primary px-4 text-sm font-medium text-white shadow-sm hover:bg-primary/90">
+            New Sale
+          </Link>
         </div>
       </div>
 
