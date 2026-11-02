@@ -18,11 +18,6 @@ import type {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface CameraPermissionState {
-  state: "granted" | "denied" | "unknown";
-  userGestureRequired: boolean;
-}
-
 export interface BarcodeCameraScannerProps {
   /** Called with the normalized text of each decoded barcode. */
   onScan: (barcode: string) => boolean | void | Promise<boolean | void>;
@@ -44,14 +39,20 @@ type ScannerStatus = "idle" | "starting" | "active";
 // the same product to be scanned repeatedly for stock counting.
 const CODE_REARM_MS = 1000;
 
-async function checkCameraPermission(): Promise<CameraPermissionState> {
+async function checkCameraPermission(): Promise<{ state: "granted" | "denied" | "unknown"; userGestureRequired: boolean }> {
+  // If the Permissions API is not available, let the ZXing library handle
+  // permission requests natively. This avoids interfering with the library's
+  // own permission flow.
   if (!navigator.permissions) {
-    // If the Permissions API is not available, assume permission is unknown
-    // and will be requested by the browser when needed.
     return { state: "unknown", userGestureRequired: true };
   }
 
   try {
+    // Only query permissions on secure contexts to avoid issues
+    if (!window.isSecureContext) {
+      return { state: "unknown", userGestureRequired: true };
+    }
+
     const result = await navigator.permissions.query({ name: "camera" });
 
     switch (result.state) {
@@ -60,10 +61,9 @@ async function checkCameraPermission(): Promise<CameraPermissionState> {
       case "denied":
         return { state: "denied", userGestureRequired: false };
       case "prompt":
-        // Permission prompt is showing or will show on user gesture
         return { state: "unknown", userGestureRequired: true };
       default:
-        return { state: "unknown" as CameraPermissionState["state"], userGestureRequired: true };
+        return { state: "unknown", userGestureRequired: true };
     }
   } catch {
     return { state: "unknown", userGestureRequired: true };
@@ -191,11 +191,6 @@ export function BarcodeCameraScanner({
     setSupported(cameraIsSupported());
   }, []);
 
-  // Check camera permission on mount
-  useEffect(() => {
-    checkCameraPermission().then((permission) => setCameraPermission(permission));
-  }, []);
-
   const stopCamera = useCallback(() => {
     // Invalidate a permission request that is still resolving.
     runIdRef.current += 1;
@@ -228,20 +223,6 @@ export function BarcodeCameraScanner({
     if (!window.isSecureContext) {
       setError("Camera access requires HTTPS or localhost.");
       return;
-    }
-
-    // Check camera permission
-    if (!disabled) {
-      checkCameraPermission().then((permission) => {
-        if (permission.state === "denied") {
-          setError(
-            "Camera permission was denied. Allow camera access in your browser settings and try again."
-          );
-          return;
-        }
-        // If permission is unknown or prompt, let the browser handle it
-        // The ZXing library will request permission when starting the camera
-      });
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -475,12 +456,6 @@ export function BarcodeCameraScanner({
       {!supported && status === "idle" && (
         <p className="text-xs text-muted">
           Camera scanning needs a supported browser on HTTPS or localhost.
-        </p>
-      )}
-
-      {status === "idle" && !disabled && cameraPermission.state === "denied" && (
-        <p className="text-xs text-muted">
-          Camera permission was denied. Allow camera access in your browser settings and try again.
         </p>
       )}
 
