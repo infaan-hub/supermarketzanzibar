@@ -20,18 +20,55 @@ import { cn } from "@/lib/utils";
 
 export interface BarcodeCameraScannerProps {
   /** Called with the normalized text of each decoded barcode. */
-  onScan: (barcode: string) => void | Promise<void>;
+  onScan: (barcode: string) => boolean | void | Promise<boolean | void>;
   disabled?: boolean;
   /** Keep the camera open after a successful scan (useful at the POS). */
   continuous?: boolean;
+  /** Play a short confirmation beep for every accepted scan. */
+  beepOnScan?: boolean;
   className?: string;
   startLabel?: string;
+  /** Text shown under the live camera preview. */
+  activeHint?: string;
 }
 
 type ScannerStatus = "idle" | "starting" | "active";
 
-// Ignore the same code for a moment so one physical label is not added twice.
-const DUPLICATE_SCAN_MS = 1500;
+// A repeated code is only accepted again after it has been out of view for a
+// moment. This makes one physical presentation count once while still allowing
+// the same product to be scanned repeatedly for stock counting.
+const CODE_REARM_MS = 1000;
+
+function playBeep(context: AudioContext | null): void {
+  if (!context) return;
+
+  try {
+    if (context.state === "suspended") void context.resume();
+
+    const start = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(1200, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.16, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.14);
+  } catch {
+    // Audio is a nicety; scanning must keep working without it.
+  }
+
+  try {
+    navigator.vibrate?.(60);
+  } catch {
+    // Vibration is optional.
+  }
+}
 
 function describeCameraError(error: unknown): string {
   const name =
@@ -77,8 +114,10 @@ export function BarcodeCameraScanner({
   onScan,
   disabled = false,
   continuous = false,
+  beepOnScan = false,
   className,
   startLabel = "Scan with camera",
+  activeHint = "Point the camera at a barcode.",
 }: BarcodeCameraScannerProps) {
   const [status, setStatus] = useState<ScannerStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -90,13 +129,16 @@ export function BarcodeCameraScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const readerRef = useRef<BrowserMultiFormatReaderType | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const runIdRef = useRef(0);
   const processingRef = useRef(false);
   const lastCodeRef = useRef<string | null>(null);
-  const lastScanAtRef = useRef(0);
+  const lastMissAtRef = useRef(0);
+  const armedRef = useRef(true);
 
   const onScanRef = useRef(onScan);
   const continuousRef = useRef(continuous);
+  const beepOnScanRef = useRef(beepOnScan);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -105,6 +147,10 @@ export function BarcodeCameraScanner({
   useEffect(() => {
     continuousRef.current = continuous;
   }, [continuous]);
+
+  useEffect(() => {
+    beepOnScanRef.current = beepOnScan;
+  }, [beepOnScan]);
 
   useEffect(() => {
     setSupported(cameraIsSupported());
@@ -125,6 +171,10 @@ export function BarcodeCameraScanner({
     const video = videoRef.current;
     if (video) video.srcObject = null;
 
+    const audio = audioContextRef.current;
+    audioContextRef.current = null;
+    if (audio) void audio.close().catch(() => undefined);
+
     setStatus("idle");
   }, []);
 
@@ -143,6 +193,18 @@ export function BarcodeCameraScanner({
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Camera scanning is not supported in this browser.");
       return;
+    }
+
+    // Create/resume the audio context during the click so the scan beep is
+    // allowed by browsers that block audio until a user gesture.
+    if (!audioContextRef.current) {
+      try {
+        const context = new AudioContext();
+        audioContextRef.current = context;
+        void context.resume().catch(() => undefined);
+      } catch {
+        audioContextRef.current = null;
+      }
     }
 
     runIdRef.current += 1;
@@ -178,8 +240,8 @@ export function BarcodeCameraScanner({
         if (disposed || runId !== runIdRef.current) return;
 
         const reader = new BrowserMultiFormatReader(undefined, {
-          delayBetweenScanAttempts: 250,
-          delayBetweenScanSuccess: 1000,
+          delayBetweenScanAttempts: 200,
+          delayBetweenScanSuccess: 300,
         });
         // Product labels are one-dimensional codes. Restricting the formats
         // avoids accidentally accepting a marketing QR code as stock data.
@@ -198,27 +260,44 @@ export function BarcodeCameraScanner({
         const controls = await reader.decodeFromVideoDevice(
           undefined,
           video,
-          (result, _decodeError, callbackControls) => {
-            if (!result || processingRef.current) return;
+          (result, decodeError, callbackControls) => {
+            if (!result) {
+              // The code must leave the frame for a moment before the same
+              // value can be counted again.
+              if (!armedRef.current && decodeError) {
+                if (lastMissAtRef.current === 0) {
+                  lastMissAtRef.current = Date.now();
+                } else if (Date.now() - lastMissAtRef.current >= CODE_REARM_MS) {
+                  armedRef.current = true;
+                  lastMissAtRef.current = 0;
+                }
+              }
+              return;
+            }
+
+            if (processingRef.current) return;
 
             const barcode = result.getText().trim();
             if (!barcode) return;
 
-            const now = Date.now();
-            if (
-              barcode === lastCodeRef.current &&
-              now - lastScanAtRef.current < DUPLICATE_SCAN_MS
-            ) {
+            lastMissAtRef.current = 0;
+
+            if (!armedRef.current && barcode === lastCodeRef.current) {
               return;
             }
 
             lastCodeRef.current = barcode;
-            lastScanAtRef.current = now;
+            armedRef.current = false;
             processingRef.current = true;
             setLastScan(barcode);
             setError(null);
 
             void Promise.resolve(onScanRef.current(barcode))
+              .then((accepted) => {
+                if (accepted !== false && beepOnScanRef.current) {
+                  playBeep(audioContextRef.current);
+                }
+              })
               .catch((scanError: unknown) => {
                 setError(
                   scanError instanceof Error
@@ -275,6 +354,10 @@ export function BarcodeCameraScanner({
 
       readerRef.current = null;
       video.srcObject = null;
+
+      const audio = audioContextRef.current;
+      audioContextRef.current = null;
+      if (audio) void audio.close().catch(() => undefined);
     };
   }, [startRequest]);
 
@@ -288,6 +371,10 @@ export function BarcodeCameraScanner({
       }
       controlsRef.current = null;
       readerRef.current = null;
+
+      const audio = audioContextRef.current;
+      audioContextRef.current = null;
+      if (audio) void audio.close().catch(() => undefined);
     };
   }, []);
 
@@ -322,9 +409,7 @@ export function BarcodeCameraScanner({
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-border bg-background p-3">
             <p className="text-xs text-muted" aria-live="polite">
-              {status === "starting"
-                ? "Starting camera…"
-                : "Point the camera at a barcode."}
+              {status === "starting" ? "Starting camera…" : activeHint}
             </p>
             <Button type="button" variant="secondary" size="sm" onClick={stopCamera}>
               Stop camera

@@ -35,6 +35,8 @@ export interface Product {
   price: number | string;
   quantity: number;
   barcode?: string | null;
+  /** Physical barcode scanned during registration, stored as an alias. */
+  sourceBarcode?: string | null;
   description?: string | null;
   category: ProductCategory | null;
   supplier: ProductSupplier | null;
@@ -77,9 +79,13 @@ export interface BarcodeLookupResponse {
 /** Payload for registering a product from the inventory terminal. */
 export interface CreateProductRequest {
   name: string;
-  barcode: string;
+  /** Physical barcode scanned during counting; the system generates the product's own barcode. */
+  sourceBarcode?: string;
+  /** Legacy alias for `sourceBarcode`. */
+  barcode?: string;
   price: number | string;
   costPrice?: number | string;
+  /** Counted units; recorded as opening stock. */
   quantity?: number;
   categoryId?: string | null;
   description?: string;

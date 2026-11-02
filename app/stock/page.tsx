@@ -29,23 +29,27 @@ import { cn } from "@/lib/utils";
 
 type MovementMode = "IN" | "OUT";
 
-interface ProductForm {
-  barcode: string;
+interface CountForm {
   name: string;
   categoryId: string;
   price: string;
   costPrice: string;
-  quantity: string;
 }
 
-const EMPTY_PRODUCT_FORM: ProductForm = {
-  barcode: "",
+const EMPTY_COUNT_FORM: CountForm = {
   name: "",
   categoryId: "",
   price: "",
   costPrice: "",
-  quantity: "0",
 };
+
+interface FinalizedProduct {
+  id: string;
+  name: string;
+  barcode: string;
+  quantity: number;
+  sourceBarcode: string | null;
+}
 
 function Feedback({
   error,
@@ -77,10 +81,15 @@ export default function StockPage() {
   const { data, loading, refreshing, error, refresh } = useStock();
   const { data: categoriesData } = useCategories();
 
-  const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
-  const [registering, setRegistering] = useState(false);
-  const [registerError, setRegisterError] = useState<string | null>(null);
-  const [registerMessage, setRegisterMessage] = useState<string | null>(null);
+  const [countForm, setCountForm] = useState<CountForm>(EMPTY_COUNT_FORM);
+  const [countedUnits, setCountedUnits] = useState(0);
+  const [countAnnouncement, setCountAnnouncement] = useState("");
+  const [lockedBarcode, setLockedBarcode] = useState<string | null>(null);
+  const [scannerKey, setScannerKey] = useState(0);
+  const [finalizing, setFinalizing] = useState(false);
+  const [countError, setCountError] = useState<string | null>(null);
+  const [finalizedProduct, setFinalizedProduct] =
+    useState<FinalizedProduct | null>(null);
 
   const [movementMode, setMovementMode] = useState<MovementMode>("IN");
   const [movementBarcode, setMovementBarcode] = useState("");
@@ -94,55 +103,91 @@ export default function StockPage() {
   const lowCount = stock.filter((s) => s.quantity <= s.lowStockThreshold).length;
   const criticalCount = stock.filter((s) => s.quantity <= s.reorderLevel).length;
 
-  async function handleRegisterProduct(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (registering) return;
+  function resetCountSession() {
+    setCountForm(EMPTY_COUNT_FORM);
+    setCountedUnits(0);
+    setCountAnnouncement("");
+    setLockedBarcode(null);
+    setFinalizedProduct(null);
+    setCountError(null);
+    // Remounting the scanner releases the camera and starts a fresh session.
+    setScannerKey((key) => key + 1);
+  }
 
-    setRegisterError(null);
-    setRegisterMessage(null);
+  function handleCountScan(barcode: string): boolean {
+    if (finalizing) return false;
 
-    if (!productForm.barcode.trim()) {
-      setRegisterError("Scan a product barcode or enter one manually.");
-      return;
-    }
-    if (!productForm.name.trim()) {
-      setRegisterError("Enter a product name.");
-      return;
-    }
-    if (!productForm.price.trim()) {
-      setRegisterError("Enter a selling price.");
-      return;
-    }
+    setCountError(null);
+    setFinalizedProduct(null);
 
-    const quantity = Number(productForm.quantity || "0");
-    if (!Number.isInteger(quantity) || quantity < 0) {
-      setRegisterError("Opening stock must be a whole number.");
-      return;
+    if (!countForm.name.trim()) {
+      setCountError("Enter the product name before opening the camera.");
+      return false;
     }
 
-    setRegistering(true);
+    if (lockedBarcode && barcode !== lockedBarcode) {
+      setCountError(
+        `This count is for barcode ${lockedBarcode}. Finalize or reset before counting a different product.`,
+      );
+      return false;
+    }
+
+    if (!lockedBarcode) setLockedBarcode(barcode);
+    const nextCount = countedUnits + 1;
+    setCountedUnits(nextCount);
+    setCountAnnouncement(`Scan accepted. ${nextCount} ${nextCount === 1 ? "unit" : "units"} counted for ${countForm.name.trim()}.`);
+    return true;
+  }
+
+  async function handleFinalizeProduct() {
+    if (finalizing) return;
+
+    setCountError(null);
+    setFinalizedProduct(null);
+
+    if (!countForm.name.trim()) {
+      setCountError("Enter the product name before counting.");
+      return;
+    }
+    if (!countForm.price.trim()) {
+      setCountError("Enter a selling price before finalizing.");
+      return;
+    }
+    if (!lockedBarcode || countedUnits < 1) {
+      setCountError("Scan at least one unit with the camera before finalizing.");
+      return;
+    }
+
+    setFinalizing(true);
 
     try {
       const product = await createProduct({
-        name: productForm.name,
-        barcode: productForm.barcode,
-        categoryId: productForm.categoryId || null,
-        price: productForm.price,
-        costPrice: productForm.costPrice || "0",
-        quantity,
+        name: countForm.name,
+        sourceBarcode: lockedBarcode,
+        categoryId: countForm.categoryId || null,
+        price: countForm.price,
+        costPrice: countForm.costPrice || "0",
+        quantity: countedUnits,
       });
 
-      setRegisterMessage(
-        `Added "${product.name}" (${product.barcode}) to inventory with ${product.quantity} base unit${product.quantity === 1 ? "" : "s"}.`,
-      );
-      setProductForm(EMPTY_PRODUCT_FORM);
+      const finalized: FinalizedProduct = {
+        id: product.id,
+        name: product.name,
+        barcode: product.barcode ?? "",
+        quantity: product.quantity,
+        sourceBarcode: product.sourceBarcode ?? lockedBarcode,
+      };
+
+      // Finalizing renews the form for the next product and releases the camera.
+      resetCountSession();
+      setFinalizedProduct(finalized);
       await refresh();
     } catch (err) {
-      setRegisterError(
-        err instanceof Error ? err.message : "Unable to register this product.",
+      setCountError(
+        err instanceof Error ? err.message : "Unable to finalize this product.",
       );
     } finally {
-      setRegistering(false);
+      setFinalizing(false);
     }
   }
 
@@ -202,8 +247,9 @@ export default function StockPage() {
             Inventory &amp; Stock
           </h1>
           <p className="text-muted">
-            Scan a new barcode to register a product, or scan an existing product
-            to receive (IN / import) or issue (OUT / export) stock.
+            Enter the product name, scan every unit with the camera, then
+            finalize. The system assigns each product its own unique barcode.
+            Scan existing products under IN / OUT for later stock changes.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -219,85 +265,60 @@ export default function StockPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Register a new product</CardTitle>
+            <CardTitle>Count &amp; register a product</CardTitle>
             <p className="text-sm text-muted">
-              Scan the barcode printed on the product, then enter its details.
-              The product becomes available in the POS immediately.
+              Enter the product name first, then open the camera and scan every
+              unit. Each accepted scan beeps and raises the count. Finalizing
+              saves the counted stock and generates the product&apos;s own
+              unique barcode.
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleRegisterProduct} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-1.5">
                 <label
-                  htmlFor="register-barcode"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Product barcode
-                </label>
-                <Input
-                  id="register-barcode"
-                  value={productForm.barcode}
-                  onChange={(event) =>
-                    setProductForm((form) => ({
-                      ...form,
-                      barcode: event.target.value,
-                    }))
-                  }
-                  placeholder="Scan or type the barcode"
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={registering}
-                />
-                <BarcodeCameraScanner
-                  disabled={registering}
-                  startLabel="Scan product barcode"
-                  onScan={(barcode) => {
-                    setProductForm((form) => ({ ...form, barcode }));
-                    setRegisterError(null);
-                    setRegisterMessage(null);
-                  }}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="register-name"
+                  htmlFor="count-name"
                   className="text-sm font-medium text-foreground"
                 >
                   Product name
                 </label>
                 <Input
-                  id="register-name"
-                  value={productForm.name}
+                  id="count-name"
+                  value={countForm.name}
                   onChange={(event) =>
-                    setProductForm((form) => ({
+                    setCountForm((form) => ({
                       ...form,
                       name: event.target.value,
                     }))
                   }
                   placeholder="e.g. Coconut oil 1L"
-                  disabled={registering}
+                  autoComplete="off"
+                  disabled={finalizing}
+                  autoFocus
                 />
+                <p className="text-xs text-muted">
+                  Required before the camera can start counting.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label
-                    htmlFor="register-category"
+                    htmlFor="count-category"
                     className="text-sm font-medium text-foreground"
                   >
                     Category
                   </label>
                   <Select
-                    id="register-category"
-                    value={productForm.categoryId}
+                    id="count-category"
+                    value={countForm.categoryId}
                     onChange={(event) =>
-                      setProductForm((form) => ({
+                      setCountForm((form) => ({
                         ...form,
                         categoryId: event.target.value,
                       }))
                     }
-                    disabled={registering}
+                    disabled={finalizing}
                   >
                     <option value="">Uncategorized</option>
                     {categories.map((category) => (
@@ -310,86 +331,166 @@ export default function StockPage() {
 
                 <div className="space-y-1.5">
                   <label
-                    htmlFor="register-quantity"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    Opening stock
-                  </label>
-                  <Input
-                    id="register-quantity"
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={productForm.quantity}
-                    onChange={(event) =>
-                      setProductForm((form) => ({
-                        ...form,
-                        quantity: event.target.value,
-                      }))
-                    }
-                    disabled={registering}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="register-price"
+                    htmlFor="count-price"
                     className="text-sm font-medium text-foreground"
                   >
                     Selling price (TZS)
                   </label>
                   <Input
-                    id="register-price"
+                    id="count-price"
                     type="number"
                     min={0}
                     step="0.01"
-                    value={productForm.price}
+                    value={countForm.price}
                     onChange={(event) =>
-                      setProductForm((form) => ({
+                      setCountForm((form) => ({
                         ...form,
                         price: event.target.value,
                       }))
                     }
                     placeholder="0.00"
-                    disabled={registering}
+                    disabled={finalizing}
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label
-                    htmlFor="register-cost"
+                    htmlFor="count-cost"
                     className="text-sm font-medium text-foreground"
                   >
                     Cost price (TZS)
                   </label>
                   <Input
-                    id="register-cost"
+                    id="count-cost"
                     type="number"
                     min={0}
                     step="0.01"
-                    value={productForm.costPrice}
+                    value={countForm.costPrice}
                     onChange={(event) =>
-                      setProductForm((form) => ({
+                      setCountForm((form) => ({
                         ...form,
                         costPrice: event.target.value,
                       }))
                     }
                     placeholder="0.00"
-                    disabled={registering}
+                    disabled={finalizing}
                   />
                 </div>
               </div>
 
-              <Feedback error={registerError} message={registerMessage} />
+              <div className="rounded-lg border border-border bg-accent/5 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                      Counted units
+                    </p>
+                    <p className="font-display text-3xl font-bold text-foreground" aria-live="polite" aria-atomic="true">
+                      {countedUnits}
+                    </p>
+                    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                      {countAnnouncement}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                      Scanned code
+                    </p>
+                    {lockedBarcode ? (
+                      <Badge variant="success" className="font-mono">
+                        {lockedBarcode}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-muted">Not scanned yet</p>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  The first scan locks this session to one barcode. Scan the same
+                  code for every unit, or finalize / reset before counting a
+                  different product.
+                </p>
+              </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                isLoading={registering}
-              >
-                Add product to inventory
-              </Button>
-            </form>
+              <BarcodeCameraScanner
+                key={scannerKey}
+                continuous
+                beepOnScan
+                disabled={finalizing || !countForm.name.trim()}
+                startLabel="Open camera & count units"
+                activeHint="Scan each unit. The count updates and beeps on every accepted scan."
+                onScan={handleCountScan}
+              />
+
+              {!countForm.name.trim() && (
+                <p className="text-xs text-muted">
+                  Enter the product name to enable the camera.
+                </p>
+              )}
+
+              <Feedback error={countError} message={null} />
+
+              {finalizedProduct && (
+                <div
+                  role="status"
+                  className="rounded-md border border-success/20 bg-success/10 p-3 text-sm text-success"
+                >
+                  <p className="font-medium">
+                    {finalizedProduct.name} registered with{" "}
+                    {finalizedProduct.quantity} unit
+                    {finalizedProduct.quantity === 1 ? "" : "s"}.
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-xs font-medium uppercase tracking-wide">
+                      System barcode
+                    </span>
+                    <span className="font-mono font-semibold">
+                      {finalizedProduct.barcode}
+                    </span>
+                    <a
+                      href={`/api/barcodes/label?value=${encodeURIComponent(finalizedProduct.barcode)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium underline underline-offset-2"
+                      title="Print Code 128 label"
+                    >
+                      Print label
+                    </a>
+                  </div>
+                  {finalizedProduct.sourceBarcode && (
+                    <p className="mt-1 text-xs">
+                      Scanned label stored as an alias:{" "}
+                      <span className="font-mono">
+                        {finalizedProduct.sourceBarcode}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={() => void handleFinalizeProduct()}
+                  isLoading={finalizing}
+                  disabled={countedUnits < 1}
+                >
+                  Finalize &amp; save to stock
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={resetCountSession}
+                  disabled={finalizing}
+                >
+                  Reset count
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted">
+                Finalizing inserts the product, records the counted units as a
+                stock movement, and renews this form for the next product.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -557,9 +658,22 @@ export default function StockPage() {
                     <TableRow key={item.productId}>
                       <TableCell>
                         <div className="font-medium">{item.productName}</div>
-                        <p className="font-mono text-[11px] text-muted">
-                          {item.barcode}
-                        </p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                          <p className="font-mono text-[11px] text-muted">
+                            {item.barcode || "—"}
+                          </p>
+                          {item.barcode && (
+                            <a
+                              href={`/api/barcodes/label?value=${encodeURIComponent(item.barcode)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] font-medium text-primary hover:underline"
+                              title="Print Code 128 label"
+                            >
+                              Print label
+                            </a>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted">
                         {item.category?.name ?? "—"}
