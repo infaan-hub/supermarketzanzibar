@@ -39,37 +39,6 @@ type ScannerStatus = "idle" | "starting" | "active";
 // the same product to be scanned repeatedly for stock counting.
 const CODE_REARM_MS = 1000;
 
-async function checkCameraPermission(): Promise<{ state: "granted" | "denied" | "unknown"; userGestureRequired: boolean }> {
-  // If the Permissions API is not available, let the ZXing library handle
-  // permission requests natively. This avoids interfering with the library's
-  // own permission flow.
-  if (!navigator.permissions) {
-    return { state: "unknown", userGestureRequired: true };
-  }
-
-  try {
-    // Only query permissions on secure contexts to avoid issues
-    if (!window.isSecureContext) {
-      return { state: "unknown", userGestureRequired: true };
-    }
-
-    const result = await navigator.permissions.query({ name: "camera" });
-
-    switch (result.state) {
-      case "granted":
-        return { state: "granted", userGestureRequired: false };
-      case "denied":
-        return { state: "denied", userGestureRequired: false };
-      case "prompt":
-        return { state: "unknown", userGestureRequired: true };
-      default:
-        return { state: "unknown", userGestureRequired: true };
-    }
-  } catch {
-    return { state: "unknown", userGestureRequired: true };
-  }
-}
-
 function playBeep(context: AudioContext | null): void {
   if (!context) return;
 
@@ -156,10 +125,6 @@ export function BarcodeCameraScanner({
   const [startRequest, setStartRequest] = useState(0);
   // Assume support during SSR/hydration; update after mounting.
   const [supported, setSupported] = useState(true);
-  const [cameraPermission, setCameraPermission] = useState<CameraPermissionState>({
-    state: "unknown",
-    userGestureRequired: true,
-  });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -456,12 +421,6 @@ export function BarcodeCameraScanner({
       {!supported && status === "idle" && (
         <p className="text-xs text-muted">
           Camera scanning needs a supported browser on HTTPS or localhost.
-        </p>
-      )}
-
-      {status === "idle" && !disabled && cameraPermission.state === "denied" && (
-        <p className="text-xs text-muted">
-          Camera permission was denied. Allow camera access in your browser settings and try again.
         </p>
       )}
 
