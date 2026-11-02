@@ -122,13 +122,12 @@ export function BarcodeCameraScanner({
   const [status, setStatus] = useState<ScannerStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<string | null>(null);
-  const [startRequest, setStartRequest] = useState(0);
-  // Assume support during SSR/hydration; update after mounting.
   const [supported, setSupported] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const readerRef = useRef<BrowserMultiFormatReaderType | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const runIdRef = useRef(0);
   const processingRef = useRef(false);
@@ -156,34 +155,40 @@ export function BarcodeCameraScanner({
     setSupported(cameraIsSupported());
   }, []);
 
-  const stopCamera = useCallback(() => {
-    // Invalidate a permission request that is still resolving.
-    runIdRef.current += 1;
-
+  const releaseCamera = useCallback(() => {
     const controls = controlsRef.current;
     controlsRef.current = null;
     try {
       controls?.stop();
     } catch {
-      // The stream may already be closed by the browser.
+      // The browser may already have stopped the stream.
     }
+
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((track) => track.stop());
 
     const video = videoRef.current;
     if (video) video.srcObject = null;
+
+    readerRef.current = null;
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    // Invalidate a permission request that is still resolving.
+    runIdRef.current += 1;
+    releaseCamera();
 
     const audio = audioContextRef.current;
     audioContextRef.current = null;
     if (audio) void audio.close().catch(() => undefined);
 
     setStatus("idle");
-  }, []);
+  }, [releaseCamera]);
 
-  const startCamera = useCallback(() => {
+  const startCamera = useCallback(async () => {
+    if (disabled || status === "starting" || status === "active") return;
     setError(null);
-
-    if (typeof window === "undefined") return;
-
-    if (disabled) return;
 
     if (!window.isSecureContext) {
       setError("Camera access requires HTTPS or localhost.");
@@ -191,232 +196,229 @@ export function BarcodeCameraScanner({
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
+      setSupported(false);
       setError("Camera scanning is not supported in this browser.");
       return;
     }
 
-    // Create/resume the audio context during the click so the scan beep is
-    // allowed by browsers that block audio until a user gesture.
+    // Request camera access directly inside the button gesture. Delaying this
+    // call until an effect or dynamic import breaks camera startup on mobile
+    // browsers that require a live user activation.
+    const runId = ++runIdRef.current;
+    setStatus("starting");
+    processingRef.current = false;
+    lastCodeRef.current = null;
+    lastMissAtRef.current = 0;
+    armedRef.current = true;
+
     if (!audioContextRef.current) {
       try {
-        const context = new AudioContext();
-        audioContextRef.current = context;
-        void context.resume().catch(() => undefined);
+        audioContextRef.current = new AudioContext();
+        void audioContextRef.current.resume().catch(() => undefined);
       } catch {
         audioContextRef.current = null;
       }
     }
 
-    runIdRef.current += 1;
-    setStatus("starting");
-    setStartRequest((value) => value + 1);
-  }, [disabled]);
+    let stream: MediaStream | null = null;
+    try {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch (cameraError) {
+        const name =
+          typeof cameraError === "object" && cameraError !== null && "name" in cameraError
+            ? String((cameraError as { name: unknown }).name)
+            : "";
+        if (name !== "OverconstrainedError" && name !== "NotFoundError") {
+          throw cameraError;
+        }
+        // Retry with browser defaults if the rear camera or requested size
+        // is unavailable on this device.
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
+
+      if (runId !== runIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) throw new Error("The camera preview could not be created.");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
+
+      const { BrowserMultiFormatReader, BarcodeFormat } = await import(
+        "@zxing/browser"
+      );
+      if (runId !== runIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const reader = new BrowserMultiFormatReader(undefined, {
+        delayBetweenScanAttempts: 200,
+        delayBetweenScanSuccess: 300,
+      });
+      reader.possibleFormats = [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.ITF,
+        BarcodeFormat.CODABAR,
+      ];
+      readerRef.current = reader;
+
+      const handleDecode: Parameters<BrowserMultiFormatReaderType["decodeFromStream"]>[2] = (
+        result,
+        decodeError,
+        callbackControls,
+      ) => {
+        if (!result) {
+          if (!armedRef.current && decodeError) {
+            if (lastMissAtRef.current === 0) {
+              lastMissAtRef.current = Date.now();
+            } else if (Date.now() - lastMissAtRef.current >= CODE_REARM_MS) {
+              armedRef.current = true;
+              lastMissAtRef.current = 0;
+            }
+          }
+          return;
+        }
+
+        if (processingRef.current) return;
+        const barcode = result.getText().trim();
+        if (!barcode) return;
+        lastMissAtRef.current = 0;
+        if (!armedRef.current && barcode === lastCodeRef.current) return;
+
+        lastCodeRef.current = barcode;
+        armedRef.current = false;
+        processingRef.current = true;
+        setLastScan(barcode);
+        setError(null);
+
+        void Promise.resolve(onScanRef.current(barcode))
+          .then((accepted) => {
+            if (accepted !== false && beepOnScanRef.current) {
+              playBeep(audioContextRef.current);
+            }
+          })
+          .catch((scanError: unknown) => {
+            setError(
+              scanError instanceof Error
+                ? scanError.message
+                : "The barcode could not be processed.",
+            );
+          })
+          .finally(() => {
+            processingRef.current = false;
+            if (!continuousRef.current) {
+              try {
+                callbackControls.stop();
+              } catch {
+                // Already stopped.
+              }
+              if (controlsRef.current === callbackControls) {
+                controlsRef.current = null;
+              }
+              setStatus("idle");
+            }
+          });
+      };
+
+      const controls = await reader.decodeFromStream(
+        stream,
+        video,
+        handleDecode,
+      );
+      if (runId !== runIdRef.current) {
+        controls.stop();
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      controlsRef.current = controls;
+      setStatus("active");
+    } catch (cameraError) {
+      if (stream && stream !== streamRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (runId !== runIdRef.current) return;
+      releaseCamera();
+      setStatus("idle");
+      setError(describeCameraError(cameraError));
+    }
+  }, [disabled, releaseCamera, status]);
 
   useEffect(() => {
     if (disabled && status !== "idle") stopCamera();
   }, [disabled, status, stopCamera]);
 
-  // Starting is driven by a request counter instead of `status` so a pending
-  // permission prompt can be cancelled without restarting the effect.
   useEffect(() => {
-    if (startRequest === 0) return;
-
-    const runId = runIdRef.current;
-    const video = videoRef.current;
-    if (!video) {
-      setStatus("idle");
-      setError("The camera preview could not be created.");
-      return;
-    }
-
-    let disposed = false;
-
-    void (async () => {
-      try {
-        const { BrowserMultiFormatReader, BarcodeFormat } = await import(
-          "@zxing/browser"
-        );
-
-        if (disposed || runId !== runIdRef.current) return;
-
-        const reader = new BrowserMultiFormatReader(undefined, {
-          delayBetweenScanAttempts: 200,
-          delayBetweenScanSuccess: 300,
-        });
-        // Product labels are one-dimensional codes. Restricting the formats
-        // avoids accidentally accepting a marketing QR code as stock data.
-        reader.possibleFormats = [
-          BarcodeFormat.CODE_128,
-          BarcodeFormat.CODE_39,
-          BarcodeFormat.EAN_13,
-          BarcodeFormat.EAN_8,
-          BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E,
-          BarcodeFormat.ITF,
-          BarcodeFormat.CODABAR,
-        ];
-        readerRef.current = reader;
-
-        const controls = await reader.decodeFromVideoDevice(
-          undefined,
-          video,
-          (result, decodeError, callbackControls) => {
-            if (!result) {
-              // The code must leave the frame for a moment before the same
-              // value can be counted again.
-              if (!armedRef.current && decodeError) {
-                if (lastMissAtRef.current === 0) {
-                  lastMissAtRef.current = Date.now();
-                } else if (Date.now() - lastMissAtRef.current >= CODE_REARM_MS) {
-                  armedRef.current = true;
-                  lastMissAtRef.current = 0;
-                }
-              }
-              return;
-            }
-
-            if (processingRef.current) return;
-
-            const barcode = result.getText().trim();
-            if (!barcode) return;
-
-            lastMissAtRef.current = 0;
-
-            if (!armedRef.current && barcode === lastCodeRef.current) {
-              return;
-            }
-
-            lastCodeRef.current = barcode;
-            armedRef.current = false;
-            processingRef.current = true;
-            setLastScan(barcode);
-            setError(null);
-
-            void Promise.resolve(onScanRef.current(barcode))
-              .then((accepted) => {
-                if (accepted !== false && beepOnScanRef.current) {
-                  playBeep(audioContextRef.current);
-                }
-              })
-              .catch((scanError: unknown) => {
-                setError(
-                  scanError instanceof Error
-                    ? scanError.message
-                    : "The barcode could not be processed.",
-                );
-              })
-              .finally(() => {
-                processingRef.current = false;
-
-                if (!continuousRef.current) {
-                  try {
-                    callbackControls.stop();
-                  } catch {
-                    // Already stopped.
-                  }
-                  if (controlsRef.current === callbackControls) {
-                    controlsRef.current = null;
-                  }
-                  setStatus("idle");
-                }
-              });
-          },
-        );
-
-        if (disposed || runId !== runIdRef.current) {
-          controls.stop();
-          return;
-        }
-
-        controlsRef.current = controls;
-        setStatus("active");
-      } catch (scanError) {
-        if (disposed || runId !== runIdRef.current) return;
-
-        controlsRef.current = null;
-        readerRef.current = null;
-        setStatus("idle");
-        setError(describeCameraError(scanError));
-      }
-    })();
-
     return () => {
-      disposed = true;
       runIdRef.current += 1;
-
-      const controls = controlsRef.current;
-      controlsRef.current = null;
-      try {
-        controls?.stop();
-      } catch {
-        // Already stopped.
-      }
-
-      readerRef.current = null;
-      video.srcObject = null;
-
+      releaseCamera();
       const audio = audioContextRef.current;
       audioContextRef.current = null;
       if (audio) void audio.close().catch(() => undefined);
     };
-  }, [startRequest]);
-
-  useEffect(() => {
-    return () => {
-      runIdRef.current += 1;
-      try {
-        controlsRef.current?.stop();
-      } catch {
-        // Already stopped.
-      }
-      controlsRef.current = null;
-      readerRef.current = null;
-
-      const audio = audioContextRef.current;
-      audioContextRef.current = null;
-      if (audio) void audio.close().catch(() => undefined);
-    };
-  }, []);
+  }, [releaseCamera]);
 
   return (
     <div className={cn("space-y-2", className)}>
-      {status === "idle" ? (
+      {status === "idle" && (
         <Button
           type="button"
           variant="secondary"
-          onClick={startCamera}
+          onClick={() => void startCamera()}
           disabled={disabled}
         >
           <span aria-hidden="true">📷</span>
           {startLabel}
         </Button>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-black">
-          <div className="relative">
-            <video
-              ref={videoRef}
-              className="h-56 w-full object-cover sm:h-64"
-              autoPlay
-              muted
-              playsInline
-            />
+      )}
+      <div className={status === "idle" ? "hidden" : "overflow-hidden rounded-lg border border-border bg-black"}>
+        <div className="relative">
+          <video
+            ref={videoRef}
+            className="h-56 w-full object-cover sm:h-64"
+            autoPlay
+            muted
+            playsInline
+          />
+          {status === "active" && (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 flex items-center justify-center p-8"
             >
               <div className="h-full w-full rounded-lg border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border bg-background p-3">
-            <p className="text-xs text-muted" aria-live="polite">
-              {status === "starting" ? "Starting camera…" : activeHint}
-            </p>
-            <Button type="button" variant="secondary" size="sm" onClick={stopCamera}>
-              Stop camera
-            </Button>
-          </div>
+          )}
         </div>
-      )}
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-background p-3">
+          <p className="text-xs text-muted" aria-live="polite">
+            {status === "starting" ? "Requesting camera permission…" : activeHint}
+          </p>
+          <Button type="button" variant="secondary" size="sm" onClick={stopCamera}>
+            Stop camera
+          </Button>
+        </div>
+      </div>
 
       {!supported && status === "idle" && (
         <p className="text-xs text-muted">
@@ -426,8 +428,7 @@ export function BarcodeCameraScanner({
 
       {lastScan && (
         <p className="text-xs text-muted">
-          Last camera scan:{" "}
-          <span className="font-mono text-foreground">{lastScan}</span>
+          Last camera scan: <span className="font-mono text-foreground">{lastScan}</span>
         </p>
       )}
 
