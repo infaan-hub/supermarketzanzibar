@@ -4,8 +4,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    globalSetup: ["tests/global-setup.ts"],
-    setupFiles: ["tests/setup.ts"],
     // Integration tests share one dedicated test database; running files
     // sequentially keeps row-level assertions deterministic.
     fileParallelism: false,

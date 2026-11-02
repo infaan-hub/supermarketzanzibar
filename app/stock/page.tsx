@@ -1,7 +1,6 @@
 // Stock page.
 //
-// Inventory levels, product registration by barcode, and stock IN/OUT scanning.
-// The camera component feeds the same barcode fields as a USB/Bluetooth scanner.
+// Inventory levels, barcode-free visual product registration, and stock IN/OUT scanning.
 
 "use client";
 
@@ -22,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
+import { VisualItemCameraCounter } from "@/components/visual-item-camera-counter";
 import { useCategories } from "@/hooks/useCategories";
 import { useStock } from "@/hooks/useStock";
 import { adjustStockByBarcode, createProduct } from "@/lib/api";
@@ -48,7 +48,6 @@ interface FinalizedProduct {
   name: string;
   barcode: string;
   quantity: number;
-  sourceBarcode: string | null;
 }
 
 function Feedback({
@@ -84,7 +83,6 @@ export default function StockPage() {
   const [countForm, setCountForm] = useState<CountForm>(EMPTY_COUNT_FORM);
   const [countedUnits, setCountedUnits] = useState(0);
   const [countAnnouncement, setCountAnnouncement] = useState("");
-  const [lockedBarcode, setLockedBarcode] = useState<string | null>(null);
   const [scannerKey, setScannerKey] = useState(0);
   const [finalizing, setFinalizing] = useState(false);
   const [countError, setCountError] = useState<string | null>(null);
@@ -107,14 +105,13 @@ export default function StockPage() {
     setCountForm(EMPTY_COUNT_FORM);
     setCountedUnits(0);
     setCountAnnouncement("");
-    setLockedBarcode(null);
     setFinalizedProduct(null);
     setCountError(null);
-    // Remounting the scanner releases the camera and starts a fresh session.
+    // Remount the visual counter to release the camera and calibrate a fresh view.
     setScannerKey((key) => key + 1);
   }
 
-  function handleCountScan(barcode: string): boolean {
+  function handleItemDetected(): boolean {
     if (finalizing) return false;
 
     setCountError(null);
@@ -125,17 +122,9 @@ export default function StockPage() {
       return false;
     }
 
-    if (lockedBarcode && barcode !== lockedBarcode) {
-      setCountError(
-        `This count is for barcode ${lockedBarcode}. Finalize or reset before counting a different product.`,
-      );
-      return false;
-    }
-
-    if (!lockedBarcode) setLockedBarcode(barcode);
     const nextCount = countedUnits + 1;
     setCountedUnits(nextCount);
-    setCountAnnouncement(`Scan accepted. ${nextCount} ${nextCount === 1 ? "unit" : "units"} counted for ${countForm.name.trim()}.`);
+    setCountAnnouncement(`Item detected. ${nextCount} ${nextCount === 1 ? "unit" : "units"} counted for ${countForm.name.trim()}.`);
     return true;
   }
 
@@ -153,8 +142,8 @@ export default function StockPage() {
       setCountError("Enter a selling price before finalizing.");
       return;
     }
-    if (!lockedBarcode || countedUnits < 1) {
-      setCountError("Scan at least one unit with the camera before finalizing.");
+    if (countedUnits < 1) {
+      setCountError("Detect at least one item with the camera before finalizing.");
       return;
     }
 
@@ -163,7 +152,6 @@ export default function StockPage() {
     try {
       const product = await createProduct({
         name: countForm.name,
-        sourceBarcode: lockedBarcode,
         categoryId: countForm.categoryId || null,
         price: countForm.price,
         costPrice: countForm.costPrice || "0",
@@ -175,7 +163,6 @@ export default function StockPage() {
         name: product.name,
         barcode: product.barcode ?? "",
         quantity: product.quantity,
-        sourceBarcode: product.sourceBarcode ?? lockedBarcode,
       };
 
       // Finalizing renews the form for the next product and releases the camera.
@@ -247,9 +234,9 @@ export default function StockPage() {
             Inventory &amp; Stock
           </h1>
           <p className="text-muted">
-            Enter the product name, scan every unit with the camera, then
-            finalize. The system assigns each product its own unique barcode.
-            Scan existing products under IN / OUT for later stock changes.
+            Enter the product name, let the camera detect each item as you place
+            it in view, then finalize. The system assigns each product its own
+            unique barcode. Use IN / OUT to adjust existing stock.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -267,10 +254,9 @@ export default function StockPage() {
           <CardHeader>
             <CardTitle>Count &amp; register a product</CardTitle>
             <p className="text-sm text-muted">
-              Enter the product name first, then open the camera and scan every
-              unit. Each accepted scan beeps and raises the count. Finalizing
-              saves the counted stock and generates the product&apos;s own
-              unique barcode.
+              Keep the camera still over an empty view, then place one item at a
+              time in the center frame. Each new item is detected, counted, and
+              confirmed with a beep. No product barcode is needed.
             </p>
           </CardHeader>
           <CardContent>
@@ -393,32 +379,24 @@ export default function StockPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                      Scanned code
+                      Camera status
                     </p>
-                    {lockedBarcode ? (
-                      <Badge variant="success" className="font-mono">
-                        {lockedBarcode}
-                      </Badge>
-                    ) : (
-                      <p className="text-sm text-muted">Not scanned yet</p>
-                    )}
+                    <p className="max-w-48 text-sm text-muted">
+                      {countAnnouncement || "Waiting for an item"}
+                    </p>
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-muted">
-                  The first scan locks this session to one barcode. Scan the same
-                  code for every unit, or finalize / reset before counting a
-                  different product.
+                  Keep the camera steady and remove each item from view before
+                  presenting the next one to avoid counting an item twice.
                 </p>
               </div>
 
-              <BarcodeCameraScanner
+              <VisualItemCameraCounter
                 key={scannerKey}
-                continuous
-                beepOnScan
                 disabled={finalizing || !countForm.name.trim()}
                 startLabel="Open camera & count units"
-                activeHint="Scan each unit. The count updates and beeps on every accepted scan."
-                onScan={handleCountScan}
+                onDetect={handleItemDetected}
               />
 
               {!countForm.name.trim() && (
@@ -456,14 +434,7 @@ export default function StockPage() {
                       Print label
                     </a>
                   </div>
-                  {finalizedProduct.sourceBarcode && (
-                    <p className="mt-1 text-xs">
-                      Scanned label stored as an alias:{" "}
-                      <span className="font-mono">
-                        {finalizedProduct.sourceBarcode}
-                      </span>
-                    </p>
-                  )}
+
                 </div>
               )}
 
