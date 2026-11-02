@@ -82,11 +82,11 @@ export default function SalesPage() {
           <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
           <p className="text-muted">Order records for the POS dashboard.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-56"
+            className="w-full sm:w-56"
           >
             {STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -94,7 +94,7 @@ export default function SalesPage() {
               </option>
             ))}
           </Select>
-          <Link href="/pos" className="inline-flex h-10 items-center justify-center rounded bg-primary px-4 text-sm font-medium text-white shadow-sm hover:bg-primary/90">
+          <Link href="/pos" className="inline-flex h-11 w-full items-center justify-center rounded bg-primary px-4 text-center text-sm font-medium text-white shadow-sm hover:bg-primary/90 sm:h-10 sm:w-auto">
             New Sale
           </Link>
         </div>

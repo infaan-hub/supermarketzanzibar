@@ -28,7 +28,7 @@ export default function ProductsPage() {
         <div className="flex items-center justify-between">
           <SkeletonText lines={2} className="w-[40%]" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <Card key={i} className="h-48">
               <Skeleton className="h-full w-full" />
@@ -78,11 +78,11 @@ export default function ProductsPage() {
           <h1 className="font-display text-2xl font-bold text-foreground">Products</h1>
           <p className="text-muted">Browse and manage the product catalogue.</p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <Select
             value=""
             onChange={() => {}}
-            className="w-64 sm:w-80"
+            className="w-full sm:w-64"
           >
             <option>All Categories</option>
             {categories.map((c) => (
@@ -91,11 +91,11 @@ export default function ProductsPage() {
               </option>
             ))}
           </Select>
-          <Input placeholder="Search products…" className="w-64 sm:w-80" />
+          <Input placeholder="Search products…" className="w-full sm:w-64" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

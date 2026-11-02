@@ -57,7 +57,7 @@ export default function SuppliersPage() {
             <h1 className="font-display text-2xl font-bold text-foreground">Suppliers</h1>
             <p className="text-muted">Supplier (vendor) records.</p>
           </div>
-          <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 sm:w-80" />
+          <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
         </div>
         <EmptyState title="No suppliers" description="No suppliers match your search." />
       </div>
@@ -71,7 +71,7 @@ export default function SuppliersPage() {
           <h1 className="font-display text-2xl font-bold text-foreground">Suppliers</h1>
           <p className="text-muted">Supplier (vendor) records.</p>
         </div>
-        <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 sm:w-80" />
+        <Input placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
       </div>
 
       <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">

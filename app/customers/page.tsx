@@ -61,7 +61,7 @@ export default function CustomersPage() {
             placeholder="Search customers…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64 sm:w-80"
+            className="w-full sm:w-80"
           />
         </div>
         <EmptyState title="No customers" description="No customer records match your search." />
@@ -80,7 +80,7 @@ export default function CustomersPage() {
           placeholder="Search customers…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-64 sm:w-80"
+          className="w-full sm:w-80"
         />
       </div>
 

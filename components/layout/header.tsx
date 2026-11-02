@@ -1,46 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-
-export function Header({ title }: { title: string }) {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
+export function Header({
+  title,
+  sidebarOpen,
+  onToggleSidebar,
+}: {
+  title: string;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+}) {
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-30 h-14 shrink-0 border-b border-border bg-background/80 backdrop-blur-md transition-colors",
-        scrolled ? "shadow-sm" : "shadow-sm",
-      )}
-    >
-      <div className="flex h-full items-center justify-between px-6">
+    <header className="app-header sticky top-0 z-30 shrink-0 border-b border-border bg-background/90 shadow-sm backdrop-blur-md">
+      <div className="app-header-inner flex h-full min-w-0 items-center justify-between gap-3 px-3 sm:px-5 lg:px-6">
         <div className="flex items-center gap-3">
           <button
-            className="-ml-1 inline-flex items-center justify-center h-10 w-10 rounded-lg border border-transparent bg-background/80 hover:bg-accent/5 text-muted hover:text-foreground transition-colors"
-            aria-label="Toggle navigation"
+            type="button"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-accent/10 hover:text-foreground"
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={sidebarOpen}
+            aria-controls="app-sidebar"
+            onClick={onToggleSidebar}
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
+            {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <span className="font-display font-semibold text-foreground sm:hidden">
+          <span className="max-w-[55vw] truncate font-display font-semibold text-foreground sm:hidden">
             {title}
           </span>
         </div>
@@ -75,5 +58,23 @@ export function Header({ title }: { title: string }) {
         </div>
       </div>
     </header>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="m18 6-12 12M6 6l12 12" />
+    </svg>
   );
 }

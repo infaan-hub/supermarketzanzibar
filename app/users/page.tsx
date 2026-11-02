@@ -66,9 +66,9 @@ export default function UsersPage() {
             <h1 className="font-display text-2xl font-bold text-foreground">Users</h1>
             <p className="text-muted">User accounts for admin management.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
-            <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-48">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-64" />
+            <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-full sm:w-48">
               {ROLE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -87,9 +87,9 @@ export default function UsersPage() {
           <h1 className="font-display text-2xl font-bold text-foreground">Users</h1>
           <p className="text-muted">User accounts for admin management.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
-          <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-48">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-64" />
+          <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-full sm:w-48">
             {ROLE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}

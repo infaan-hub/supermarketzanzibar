@@ -1,6 +1,5 @@
-@import "tailwindcss";
-
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap");
+@import "tailwindcss";
 
 @theme {
   /* Supermarket Zanzibar — green grocer identity, grounded in the legacy theme.
@@ -62,6 +61,48 @@ html {
 
 body {
   @apply bg-background text-foreground antialiased;
+  min-width: 320px;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.safe-main {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.app-header {
+  height: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+}
+
+.app-header-inner {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .safe-main {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
+
+  .app-header-inner {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1024px) {
+  .safe-main {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
+
+  .app-header-inner {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
 }
 
 /* Visible keyboard focus — accessibility baseline */

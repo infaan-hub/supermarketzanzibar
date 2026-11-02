@@ -320,11 +320,11 @@ export default function PosPage() {
         <div className="flex items-center justify-between">
           <SkeletonText lines={2} className="w-[40%]" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-          <div className="bg-background rounded-lg border border-border shadow-sm h-full">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
+          <div className="min-h-56 rounded-lg border border-border bg-background shadow-sm xl:col-span-2 xl:h-[600px]">
             <SkeletonText lines={6} className="p-6" />
           </div>
-          <div className="bg-background rounded-lg border border-border shadow-sm h-full p-6">
+          <div className="min-h-56 rounded-lg border border-border bg-background p-6 shadow-sm xl:h-[600px]">
             <SkeletonText lines={8} className="space-y-4" />
           </div>
         </div>
@@ -361,8 +361,8 @@ export default function PosPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Add Products</CardTitle>
@@ -375,7 +375,7 @@ export default function PosPage() {
                 >
                   Scan barcode
                 </label>
-                <form onSubmit={handleScan} className="flex gap-2">
+                <form onSubmit={handleScan} className="flex min-w-0 gap-2">
                   <Input
                     id="barcode-scan"
                     ref={scanInputRef}
