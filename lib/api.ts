@@ -5,6 +5,7 @@
 // frontend works on localhost and in production without hardcoded hosts.
 
 import type {
+  BarcodeLookupResponse,
   CategoriesResponse,
   CustomersResponse,
   DashboardResponse,
@@ -84,6 +85,19 @@ export async function fetchProducts(
   options?: ListOptions,
 ): Promise<ProductsResponse> {
   return request<ProductsResponse>(`/api/products${queryString(options)}`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Barcodes                                                           */
+/* ------------------------------------------------------------------ */
+
+/** Resolve a scanned Code 128 label to a product and packaging unit. */
+export async function lookupBarcode(
+  barcode: string,
+): Promise<BarcodeLookupResponse> {
+  return request<BarcodeLookupResponse>(
+    `/api/barcodes/lookup?barcode=${encodeURIComponent(barcode)}`,
+  );
 }
 
 /* ------------------------------------------------------------------ */

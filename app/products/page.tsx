@@ -5,7 +5,7 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -124,6 +124,22 @@ function ProductCard({ product }: { product: Product }) {
         )}
         {product.supplier && (
           <p className="text-xs text-muted">{product.supplier.companyName}</p>
+        )}
+        {product.barcode && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="break-all font-mono text-[11px] text-muted">
+              {product.barcode}
+            </span>
+            <a
+              href={`/api/barcodes/label?value=${encodeURIComponent(product.barcode)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-xs font-medium text-primary hover:underline"
+              title="Print Code 128 label"
+            >
+              Label
+            </a>
+          </div>
         )}
         <div className="mt-4 flex items-end justify-between gap-2">
           <span className="font-display font-bold text-lg text-foreground">

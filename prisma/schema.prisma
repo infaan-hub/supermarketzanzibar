@@ -87,6 +87,7 @@ model Customer {
 
   @@map("supermarketzanzibar_customer")
 }
+
 model Product {
   id               BigInt   @id @default(autoincrement())
   name             String   @db.VarChar(255)
@@ -105,12 +106,33 @@ model Product {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   saleItems      SaleItem[]
   stockMovements StockMovement[]
+  barcodes       ProductBarcode[]
 
   @@map("supermarketzanzibar_product")
+}
+
+/// Code 128 barcode labels for a product. A product keeps its original
+/// `Product.barcode` as the primary scan code; this table adds pack/unit
+/// codes (for example a carton of 12) and internal shelf labels.
+model ProductBarcode {
+  id                 String   @id @default(cuid())
+  productId          BigInt   @map("product_id")
+  barcode            String   @unique @db.VarChar(100)
+  barcodeType        String   @default("code128") @map("barcode_type") @db.VarChar(20)
+  /// Free-form packaging key (`each`, `pack`, `carton`); there is no Unit table yet.
+  unitId             String?  @map("unit_id") @db.VarChar(50)
+  quantityMultiplier Decimal  @default(1) @map("quantity_multiplier") @db.Decimal(10, 3)
+  isPrimary          Boolean  @default(false) @map("is_primary")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([productId])
+  @@map("supermarketzanzibar_productbarcode")
 }
 
 model Sale {
@@ -136,14 +158,15 @@ model Sale {
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user           User?           @relation("SaleUser", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  assignedDriver User?           @relation("AssignedDriver", fields: [assignedDriverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer       Customer?  @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user           User?      @relation("SaleUser", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedDriver User?      @relation("AssignedDriver", fields: [assignedDriverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   items          SaleItem[]
   payment        Payment?
 
   @@map("supermarketzanzibar_sale")
 }
+
 model SaleItem {
   id        BigInt   @id @default(autoincrement())
   saleId    BigInt   @map("sale_id")
@@ -177,17 +200,17 @@ model StockMovement {
 }
 
 model Payment {
-  id                    BigInt    @id @default(autoincrement())
-  controlNumber         String    @unique @map("control_number") @db.VarChar(20)
-  paymentMethod         String    @default("mobile_money") @map("payment_method") @db.VarChar(50)
-  status                String    @default("pending") @db.VarChar(20)
-  saleId                BigInt    @unique @map("sale_id")
-  confirmedById         BigInt?   @map("confirmed_by_id")
-  proofImageData        Bytes?    @map("proof_image_data")
-  proofImageName        String    @default("") @map("proof_image_name") @db.VarChar(255)
-  proofImageContentType String    @default("") @map("proof_image_content_type") @db.VarChar(100)
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    BigInt   @id @default(autoincrement())
+  controlNumber         String   @unique @map("control_number") @db.VarChar(20)
+  paymentMethod         String   @default("mobile_money") @map("payment_method") @db.VarChar(50)
+  status                String   @default("pending") @db.VarChar(20)
+  saleId                BigInt   @unique @map("sale_id")
+  confirmedById         BigInt?  @map("confirmed_by_id")
+  proofImageData        Bytes?   @map("proof_image_data")
+  proofImageName        String   @default("") @map("proof_image_name") @db.VarChar(255)
+  proofImageContentType String   @default("") @map("proof_image_content_type") @db.VarChar(100)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sale        Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   confirmedBy User? @relation("ConfirmedBy", fields: [confirmedById], references: [id], onDelete: NoAction, onUpdate: NoAction)

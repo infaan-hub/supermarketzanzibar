@@ -47,6 +47,33 @@ export interface ProductsResponse {
   pagination: Pagination;
 }
 
+// ---- Barcodes --------------------------------------------------------------
+
+export interface BarcodeLookupResponse {
+  barcode: string;
+  barcodeType: string;
+  source: "product_barcodes" | "product";
+  packaging: {
+    unitId: string;
+    quantityMultiplier: number;
+    isPrimary: boolean;
+  };
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    category: ProductCategory | null;
+    unitPrice: string;
+    price: string;
+    stock: number;
+    isActive: boolean;
+  };
+  price: string;
+  stock: number;
+  availableUnits: number;
+  inStock: boolean;
+}
+
 // ---- Categories ------------------------------------------------------------
 
 export interface Category {

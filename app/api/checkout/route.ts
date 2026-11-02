@@ -46,7 +46,21 @@ export async function POST(request: Request) {
       : "mobile_money";
 
     const sale = await prisma.$transaction(async (tx) => {
-      // 1. Lock product rows and verify stock.
+      // 1. Load products and verify stock. Quantities are summed per product
+      // because the same product can appear as an "each" and a pack line.
+      const requestedQuantities = new Map<string, number>();
+
+      for (const item of items) {
+        const quantity = Number(item.quantity);
+        if (!Number.isInteger(quantity) || quantity <= 0) {
+          throw new Error(`Invalid quantity for product ${item.productId}.`);
+        }
+        requestedQuantities.set(
+          item.productId,
+          (requestedQuantities.get(item.productId) ?? 0) + quantity,
+        );
+      }
+
       const products = await tx.product.findMany({
         where: {
           id: { in: items.map((i) => BigInt(i.productId)) },
@@ -57,7 +71,6 @@ export async function POST(request: Request) {
           name: true,
           quantity: true,
           price: true,
-          barcode: true,
         },
       });
 
@@ -74,27 +87,46 @@ export async function POST(request: Request) {
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`);
         }
-        if (product.quantity < item.quantity) {
+
+        const requestedQuantity =
+          requestedQuantities.get(item.productId) ?? Number(item.quantity);
+
+        if (product.quantity < requestedQuantity) {
           throw new Error(
-            `Insufficient stock for "${product.name}". Available: ${product.quantity}, requested: ${item.quantity}`,
+            `Insufficient stock for "${product.name}". Available: ${product.quantity}, requested: ${requestedQuantity}`,
           );
         }
-        const price = new Prisma.Decimal(item.price);
+
+        const quantity = Number(item.quantity);
+        // Always price from the database. The client-supplied price is only a
+        // display hint and must never decide what the customer is charged.
+        const price = new Prisma.Decimal(product.price);
         lines.push({
           productId: product.id,
           productName: product.name,
-          quantity: item.quantity,
+          quantity,
           price,
-          total: price.times(item.quantity),
+          total: price.times(quantity),
         });
       }
 
-      // 2. Deduct stock and record the movements.
+      // 2. Deduct stock and record the movements. The conditional update makes
+      // concurrent checkouts safe: a line only succeeds if stock is still there.
       for (const line of lines) {
-        await tx.product.update({
-          where: { id: line.productId },
+        const updated = await tx.product.updateMany({
+          where: {
+            id: line.productId,
+            isActive: true,
+            quantity: { gte: line.quantity },
+          },
           data: { quantity: { decrement: line.quantity } },
         });
+
+        if (updated.count === 0) {
+          throw new Error(
+            `Insufficient stock for "${line.productName}". Please rescan the item.`,
+          );
+        }
 
         await tx.stockMovement.create({
           data: {
