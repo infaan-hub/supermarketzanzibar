@@ -13,6 +13,7 @@ export async function GET() {
       stock: stock.map((s) => ({
         productId: s.productId.toString(),
         productName: s.productName,
+        barcode: s.barcode,
         category: s.category && s.categoryId
           ? { id: s.categoryId.toString(), name: s.category }
           : null,

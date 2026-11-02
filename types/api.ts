@@ -74,6 +74,17 @@ export interface BarcodeLookupResponse {
   inStock: boolean;
 }
 
+/** Payload for registering a product from the inventory terminal. */
+export interface CreateProductRequest {
+  name: string;
+  barcode: string;
+  price: number | string;
+  costPrice?: number | string;
+  quantity?: number;
+  categoryId?: string | null;
+  description?: string;
+}
+
 // ---- Categories ------------------------------------------------------------
 
 export interface Category {
@@ -180,6 +191,7 @@ export interface SalesResponse {
 export interface StockItem {
   productId: string;
   productName: string;
+  barcode: string;
   category: { id: string; name: string } | null;
   quantity: number;
   lowStockThreshold: number;
@@ -188,6 +200,34 @@ export interface StockItem {
 
 export interface StockResponse {
   stock: StockItem[];
+}
+
+/** Receive (IN) or issue (OUT) stock for a scanned barcode. */
+export interface StockAdjustmentRequest {
+  barcode: string;
+  movementType: "IN" | "OUT";
+  /** Number of packages/scans; a pack label multiplies this by its factor. */
+  quantity?: number;
+}
+
+export interface StockAdjustmentResponse {
+  movement: {
+    id: string;
+    productId: string;
+    quantity: number;
+    movementType: "IN" | "OUT";
+    date: string;
+  };
+  product: {
+    id: string;
+    name: string;
+    barcode: string;
+    quantity: number;
+    unitId: string;
+    quantityMultiplier: number;
+  };
+  packages: number;
+  units: number;
 }
 
 // ---- Payments --------------------------------------------------------------

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 export interface StockLevel {
   productId: bigint;
   productName: string;
+  barcode: string;
   categoryId: bigint | null;
   category: string | null;
   quantity: number;
@@ -24,6 +25,7 @@ export async function findStockLevels(): Promise<StockLevel[]> {
   return products.map((p) => ({
     productId: p.id,
     productName: p.name,
+    barcode: p.barcode,
     categoryId: p.categoryId,
     category: p.category?.name ?? null,
     quantity: p.quantity,

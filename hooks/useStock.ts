@@ -1,33 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchStock } from "@/lib/api";
 import type { StockResponse } from "@/types/api";
 
 export function useStock() {
   const [data, setData] = useState<StockResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const d = await fetchStock();
-        if (!cancelled) setData(d);
-      } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async (silent = false) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      const stock = await fetchStock();
+      setData(stock);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      if (silent) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    }
   }, []);
 
-  return { data, loading, error };
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const refresh = useCallback(() => load(true), [load]);
+
+  return { data, loading, refreshing, error, refresh };
 }

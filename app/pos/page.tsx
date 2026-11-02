@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import Link from "@/components/ui/link";
 import { useProducts } from "@/hooks/useProducts";
 import { lookupBarcode } from "@/lib/api";
@@ -148,63 +149,79 @@ export default function PosPage() {
     setReceipt(null);
   }, []);
 
+  const addBarcodeToCart = useCallback(
+    async (rawBarcode: string): Promise<boolean> => {
+      const barcode = rawBarcode.trim();
+      if (!barcode || scanning || checkingOut) return false;
+
+      setScanning(true);
+      setScanError(null);
+      setScanSuccess(null);
+
+      try {
+        const result = await lookupBarcode(barcode);
+
+        if (!result.inStock) {
+          setScanError(
+            `${result.product.name} is out of stock at this branch (${result.stock} base units).`,
+          );
+          return false;
+        }
+
+        const unitsAlreadyInCart = cart
+          .filter((item) => item.productId === result.product.id)
+          .reduce(
+            (sum, item) => sum + item.quantity * item.quantityMultiplier,
+            0,
+          );
+
+        if (
+          unitsAlreadyInCart + result.packaging.quantityMultiplier >
+          result.stock
+        ) {
+          setScanError(
+            `Only ${result.stock} base units of ${result.product.name} are in stock.`,
+          );
+          return false;
+        }
+
+        addCartLine({
+          productId: result.product.id,
+          productName: result.product.name,
+          price: Number(result.price),
+          quantityMultiplier: result.packaging.quantityMultiplier,
+          unitId:
+            result.packaging.unitId === "each"
+              ? null
+              : result.packaging.unitId,
+          barcode: result.barcode,
+        });
+
+        const pack =
+          result.packaging.quantityMultiplier > 1
+            ? ` (${result.packaging.unitId} × ${formatMultiplier(result.packaging.quantityMultiplier)})`
+            : "";
+
+        setScanSuccess(`Added ${result.product.name}${pack}.`);
+        return true;
+      } catch (err) {
+        setScanError(
+          err instanceof Error ? err.message : "Barcode lookup failed.",
+        );
+        return false;
+      } finally {
+        setScanning(false);
+      }
+    },
+    [addCartLine, cart, checkingOut, scanning],
+  );
+
   const handleScan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const barcode = scanValue.trim();
-    if (!barcode || scanning) return;
-
-    setScanning(true);
-    setScanError(null);
-    setScanSuccess(null);
-
-    try {
-      const result = await lookupBarcode(barcode);
-
-      if (!result.inStock) {
-        setScanError(
-          `${result.product.name} is out of stock at this branch (${result.stock} base units).`,
-        );
-        return;
-      }
-
-      const unitsAlreadyInCart = cart
-        .filter((item) => item.productId === result.product.id)
-        .reduce(
-          (sum, item) => sum + item.quantity * item.quantityMultiplier,
-          0,
-        );
-
-      if (
-        unitsAlreadyInCart + result.packaging.quantityMultiplier >
-        result.stock
-      ) {
-        setScanError(
-          `Only ${result.stock} base units of ${result.product.name} are in stock.`,
-        );
-        return;
-      }
-
-      addCartLine({
-        productId: result.product.id,
-        productName: result.product.name,
-        price: Number(result.price),
-        quantityMultiplier: result.packaging.quantityMultiplier,
-        unitId: result.packaging.unitId === "each" ? null : result.packaging.unitId,
-        barcode: result.barcode,
-      });
-
-      const pack =
-        result.packaging.quantityMultiplier > 1
-          ? ` (${result.packaging.unitId} × ${formatMultiplier(result.packaging.quantityMultiplier)})`
-          : "";
-
-      setScanSuccess(`Added ${result.product.name}${pack}.`);
+    const added = await addBarcodeToCart(scanValue);
+    if (added) {
       setScanValue("");
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Barcode lookup failed.");
-    } finally {
-      setScanning(false);
       requestAnimationFrame(() => scanInputRef.current?.focus());
     }
   };
@@ -379,8 +396,17 @@ export default function PosPage() {
                 </form>
                 <p className="text-xs text-muted">
                   Code 128 supports letters, numbers and symbols. USB/Bluetooth
-                  scanners send the code and Enter automatically.
+                  scanners send the code and Enter automatically, or use the
+                  device camera below.
                 </p>
+                <BarcodeCameraScanner
+                  continuous
+                  disabled={checkingOut}
+                  startLabel="Scan with device camera"
+                  onScan={async (barcode) => {
+                    await addBarcodeToCart(barcode);
+                  }}
+                />
                 {scanError && (
                   <div
                     role="alert"

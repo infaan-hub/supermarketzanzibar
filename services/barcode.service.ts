@@ -54,7 +54,7 @@ export class BarcodeError extends Error {
   }
 }
 
-function isMissingBarcodeTable(error: unknown): boolean {
+export function isMissingBarcodeTable(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2021" || error.code === "P2022")

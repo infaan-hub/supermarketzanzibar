@@ -7,12 +7,16 @@
 import type {
   BarcodeLookupResponse,
   CategoriesResponse,
+  CreateProductRequest,
   CustomersResponse,
   DashboardResponse,
   ListOptions,
   PaymentsResponse,
+  Product,
   ProductsResponse,
   SalesResponse,
+  StockAdjustmentRequest,
+  StockAdjustmentResponse,
   StockResponse,
   SuppliersResponse,
   UsersResponse,
@@ -34,26 +38,52 @@ export class ApiError extends Error {
   }
 }
 
+function errorMessageFromBody(body: unknown, fallback: string): string {
+  if (typeof body !== "object" || body === null) return fallback;
+
+  const record = body as Record<string, unknown>;
+  if (typeof record.detail === "string" && record.detail.trim()) {
+    return record.detail;
+  }
+  if (typeof record.message === "string" && record.message.trim()) {
+    return record.message;
+  }
+
+  // DRF-style validation errors are `{ field: ["message", ...] }`.
+  const messages: string[] = [];
+  for (const [field, value] of Object.entries(record)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string") {
+          messages.push(field === "detail" ? item : `${field}: ${item}`);
+        }
+      }
+    } else if (typeof value === "string") {
+      messages.push(`${field}: ${value}`);
+    }
+  }
+
+  return messages.length > 0 ? messages.join(" ") : fallback;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const res = await fetch(url, {
+    ...init,
     cache: "no-store",
     headers: {
       Accept: "application/json",
       ...(init?.headers ?? {}),
     },
-    ...init,
   });
 
   if (!res.ok) {
-    let detail = `Request failed (${res.status})`;
+    const fallback = `Request failed (${res.status})`;
+    let detail = fallback;
     let body: unknown;
     try {
       body = await res.json();
-      detail =
-        (body as { detail?: string })?.detail ??
-        (body as { message?: string })?.message ??
-        detail;
+      detail = errorMessageFromBody(body, fallback);
     } catch {
       body = null;
     }
@@ -85,6 +115,17 @@ export async function fetchProducts(
   options?: ListOptions,
 ): Promise<ProductsResponse> {
   return request<ProductsResponse>(`/api/products${queryString(options)}`);
+}
+
+/** Register a product from the inventory terminal, including its barcode. */
+export async function createProduct(
+  input: CreateProductRequest,
+): Promise<Product> {
+  return request<Product>("/api/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -150,6 +191,17 @@ export async function fetchSales(options?: ListOptions): Promise<SalesResponse> 
 
 export async function fetchStock(): Promise<StockResponse> {
   return request<StockResponse>("/api/stock");
+}
+
+/** Receive or issue stock for a scanned barcode. */
+export async function adjustStockByBarcode(
+  input: StockAdjustmentRequest,
+): Promise<StockAdjustmentResponse> {
+  return request<StockAdjustmentResponse>("/api/stock/movements", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 /* ------------------------------------------------------------------ */
