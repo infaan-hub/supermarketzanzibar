@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -38,6 +39,26 @@ export function Sidebar({
   onNavigate: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setLoggedIn(Boolean(localStorage.getItem("ss_access_token")));
+    sync();
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+
+  function handleSignOut() {
+    try {
+      localStorage.removeItem("ss_access_token");
+    } catch {
+      // ignore
+    }
+    setLoggedIn(false);
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside
@@ -87,6 +108,43 @@ export function Sidebar({
             );
           })}
         </nav>
+        <div className="shrink-0 border-t border-border px-3 py-3 space-y-1">
+          {loggedIn ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <span className="h-5 w-5 shrink-0">
+                <LogoutIcon />
+              </span>
+              Sign out
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={onNavigate}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-accent/5 hover:text-foreground"
+              >
+                <span className="h-5 w-5 shrink-0">
+                  <LoginIcon />
+                </span>
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                onClick={onNavigate}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-accent/5 hover:text-foreground"
+              >
+                <span className="h-5 w-5 shrink-0">
+                  <RegisterIcon />
+                </span>
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -198,6 +256,37 @@ function UserIcon() {
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function LoginIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <polyline points="10 17 15 12 10 7" />
+      <line x1="15" y1="12" x2="3" y2="12" />
+    </svg>
+  );
+}
+
+function RegisterIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   );
 }
