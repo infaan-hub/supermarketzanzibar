@@ -18,7 +18,6 @@ const NAV: NavItem[] = [
   { href: "/categories", label: "Categories", icon: <TagIcon /> },
   { href: "/stock", label: "Inventory", icon: <PackageIcon /> },
   { href: "/sales", label: "Sales", icon: <CartIcon /> },
-  { href: "/payments", label: "Payments", icon: <CreditCardIcon /> },
   { href: "/customers", label: "Customers", icon: <UsersIcon /> },
   { href: "/suppliers", label: "Suppliers", icon: <TruckIcon /> },
   { href: "/users", label: "Users", icon: <UserIcon /> },
@@ -215,16 +214,6 @@ function CartIcon() {
       <circle cx="8" cy="21" r="1" />
       <circle cx="19" cy="21" r="1" />
       <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 1.99 1.82h7.12a2 2 0 0 0 1.99-1.82L19.73 4.05H21" />
-    </svg>
-  );
-}
-
-function CreditCardIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect width="18" height="10" x="3" y="7" rx="2" ry="2" />
-      <line x1="3" y1="11" x2="21" y2="11" />
-      <path d="M12 2v20" />
     </svg>
   );
 }
