@@ -159,91 +159,85 @@ export async function GET(request: Request) {
       justify-content: center;
       padding: 24px;
     }
-    .pass {
-      width: min(760px, 100%);
+    .ticket {
+      width: min(780px, 100%);
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 16px;
       box-shadow: 0 24px 60px rgba(31, 58, 43, 0.10);
       overflow: hidden;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) 112px;
     }
-    .pass-left {
-      padding: 28px 30px 26px;
+    .ticket-main {
+      padding: 26px 30px 22px;
       position: relative;
     }
-    .pass-right {
-      padding: 24px 26px 24px 18px;
+    .ticket-stub {
+      position: relative;
+      padding: 22px 14px;
       background: var(--accent-soft);
+      border-left: 2px dashed var(--border);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      position: relative;
+      justify-content: space-between;
+      gap: 12px;
     }
-    .pass-right::before {
+    .ticket-stub::before,
+    .ticket-stub::after {
       content: "";
       position: absolute;
-      left: -11px;
-      top: 18px;
-      bottom: 18px;
-      width: 0;
-      border-left: 2px dashed var(--border);
-    }
-    .notch {
-      position: absolute;
-      left: -11px;
-      top: 50%;
+      left: -12px;
       width: 22px;
       height: 22px;
-      margin-top: -11px;
       border-radius: 50%;
       background: linear-gradient(135deg, #f4faf6 0%, #ffffff 100%);
       border: 1px solid var(--border);
     }
+    .ticket-stub::before { top: -11px; }
+    .ticket-stub::after { bottom: -11px; }
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--accent);
     }
     .brand-mark {
-      width: 26px;
-      height: 26px;
-      border-radius: 7px;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
       background: var(--accent);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
     }
     .title {
-      margin: 14px 0 2px;
-      font-size: 24px;
+      margin: 12px 0 2px;
+      font-size: 22px;
       font-weight: 600;
       line-height: 1.15;
       letter-spacing: -0.01em;
     }
     .subtitle {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
     }
     .meta {
-      margin-top: 18px;
+      margin-top: 16px;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px 20px;
+      gap: 10px 18px;
     }
     .meta dt {
-      font-size: 10px;
+      font-size: 9px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--muted);
@@ -251,39 +245,73 @@ export async function GET(request: Request) {
     }
     .meta dd {
       margin: 2px 0 0;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
     }
     .meta dd.mono {
       font-family: "DM Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 13px;
+      font-size: 12px;
       letter-spacing: 0.04em;
     }
-    .barcode-wrap {
+    .barcode-block {
+      margin-top: 18px;
       background: #fff;
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 10px 12px 8px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      gap: 6px;
     }
-    .barcode-wrap svg {
+    .barcode-block svg {
       width: 100%;
       height: auto;
-      max-width: 260px;
+      max-width: 420px;
     }
-    .value {
+    .barcode-value {
       font-family: "DM Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 12px;
-      letter-spacing: 0.12em;
+      font-size: 11px;
+      letter-spacing: 0.14em;
       color: var(--ink);
       text-align: center;
       word-break: break-all;
     }
+    .stub-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .stub-label {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-family: "DM Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--ink);
+      text-align: center;
+      word-break: break-all;
+      max-height: 150px;
+      overflow: hidden;
+    }
+    .stub-note {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
     .footer {
       grid-column: 1 / -1;
-      padding: 12px 30px;
+      padding: 11px 30px;
       border-top: 1px dashed var(--border);
       display: flex;
       align-items: center;
@@ -308,22 +336,28 @@ export async function GET(request: Request) {
     .print-btn:hover { filter: brightness(0.95); }
     @media print {
       body { background: #fff; padding: 0; }
-      .pass { box-shadow: none; border: 1px solid #999; }
+      .ticket { box-shadow: none; border: 1px solid #999; }
       .print-btn { display: none; }
       .footer { background: #fff; }
     }
     @media (max-width: 640px) {
-      .pass { grid-template-columns: 1fr; }
-      .pass-right { border-top: 1px dashed var(--border); }
-      .pass-right::before { display: none; }
-      .notch { display: none; }
-      .meta { grid-template-columns: 1fr 1fr; }
+      .ticket { grid-template-columns: 1fr; }
+      .ticket-stub {
+        flex-direction: row;
+        border-left: 0;
+        border-top: 2px dashed var(--border);
+        padding: 14px 22px;
+      }
+      .ticket-stub::before,
+      .ticket-stub::after { display: none; }
+      .stub-label,
+      .stub-note { writing-mode: horizontal-tb; transform: none; max-height: none; }
     }
   </style>
 </head>
 <body>
-  <article class="pass" aria-label="Product label">
-    <div class="pass-left">
+  <article class="ticket" aria-label="Product label">
+    <div class="ticket-main">
       <div class="brand">
         <span class="brand-mark">SZ</span>
         <span>Supermarket Zanzibar · Product label</span>
@@ -361,13 +395,18 @@ export async function GET(request: Request) {
             : ""
         }
       </dl>
+
+      <div class="barcode-block">
+        ${svg}
+        <p class="barcode-value">${escapeHtml(value)}</p>
+      </div>
     </div>
 
-    <div class="pass-right">
-      <div class="notch" aria-hidden="true"></div>
-      <div class="barcode-wrap">${svg}</div>
-      <p class="value">${escapeHtml(value)}</p>
-    </div>
+    <aside class="ticket-stub" aria-label="Label stub">
+      <span class="stub-mark">SZ</span>
+      <p class="stub-label">${escapeHtml(value)}</p>
+      <p class="stub-note">Scan at POS</p>
+    </aside>
 
     <footer class="footer">
       <span><strong>Scan at POS</strong> · Keep this label visible for stock and sales.</span>
