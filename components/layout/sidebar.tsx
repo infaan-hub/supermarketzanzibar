@@ -69,7 +69,7 @@ export function Sidebar({
     >
       <div className="flex h-full flex-col">
         <div className="h-14 shrink-0 border-b border-border bg-background/60 backdrop-blur px-6 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-display font-bold text-sm shadow-[0_0_12px_rgba(31,143,58,0.35])">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-hover font-display text-sm font-bold text-white shadow-[0_0_12px_rgba(21,114,45,0.30)]">
             SZ
           </div>
           <span className="font-display font-bold text-xl text-foreground tracking-tight">
@@ -96,7 +96,7 @@ export function Sidebar({
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   active
-                    ? "bg-primary text-white shadow-[0_0_10px_rgba(31,143,58,0.30)]"
+                    ? "bg-primary-hover text-white shadow-[0_0_10px_rgba(21,114,45,0.24)]"
                     : "text-muted hover:bg-accent/5 hover:text-foreground",
                 )}
                 aria-current={active ? "page" : undefined}

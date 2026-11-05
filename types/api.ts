@@ -254,6 +254,10 @@ export interface PaymentsResponse {
 
 // ---- Dashboard stats -------------------------------------------------------
 
+/**
+ * Shape kept for the legacy `/api/dashboard/stats` endpoint. The dashboard now
+ * reads `/api/dashboard/overview`, but other integrations may still use this.
+ */
 export interface DashboardStats {
   totalSalesToday: number;
   totalSalesWeek: number;
@@ -264,18 +268,125 @@ export interface DashboardStats {
   totalProducts: number;
 }
 
-export interface RecentSale {
+// ---- Dashboard overview ----------------------------------------------------
+
+export type DashboardRange = "today" | "week" | "month" | "year";
+
+export interface DashboardMetricDelta {
+  current: number;
+  previous: number;
+  change: number;
+  /** Null when the previous period was zero, so no percentage exists. */
+  changePercent: number | null;
+  direction: "up" | "down" | "flat" | "new";
+}
+
+export interface DashboardRangeSummary {
+  key: DashboardRange;
+  label: string;
+  contextLabel: string;
+  comparisonLabel: string;
+  start: string;
+  end: string;
+  previousStart: string;
+  previousEnd: string;
+}
+
+export interface DashboardTrendPoint {
+  bucket: string;
+  label: string;
+  fullLabel: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface DashboardTrend {
+  granularity: "hour" | "day" | "month";
+  points: DashboardTrendPoint[];
+}
+
+export interface DashboardPaymentMethod {
+  method: string;
+  orders: number;
+  amount: number;
+  /** Share of confirmed orders in the period (0–1). */
+  share: number;
+}
+
+export interface DashboardInventory {
+  activeProducts: number;
+  totalUnits: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  stockValue: number;
+}
+
+export interface DashboardLowStockItem {
   id: string;
-  customer: { name: string } | null;
-  totalAmount: number | string;
+  name: string;
+  barcode: string;
+  category: string | null;
+  quantity: number;
+  threshold: number;
+  price: number;
+}
+
+export interface DashboardPendingPayments {
+  count: number;
+  amount: number;
+}
+
+export interface DashboardRecentSale {
+  id: string;
+  customer: string;
+  items: number;
+  units: number;
+  amount: number;
+  paymentMethod: string;
+  paymentStatus: string | null;
   status: string;
   createdAt: string;
 }
 
-export interface DashboardResponse {
-  stats: DashboardStats;
-  recentSales: RecentSale[];
+export interface DashboardTopSeller {
+  productId: string;
+  name: string;
+  quantity: number;
+  revenue: number;
 }
+
+export interface DashboardStockMovement {
+  id: string;
+  product: string;
+  type: string;
+  quantity: number;
+  date: string;
+}
+
+export interface DashboardOverview {
+  generatedAt: string;
+  timeZone: string;
+  range: DashboardRangeSummary;
+  metrics: {
+    revenue: DashboardMetricDelta;
+    orders: DashboardMetricDelta;
+    averageOrderValue: DashboardMetricDelta;
+  };
+  trend: DashboardTrend;
+  paymentMethods: DashboardPaymentMethod[];
+  inventory: DashboardInventory;
+  lowStock: {
+    items: DashboardLowStockItem[];
+    total: number;
+  };
+  pendingPayments: DashboardPendingPayments;
+  recentSales: DashboardRecentSale[];
+  topSellers: DashboardTopSeller[];
+  stockMovements: DashboardStockMovement[];
+}
+
+/** @deprecated Use `DashboardOverview` for the live dashboard. */
+export type DashboardResponse = DashboardOverview;
 
 // ---- Request options -------------------------------------------------------
 

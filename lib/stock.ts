@@ -1,6 +1,7 @@
 // Stock library: stock level queries for the API routes.
 
 import { prisma } from "@/lib/db";
+import { LOW_STOCK_THRESHOLD, REORDER_LEVEL } from "@/lib/inventory";
 
 export interface StockLevel {
   productId: bigint;
@@ -12,10 +13,6 @@ export interface StockLevel {
   lowStockThreshold: number;
   reorderLevel: number;
 }
-
-// Default inventory thresholds used when product records do not store them.
-const LOW_STOCK_THRESHOLD = 10;
-const REORDER_LEVEL = 20;
 
 export async function findStockLevels(): Promise<StockLevel[]> {
   const products = await prisma.product.findMany({

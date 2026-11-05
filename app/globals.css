@@ -11,26 +11,30 @@
   --color-primary-hover: #15722d;
   --color-primary-soft: rgba(78, 173, 99, 0.16);
 
-  --color-muted: #668070;
-  --color-muted-foreground: rgba(102, 128, 112, 0.45);
+  --color-muted: #5b7365;
+  --color-muted-foreground: #5f7468;
 
   --color-border: rgba(86, 129, 97, 0.18);
   --color-border-hover: rgba(86, 129, 97, 0.45);
-  --color-ring: #1f8f3a;
+  --color-ring: #15722d;
 
   --color-accent: #1f8f3a;
-  --color-accent-soft: rgba(78, 173, 99, 0.16);
+  --color-accent-soft: rgba(78, 173, 99, 0.12);
 
-  --color-success: #1d8b38;
-  --color-success-soft: rgba(29, 139, 56, 0.12);
+  --color-success: #15722d;
+  --color-success-soft: rgba(21, 114, 45, 0.10);
 
-  --color-danger: #dc2626;
-  --color-danger-soft: rgba(220, 38, 38, 0.12);
+  --color-danger: #c4242a;
+  --color-danger-soft: rgba(196, 36, 42, 0.10);
 
-  --color-warning: #d97706;
-  --color-warning-soft: rgba(217, 119, 6, 0.12);
+  --color-warning: #b45309;
+  --color-warning-soft: rgba(180, 83, 9, 0.10);
 
-  --color-sidebar: rgba(255, 255, 255, 0.82);
+  --color-surface-subtle: #f4faf6;
+  --color-surface-muted: #eef7f1;
+  --color-chart-grid: #e3ece6;
+
+  --color-sidebar: rgba(247, 251, 248, 0.94);
   --color-sidebar-border: rgba(86, 129, 97, 0.12);
 
   --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

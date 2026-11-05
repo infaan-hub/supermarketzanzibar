@@ -17,7 +17,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
           "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-display font-semibold transition-colors",
           {
             default:
-              "border-transparent bg-primary text-white shadow-[0_0_10px_rgba(31,143,58,0.3)]",
+              "border-transparent bg-primary-hover text-white shadow-[0_0_10px_rgba(21,114,45,0.24)]",
             secondary:
               "border-border bg-background text-muted hover:bg-accent/5",
             success: "border-success/20 bg-success/10 text-success",

@@ -21,7 +21,7 @@ function baseStyles() {
 function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default") {
   return cn({
     default:
-      "bg-primary text-white shadow-sm hover:bg-primary/90 hover:shadow-[0_0_12px_rgba(31,143,58,0.35)]",
+      "bg-primary-hover text-white shadow-sm hover:bg-[#0f5c23] hover:shadow-[0_0_12px_rgba(21,114,45,0.28)]",
     secondary:
       "bg-background border border-border text-foreground hover:bg-accent/5 hover:border-accent",
     ghost:

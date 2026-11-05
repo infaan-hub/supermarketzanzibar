@@ -51,7 +51,7 @@ export function Header({
             <span className="hidden md:block text-sm text-muted">
               Supermarket Zanzibar
             </span>
-            <div className="h-8 w-8 rounded-full border border-border bg-background flex items-center justify-center text-xs font-semibold text-primary overflow-hidden">
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-xs font-semibold text-primary-hover">
               SZ
             </div>
           </div>

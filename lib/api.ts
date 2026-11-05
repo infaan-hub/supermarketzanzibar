@@ -9,7 +9,8 @@ import type {
   CategoriesResponse,
   CreateProductRequest,
   CustomersResponse,
-  DashboardResponse,
+  DashboardOverview,
+  DashboardRange,
   ListOptions,
   PaymentsResponse,
   Product,
@@ -216,12 +217,10 @@ export async function fetchPayments(): Promise<PaymentsResponse> {
 /* Dashboard                                                          */
 /* ------------------------------------------------------------------ */
 
-export async function fetchDashboard(): Promise<DashboardResponse> {
-  const [stats, salesResponse] = await Promise.all([
-    request<DashboardResponse["stats"]>("/api/dashboard/stats"),
-    request<{ sales: DashboardResponse["recentSales"] }>(
-      "/api/sales?take=5&page=1",
-    ),
-  ]);
-  return { stats, recentSales: salesResponse.sales };
+export async function fetchDashboard(
+  range: DashboardRange,
+): Promise<DashboardOverview> {
+  return request<DashboardOverview>(
+    `/api/dashboard/overview?range=${encodeURIComponent(range)}`,
+  );
 }
