@@ -16,9 +16,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePosCart } from "@/hooks/usePosCart";
 import { formatMoney } from "@/lib/format";
 import Link from "@/components/ui/link";
+import { useRouter } from "next/navigation";
 
 export default function ShoppingCartPage() {
   const cart = usePosCart();
+  const router = useRouter();
+
+  const handleCheckout = async () => {
+    const receipt = await cart.handleCheckout();
+    if (receipt) router.push("/receipt");
+  };
 
   return (
     <div className="space-y-6">
@@ -158,7 +165,7 @@ export default function ShoppingCartPage() {
                 variant="success"
                 className="w-full py-3 font-semibold"
                 disabled={cart.cart.length === 0 || cart.checkingOut}
-                onClick={cart.handleCheckout}
+                onClick={handleCheckout}
               >
                 {cart.checkingOut ? "Processing…" : `Complete Sale — ${formatMoney(cart.grandTotal)}`}
               </Button>

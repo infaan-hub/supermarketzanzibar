@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: <LayoutIcon /> },
   { href: "/pos", label: "Point of Sale", icon: <PosIcon /> },
   { href: "/shopping-cart", label: "Shopping Cart", icon: <CartIcon /> },
+  { href: "/receipt", label: "Receipt", icon: <CartIcon /> },
   { href: "/products", label: "Products", icon: <BoxIcon /> },
   { href: "/categories", label: "Categories", icon: <TagIcon /> },
   { href: "/stock", label: "Inventory", icon: <PackageIcon /> },

@@ -51,6 +51,36 @@ const CART_KEY = "ss_pos_cart";
 const CUSTOMER_KEY = "ss_pos_customer";
 const PAYMENT_KEY = "ss_pos_payment";
 
+function playBeep() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const context = new AudioContextCtor();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.18, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      context.currentTime + 0.14,
+    );
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.14);
+    oscillator.onended = () => {
+      context.close().catch(() => undefined);
+    };
+  } catch {
+    // Audio is a progressive enhancement; ignore failures.
+  }
+}
+
 function formatMultiplier(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
@@ -213,6 +243,7 @@ export function usePosCart() {
             : "";
 
         setScanSuccess(`Added ${result.product.name}${pack}.`);
+        playBeep();
         return true;
       } catch (err) {
         setScanError(err instanceof Error ? err.message : "Barcode lookup failed.");
@@ -233,14 +264,14 @@ export function usePosCart() {
     }
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (): Promise<Receipt | null> => {
     if (cart.length === 0) {
       setCheckoutError("Add at least one item before checkout.");
-      return;
+      return null;
     }
     if (!customer.email || !customer.fullName || !customer.phone) {
       setCheckoutError("Customer name, email, and phone are required.");
-      return;
+      return null;
     }
 
     const cartSnapshot = cart;
@@ -275,7 +306,7 @@ export function usePosCart() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Checkout failed." }));
         setCheckoutError(err.detail || "Checkout failed.");
-        return;
+        return null;
       }
 
       const result = await res.json();
@@ -283,7 +314,7 @@ export function usePosCart() {
       const serverTax = Number(result.sale?.taxAmount ?? snapshotTax);
       const serverTotal = Number(result.sale?.grandTotal ?? snapshotTotal);
 
-      setReceipt({
+      const newReceipt: Receipt = {
         saleId: result.sale?.id ?? result.id ?? "",
         controlNumber:
           result.sale?.controlNumber ??
@@ -303,14 +334,23 @@ export function usePosCart() {
         })),
         paymentMethod,
         createdAt: new Date().toISOString(),
-      });
+      };
+
+      setReceipt(newReceipt);
+      try {
+        window.localStorage.setItem("ss_receipt", JSON.stringify(newReceipt));
+      } catch {
+        // ignore
+      }
 
       setCart([]);
       setScanValue("");
       setScanError(null);
       setScanSuccess(null);
+      return newReceipt;
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Checkout failed.");
+      return null;
     } finally {
       setCheckingOut(false);
     }
