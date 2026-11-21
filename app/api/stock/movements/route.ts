@@ -12,9 +12,12 @@ import {
   validationError,
 } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/request";
+import { requireInventory, requireStaff } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import { resolveBarcode } from "@/services/barcode.service";
+import { recordAuditLog } from "@/lib/audit";
+import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import { syncTwinDeductionInTx } from "@/services/digital-twin.service";
 
 type MovementType = "IN" | "OUT";
 
@@ -125,7 +128,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requireInventory(request);
   if (!guard.ok) return guard.response;
 
   let body: unknown;
@@ -214,6 +217,7 @@ export async function POST(request: NextRequest) {
         product = await tx.product.findUniqueOrThrow({
           where: { id: productId },
         });
+        await syncTwinDeductionInTx(tx, productId, units);
       } else {
         product = await tx.product.update({
           where: { id: productId },
@@ -226,10 +230,28 @@ export async function POST(request: NextRequest) {
           productId,
           quantity: units,
           movementType,
+          performedById: guard.user.id,
+          reference: `BARCODE-${barcode}`,
+          notes: `Barcode terminal ${movementType} (${packages} pkg × ${multiplier})`,
         },
       });
 
       return { movement, product };
+    });
+
+    await recordAuditLog({
+      actorId: guard.user.id,
+      action: `STOCK_MOVEMENT_${movementType}`,
+      entityType: "PRODUCT",
+      entityId: productId.toString(),
+      summary: `${movementType} ${units} base unit(s) of ${result.product.name} via barcode ${barcode}.`,
+    });
+
+    publishInventoryEvent({
+      type: "stock_adjusted",
+      productId: productId.toString(),
+      delta: movementType === "IN" ? units : -units,
+      summary: `Stock ${movementType}: ${units}× ${result.product.name}`,
     });
 
     return json({

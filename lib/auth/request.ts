@@ -5,7 +5,10 @@ import { prisma } from "@/lib/db";
 import { verifyAccessToken, type Role } from "@/lib/auth/jwt";
 import {
   ADMIN_ROLES,
+  EXPLORE_ROLES,
+  INVENTORY_ROLES,
   MANAGER_ROLES,
+  POS_ROLES,
   STAFF_ROLES,
   normalizeRole,
 } from "@/lib/auth/roles";
@@ -44,9 +47,10 @@ export function extractBearerToken(req: Request | NextRequest): string | null {
   return match ? match[1].trim() : null;
 }
 
-export async function authenticate(req: Request | NextRequest): Promise<AuthResult> {
-  const token = extractBearerToken(req);
-  if (!token) {
+export async function authenticateTokenString(
+  token: string | null | undefined,
+): Promise<AuthResult> {
+  if (!token || !token.trim()) {
     return {
       ok: false,
       error: "Authentication credentials were not provided.",
@@ -56,7 +60,7 @@ export async function authenticate(req: Request | NextRequest): Promise<AuthResu
 
   let claims;
   try {
-    claims = await verifyAccessToken(token);
+    claims = await verifyAccessToken(token.trim());
   } catch (err) {
     const expired =
       err instanceof Error && (err as { code?: string }).code === "expired";
@@ -82,7 +86,15 @@ export async function authenticate(req: Request | NextRequest): Promise<AuthResu
   return { ok: true, user: toCurrentUser(user) };
 }
 
-export async function requireAuth(req: Request | NextRequest): Promise<GuardResult> {
+export async function authenticate(
+  req: Request | NextRequest,
+): Promise<AuthResult> {
+  return authenticateTokenString(extractBearerToken(req));
+}
+
+export async function requireAuth(
+  req: Request | NextRequest,
+): Promise<GuardResult> {
   const auth = await authenticate(req);
   if (!auth.ok) {
     return { ok: false, response: unauthorized(auth.error) };
@@ -106,6 +118,16 @@ export async function requireRoles(
   return { ok: true, user: auth.user };
 }
 
+export function requireExplorer(
+  req: Request | NextRequest,
+): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    EXPLORE_ROLES,
+    "Authorized store viewer or staff access is required.",
+  );
+}
+
 export function requireStaff(req: Request | NextRequest): Promise<GuardResult> {
   return requireRoles(
     req,
@@ -114,7 +136,27 @@ export function requireStaff(req: Request | NextRequest): Promise<GuardResult> {
   );
 }
 
-export function requireManager(req: Request | NextRequest): Promise<GuardResult> {
+export function requirePos(req: Request | NextRequest): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    POS_ROLES,
+    "Cashier, manager, or administrator permission is required for POS.",
+  );
+}
+
+export function requireInventory(
+  req: Request | NextRequest,
+): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    INVENTORY_ROLES,
+    "Inventory staff, manager, or administrator permission is required.",
+  );
+}
+
+export function requireManager(
+  req: Request | NextRequest,
+): Promise<GuardResult> {
   return requireRoles(
     req,
     MANAGER_ROLES,

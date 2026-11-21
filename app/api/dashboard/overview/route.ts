@@ -2,7 +2,7 @@
 
 import type { NextRequest } from "next/server";
 import { badRequest, json } from "@/lib/http";
-import { requireStaff } from "@/lib/auth/request";
+import { requireExplorer } from "@/lib/auth/request";
 import { getDashboardOverview } from "@/lib/dashboard";
 import { isDashboardRange } from "@/lib/dashboard-range";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requireExplorer(request);
   if (!guard.ok) return guard.response;
 
   const rawRange = request.nextUrl.searchParams.get("range") ?? "today";

@@ -8,10 +8,16 @@ import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { badRequest, json, serverError } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/request";
+import { requirePos } from "@/lib/auth/request";
 import { generateReceipt } from "@/lib/receipt";
 import { sendOrderEmail } from "@/lib/mail";
 import { isEmailValid, text as cleanText } from "@/lib/validation";
+import { recordAuditLog } from "@/lib/audit";
+import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import {
+  isMissingTwinTables,
+  syncTwinDeductionInTx,
+} from "@/services/digital-twin.service";
 
 const VALID_METHODS = new Set(["cash", "mobile_money", "card", "bank_transfer"]);
 
@@ -32,7 +38,7 @@ class CheckoutError extends Error {
 }
 
 export async function POST(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requirePos(request);
   if (!guard.ok) return guard.response;
 
   try {
@@ -42,6 +48,76 @@ export async function POST(request: NextRequest) {
     > | null;
     if (!body || typeof body !== "object") {
       return badRequest("A JSON body is required.");
+    }
+
+    const rawIdempotencyKey =
+      typeof body.idempotencyKey === "string"
+        ? body.idempotencyKey.trim().slice(0, 80)
+        : request.headers.get("x-idempotency-key")?.trim().slice(0, 80) || "";
+    const idempotencyKey = rawIdempotencyKey || null;
+
+    // Phase 17: Idempotent replay check prevents double-charging or duplicate stock deductions.
+    if (idempotencyKey) {
+      try {
+        const existingSale = await prisma.sale.findUnique({
+          where: { idempotencyKey },
+          include: {
+            items: { include: { product: { select: { name: true } } } },
+            payment: true,
+          },
+        });
+        if (existingSale && existingSale.payment) {
+          const subtotal = Number(existingSale.totalAmount);
+          const discount = Number(existingSale.discount);
+          const taxAmount = Number(existingSale.tax);
+          const grandTotal = Number(existingSale.finalAmount);
+          const existingTaxRate =
+            subtotal - discount > 0
+              ? Number(((taxAmount / (subtotal - discount)) * 100).toFixed(2))
+              : 0;
+          const replayReceipt = generateReceipt({
+            saleId: existingSale.id.toString(),
+            controlNumber: existingSale.payment.controlNumber,
+            customerFullName: existingSale.customerFullName,
+            customerEmail: existingSale.customerEmail,
+            items: existingSale.items.map((i) => ({
+              productId: i.productId.toString(),
+              productName: i.product.name,
+              price: Number(i.price),
+              quantity: i.quantity,
+              lineTotal: Number(i.total),
+            })),
+            subtotal,
+            discount,
+            taxAmount,
+            taxRatePercent: existingTaxRate,
+            grandTotal,
+            paymentMethod: existingSale.paymentMethod,
+            paymentStatus: existingSale.payment.status,
+            createdAt: existingSale.createdAt,
+          });
+          return json({
+            idempotentReplay: true,
+            sale: {
+              id: existingSale.id.toString(),
+              customerFullName: existingSale.customerFullName,
+              customerEmail: existingSale.customerEmail,
+              paymentMethod: existingSale.paymentMethod,
+              status: existingSale.status,
+              subtotal,
+              discount,
+              taxAmount,
+              grandTotal,
+              paymentStatus: existingSale.payment.status,
+              controlNumber: existingSale.payment.controlNumber,
+              createdAt: existingSale.createdAt,
+            },
+            receipt: replayReceipt,
+          });
+        }
+      } catch (err) {
+        if (!isMissingTwinTables(err)) throw err;
+      }
     }
 
     const items = (body.items ?? []) as CheckoutItem[];
@@ -148,7 +224,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Deduct stock atomically per product before recording the sale.
+      // Deduct stock atomically per product AND synchronize 3D Digital Twin
+      // shelf positions / warehouse reserve inside the same DB transaction.
+      const touchedShelfIds: string[] = [];
+      const touchedPositionIds: string[] = [];
+
       for (const [pidStr, qty] of requestedQuantities.entries()) {
         const pid = BigInt(pidStr);
         const product = products.find((p) => p.id === pid)!;
@@ -162,6 +242,10 @@ export async function POST(request: NextRequest) {
             409,
           );
         }
+
+        const synced = await syncTwinDeductionInTx(tx, pid, qty);
+        touchedShelfIds.push(...synced.touchedShelfIds);
+        touchedPositionIds.push(...synced.touchedPositionIds);
       }
 
       const totalAmount = lines.reduce(
@@ -191,6 +275,7 @@ export async function POST(request: NextRequest) {
         data: {
           customerId: validCustomerId,
           userId: guard.user.id,
+          idempotencyKey,
           totalAmount,
           tax: taxAmount,
           discount: effectiveDiscount,
@@ -224,6 +309,9 @@ export async function POST(request: NextRequest) {
             saleItemId: itemRow.id,
             quantity: itemRow.quantity,
             movementType: "OUT",
+            performedById: guard.user.id,
+            reference: `SALE-${createdSale.id.toString()}`,
+            notes: `POS checkout (${paymentMethod})`,
           },
         });
       }
@@ -258,7 +346,30 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { ...createdSale, payment, lines };
+      return { ...createdSale, payment, lines, touchedShelfIds, touchedPositionIds };
+    });
+
+    // Post-commit audit log & real-time 3D Digital Twin SSE broadcast (Phases 9, 12, 16).
+    const totalSoldUnits = sale.lines.reduce((sum, l) => sum + l.quantity, 0);
+    await recordAuditLog({
+      actorId: guard.user.id,
+      action: "POS_SALE_COMPLETED",
+      entityType: "SALE",
+      entityId: sale.id.toString(),
+      summary: `POS sale #${sale.id.toString()} completed (${totalSoldUnits} unit(s), ${sale.paymentMethod}).`,
+      metadata: {
+        touchedShelfIds: sale.touchedShelfIds,
+        touchedPositionIds: sale.touchedPositionIds,
+      },
+    });
+
+    publishInventoryEvent({
+      type: "sale_completed",
+      shelfId: sale.touchedShelfIds[0],
+      positionId: sale.touchedPositionIds[0],
+      productId: sale.lines[0]?.productId.toString(),
+      delta: -totalSoldUnits,
+      summary: `POS sale #${sale.id.toString()}: -${totalSoldUnits} unit(s)`,
     });
 
     const subtotal = Number(sale.totalAmount);

@@ -315,6 +315,10 @@ export function usePosCart() {
     }
 
     const cartSnapshot = cart;
+    const idempotencyKey =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? `pos-${crypto.randomUUID()}`
+        : `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setCheckingOut(true);
     setCheckoutError(null);
 
@@ -333,6 +337,7 @@ export function usePosCart() {
         paymentMethod,
         taxRatePercent,
         discount,
+        idempotencyKey,
       });
 
       const newReceipt: Receipt = {

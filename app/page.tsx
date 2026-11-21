@@ -22,6 +22,7 @@ import { InventorySummary } from "@/components/dashboard/inventory-summary";
 import { RecentSales } from "@/components/dashboard/recent-sales";
 import { TopSellers } from "@/components/dashboard/top-sellers";
 import { StockActivity } from "@/components/dashboard/stock-activity";
+import { DigitalTwinOperations } from "@/components/dashboard/digital-twin-operations";
 
 export default function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>("today");
@@ -77,6 +78,8 @@ export default function DashboardPage() {
 
       <div className="space-y-5 sm:space-y-6" aria-busy={refreshing}>
         <MetricStrip data={data} />
+
+        <DigitalTwinOperations operations={data.operations} />
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
           <SalesChart trend={data.trend} range={data.range} />

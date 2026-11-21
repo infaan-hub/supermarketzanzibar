@@ -14,7 +14,9 @@ import {
 import { metricDelta } from "@/lib/dashboard-metrics";
 import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
+import { isMissingTwinTables } from "@/services/digital-twin.service";
 import type {
+  DashboardDepartmentSummary,
   DashboardInventory,
   DashboardLowStockItem,
   DashboardOverview,
@@ -347,6 +349,78 @@ export async function getDashboardOverview(
     }),
   );
 
+  // Phase 11 operational rollups (expiring batches, pending POs, department stock).
+  let operations: DashboardOverview["operations"] = {
+    expiringSoonCount: 0,
+    expiredCount: 0,
+    pendingPurchaseOrdersCount: 0,
+    warehouseUnitsTotal: 0,
+    departmentPerformance: [],
+  };
+
+  try {
+    const soon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const [expiringSoonCount, expiredCount, pendingPoCount, whSum, deptRows] =
+      await Promise.all([
+        prisma.inventoryBatch.count({
+          where: { quantity: { gt: 0 }, expiryDate: { gte: now, lte: soon } },
+        }),
+        prisma.inventoryBatch.count({
+          where: {
+            quantity: { gt: 0 },
+            OR: [{ status: "expired" }, { expiryDate: { lt: now } }],
+          },
+        }),
+        prisma.purchaseOrder.count({
+          where: { status: { in: ["draft", "ordered", "partially_received"] } },
+        }),
+        prisma.inventory.aggregate({ _sum: { quantityOnHand: true } }),
+        prisma.department.findMany({
+          include: {
+            shelves: {
+              include: {
+                positions: {
+                  select: { productId: true, quantity: true, reorderLevel: true },
+                },
+              },
+            },
+          },
+          orderBy: { code: "asc" },
+        }),
+      ]);
+
+    const departmentPerformance: DashboardDepartmentSummary[] = deptRows.map(
+      (dept) => {
+        const positions = dept.shelves.flatMap((s) => s.positions);
+        const assigned = positions.filter((p) => p.productId !== null);
+        return {
+          id: dept.id,
+          code: dept.code,
+          name: dept.name,
+          shelvesCount: dept.shelves.length,
+          productCount: assigned.length,
+          totalUnits: positions.reduce((sum, p) => sum + p.quantity, 0),
+          lowStockCount: assigned.filter(
+            (p) => p.quantity > 0 && p.quantity <= p.reorderLevel,
+          ).length,
+          outOfStockCount: assigned.filter((p) => p.quantity <= 0).length,
+        };
+      },
+    );
+
+    operations = {
+      expiringSoonCount,
+      expiredCount,
+      pendingPurchaseOrdersCount: pendingPoCount,
+      warehouseUnitsTotal: whSum._sum.quantityOnHand ?? 0,
+      departmentPerformance,
+    };
+  } catch (err) {
+    if (!isMissingTwinTables(err)) {
+      console.error("Dashboard operational rollups warning:", err);
+    }
+  }
+
   return {
     generatedAt: now.toISOString(),
     timeZone: BUSINESS_TIME_ZONE,
@@ -385,6 +459,7 @@ export async function getDashboardOverview(
     recentSales,
     topSellers,
     stockMovements,
+    operations,
   };
 }
 

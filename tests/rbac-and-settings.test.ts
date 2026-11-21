@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessPath,
   isAdminRole,
+  isExplorerRole,
+  isInventoryRole,
   isManagerRole,
+  isPosRole,
   isPublicPath,
   isStaffRole,
 } from "../lib/auth/roles";
@@ -53,7 +56,36 @@ describe("RBAC path and role guards", () => {
     expect(isAdminRole("ADMIN")).toBe(true);
     expect(isManagerRole("Manager")).toBe(true);
     expect(isStaffRole("Cashier")).toBe(true);
+    expect(isInventoryRole("inventory_staff")).toBe(true);
+    expect(isPosRole("cashier")).toBe(true);
+    expect(isPosRole("viewer")).toBe(false);
+    expect(isExplorerRole("viewer")).toBe(true);
     expect(isStaffRole("customer")).toBe(false);
+  });
+
+  it("enforces Phase 16 Digital Twin, Warehouse, Shelves, and Procurement RBAC", () => {
+    // Viewer can explore 3D store, warehouse & departments, but not POS/shelves/GRN/POs/users.
+    expect(canAccessPath("viewer", "/digital-twin")).toBe(true);
+    expect(canAccessPath("viewer", "/warehouse")).toBe(true);
+    expect(canAccessPath("viewer", "/departments")).toBe(true);
+    expect(canAccessPath("viewer", "/pos")).toBe(false);
+    expect(canAccessPath("viewer", "/shelves")).toBe(false);
+    expect(canAccessPath("viewer", "/goods-received")).toBe(false);
+    expect(canAccessPath("viewer", "/purchase-orders")).toBe(false);
+
+    // Inventory staff can manage shelves & goods received, but not POS or POs or users.
+    expect(canAccessPath("inventory_staff", "/digital-twin")).toBe(true);
+    expect(canAccessPath("inventory_staff", "/shelves")).toBe(true);
+    expect(canAccessPath("inventory_staff", "/goods-received")).toBe(true);
+    expect(canAccessPath("inventory_staff", "/pos")).toBe(false);
+    expect(canAccessPath("inventory_staff", "/purchase-orders")).toBe(false);
+    expect(canAccessPath("inventory_staff", "/users")).toBe(false);
+
+    // Manager can manage purchase orders, shelves, POS, and reports, but not /users.
+    expect(canAccessPath("manager", "/purchase-orders")).toBe(true);
+    expect(canAccessPath("manager", "/goods-received")).toBe(true);
+    expect(canAccessPath("manager", "/digital-twin")).toBe(true);
+    expect(canAccessPath("manager", "/users")).toBe(false);
   });
 });
 

@@ -602,6 +602,17 @@ export interface DashboardStockMovement {
   date: string;
 }
 
+export interface DashboardDepartmentSummary {
+  id: string;
+  code: string;
+  name: string;
+  shelvesCount: number;
+  productCount: number;
+  totalUnits: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+}
+
 export interface DashboardOverview {
   generatedAt: string;
   timeZone: string;
@@ -622,9 +633,154 @@ export interface DashboardOverview {
   recentSales: DashboardRecentSale[];
   topSellers: DashboardTopSeller[];
   stockMovements: DashboardStockMovement[];
+  /** Optional Phase 11 Digital Twin operational rollups (real DB queries). */
+  operations?: {
+    expiringSoonCount: number;
+    expiredCount: number;
+    pendingPurchaseOrdersCount: number;
+    warehouseUnitsTotal: number;
+    departmentPerformance: DashboardDepartmentSummary[];
+  };
 }
 
 export type DashboardResponse = DashboardOverview;
+
+// ---- Digital Twin, Departments, Shelves, Warehouse, POs, GRN & Batches -----
+
+export interface DepartmentSummary {
+  id: string;
+  storeId: string;
+  storeName: string;
+  code: string;
+  name: string;
+  description: string;
+  status: string;
+  shelvesCount: number;
+  productCount: number;
+  totalUnits: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShelfRecord {
+  id: string;
+  shelfCode: string;
+  shelfName: string;
+  fixtureKind: string;
+  capacity: number;
+  status: string;
+  department: { id: string; code: string; name: string };
+  totalUnits: number;
+  positions: Array<{
+    id: string;
+    positionCode: string;
+    slotIndex: number;
+    quantity: number;
+    maximumCapacity: number;
+    reservedQuantity: number;
+    reorderLevel: number;
+    product: {
+      id: string;
+      name: string;
+      sku: string | null;
+      barcode: string;
+      price: number;
+      totalStock: number;
+      categoryName: string | null;
+    } | null;
+  }>;
+}
+
+export interface WarehouseLocationRecord {
+  id: string;
+  warehouseCode: string;
+  zoneCode: string;
+  rackCode: string;
+  levelCode: string;
+  positionCode: string;
+  locationType: string;
+  capacity: number;
+  status: string;
+  totalUnits: number;
+  items: Array<{
+    inventoryId: string;
+    productId: string;
+    productName: string;
+    sku: string | null;
+    barcode: string;
+    categoryName: string | null;
+    quantityOnHand: number;
+    reservedQuantity: number;
+    reorderLevel: number;
+    totalProductStock: number;
+  }>;
+}
+
+export interface WarehouseOverviewResponse {
+  zones: Array<{
+    zoneCode: string;
+    racksCount: number;
+    totalUnits: number;
+    capacity: number;
+  }>;
+  locations: WarehouseLocationRecord[];
+  migrationRequired?: boolean;
+}
+
+export interface PurchaseOrderRecord {
+  id: string;
+  orderNumber: string;
+  status: string;
+  supplierId: string;
+  supplierName: string;
+  totalAmount: number;
+  expectedDate: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  receiptsCount: number;
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    barcode: string;
+    orderedQuantity: number;
+    receivedQuantity: number;
+    remainingQuantity: number;
+    unitCost: number;
+    lineTotal: number;
+  }>;
+}
+
+export interface GoodsReceiptRecord {
+  id: string;
+  receiptNumber: string;
+  purchaseOrderId: string | null;
+  orderNumber: string | null;
+  supplierName: string;
+  receivedBy: string;
+  warehouseLocation: string | null;
+  notes: string | null;
+  receivedAt: string;
+}
+
+export interface InventoryBatchRecord {
+  id: string;
+  productId: string;
+  productName: string;
+  barcode: string;
+  batchNumber: string;
+  quantity: number;
+  expiryDate: string | null;
+  receivedDate: string;
+  status: string;
+  isExpired: boolean;
+  isExpiringSoon: boolean;
+  warehouseLocation: string | null;
+}
 
 // ---- Request options -------------------------------------------------------
 

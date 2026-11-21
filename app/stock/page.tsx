@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import { VisualItemCameraCounter } from "@/components/visual-item-camera-counter";
+import { BatchesAndAdjustments } from "@/components/stock/batches-and-adjustments";
 import { useCategories } from "@/hooks/useCategories";
 import { useStock } from "@/hooks/useStock";
 import { adjustStockByBarcode, createProduct } from "@/lib/api";
@@ -687,6 +688,11 @@ export default function StockPage() {
           </div>
         )}
       </section>
+
+      <BatchesAndAdjustments
+        stockItems={stock}
+        onInventoryChanged={() => void refresh()}
+      />
     </div>
   );
 }

@@ -6,6 +6,9 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, json, notFound, serverError } from "@/lib/http";
 import { requireManager, requireStaff } from "@/lib/auth/request";
+import { recordAuditLog } from "@/lib/audit";
+import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import { isMissingTwinTables } from "@/services/digital-twin.service";
 
 function parseSaleId(raw: string): bigint | null {
   if (!/^\d+$/.test(raw)) return null;
@@ -158,12 +161,48 @@ export async function PATCH(
             where: { id: item.productId },
             data: { quantity: { increment: item.quantity } },
           });
+
+          // Restore units back to mapped 3D shelf position (up to capacity) or warehouse.
+          try {
+            const slot = await tx.shelfPosition.findFirst({
+              where: { productId: item.productId },
+              orderBy: { quantity: "asc" },
+            });
+            if (slot) {
+              const room = Math.max(0, slot.maximumCapacity - slot.quantity);
+              const toShelf = Math.min(room, item.quantity);
+              const toWarehouse = item.quantity - toShelf;
+              if (toShelf > 0) {
+                await tx.shelfPosition.update({
+                  where: { id: slot.id },
+                  data: { quantity: { increment: toShelf } },
+                });
+              }
+              if (toWarehouse > 0) {
+                const wh = await tx.inventory.findFirst({
+                  where: { productId: item.productId },
+                });
+                if (wh) {
+                  await tx.inventory.update({
+                    where: { id: wh.id },
+                    data: { quantityOnHand: { increment: toWarehouse } },
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            if (!isMissingTwinTables(err)) throw err;
+          }
+
           await tx.stockMovement.create({
             data: {
               productId: item.productId,
               saleItemId: item.id,
               quantity: item.quantity,
               movementType: "IN",
+              performedById: guard.user.id,
+              reference: `CANCEL-SALE-${saleId.toString()}`,
+              notes: "Restocked from cancelled sale",
             },
           });
         }
@@ -176,6 +215,21 @@ export async function PATCH(
         }
       }
     });
+
+    await recordAuditLog({
+      actorId: guard.user.id,
+      action: shouldRestock ? "SALE_CANCELLED_RESTOCKED" : "SALE_STATUS_UPDATED",
+      entityType: "SALE",
+      entityId: saleId.toString(),
+      summary: `Sale #${saleId.toString()} status updated to ${nextStatus}.`,
+    });
+
+    if (shouldRestock) {
+      publishInventoryEvent({
+        type: "sale_cancelled",
+        summary: `Sale #${saleId.toString()} cancelled — items restocked`,
+      });
+    }
 
     const detail = await loadSaleDetail(saleId);
     return json(detail);

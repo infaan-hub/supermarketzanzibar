@@ -5,10 +5,10 @@ import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { badRequest, created, json, serverError, validationError } from "@/lib/http";
-import { requireManager, requireStaff } from "@/lib/auth/request";
+import { requireExplorer, requireManager } from "@/lib/auth/request";
 
 export async function GET(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requireExplorer(request);
   if (!guard.ok) return guard.response;
 
   try {

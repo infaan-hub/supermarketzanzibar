@@ -25,7 +25,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Overview",
     items: [
-      { href: "/", label: "Dashboard", icon: <LayoutIcon />, exact: true },
+      { href: "/", label: "Overview", icon: <LayoutIcon />, exact: true },
+      { href: "/digital-twin", label: "3D Digital Twin", icon: <CubeIcon /> },
       { href: "/reports", label: "Reports & Z-Report", icon: <ChartIcon /> },
     ],
   },
@@ -38,12 +39,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Inventory",
+    title: "Store & Spatial",
+    items: [
+      { href: "/departments", label: "Departments", icon: <GridIcon /> },
+      { href: "/shelves", label: "Shelves & Locations", icon: <ShelfIcon /> },
+      { href: "/warehouse", label: "3D Warehouse", icon: <WarehouseIcon /> },
+    ],
+  },
+  {
+    title: "Inventory & Supply",
     items: [
       { href: "/products", label: "Products", icon: <BoxIcon /> },
       { href: "/categories", label: "Categories", icon: <TagIcon /> },
-      { href: "/stock", label: "Stock & Counting", icon: <PackageIcon />, exact: true },
-      { href: "/stock/movements", label: "Stock History", icon: <HistoryIcon /> },
+      { href: "/stock", label: "Inventory & Batches", icon: <PackageIcon />, exact: true },
+      { href: "/purchase-orders", label: "Purchase Orders", icon: <ClipboardIcon /> },
+      { href: "/goods-received", label: "Goods Received", icon: <ReceiveIcon /> },
+      { href: "/stock/movements", label: "Stock Movements", icon: <HistoryIcon /> },
       { href: "/barcodes", label: "Print Labels", icon: <BarcodeIcon /> },
     ],
   },
@@ -52,14 +63,14 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/customers", label: "Customers", icon: <UsersIcon /> },
       { href: "/suppliers", label: "Suppliers", icon: <TruckIcon /> },
-      { href: "/users", label: "Users", icon: <UserIcon /> },
+      { href: "/users", label: "Users & Permissions", icon: <UserIcon /> },
     ],
   },
   {
     title: "System",
     items: [
       { href: "/profile", label: "My Profile", icon: <ProfileIcon /> },
-      { href: "/settings", label: "Store Settings", icon: <SettingsIcon /> },
+      { href: "/settings", label: "Settings", icon: <SettingsIcon /> },
     ],
   },
 ];
@@ -345,6 +356,59 @@ function LogoutIcon() {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+function CubeIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+      <path d="M3 7l9 5 9-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
+}
+function GridIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+function ShelfIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 4v16M20 4v16M4 8h16M4 14h16M4 20h16" />
+    </svg>
+  );
+}
+function WarehouseIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 21V9l9-5 9 5v12" />
+      <path d="M9 21v-8h6v8" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+function ClipboardIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+function ReceiveIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M4 19h16" />
     </svg>
   );
 }

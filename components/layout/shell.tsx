@@ -17,6 +17,7 @@ export function Shell({ title, children }: ShellProps) {
   const [isDesktop, setIsDesktop] = React.useState(false);
 
   const hideChrome = isPublicPath(pathname);
+  const isFullViewportCanvas = pathname === "/digital-twin";
 
   React.useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
@@ -79,7 +80,13 @@ export function Shell({ title, children }: ShellProps) {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
         />
-        <main className="safe-main min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-background py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:py-6 lg:py-8 print:overflow-visible print:p-0">
+        <main
+          className={
+            isFullViewportCanvas
+              ? "min-h-0 flex-1 overflow-hidden bg-[#f2fbfa] p-0 print:overflow-visible"
+              : "safe-main min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-background py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:py-6 lg:py-8 print:overflow-visible print:p-0"
+          }
+        >
           {children}
         </main>
       </div>

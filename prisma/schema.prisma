@@ -1,7 +1,7 @@
-// Prisma schema for the Supermarket Zanzibar full-stack Next.js application.
-// Maps 1:1 to the existing Neon PostgreSQL database (originally created by Django).
-// Readable model names are used; physical table/column names are preserved with
-// @map so the existing database, records, FKs, and constraints remain untouched.
+// Prisma schema for the Supermarket Zanzibar 3D Digital Twin & Inventory System.
+// Maps 1:1 to the existing Neon PostgreSQL database (`supermarketzanzibar_*`)
+// and extends it additively with Digital Twin, Warehouse, Procurement, Batch,
+// and Audit models without modifying or dropping any legacy tables.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,7 +12,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Custom user (Django `supermarketzanzibar_customuser`).
+// ============================================================================
+// CORE EXISTING MODELS (Preserved 1:1 with Neon PostgreSQL)
+// ============================================================================
+
 model User {
   id                      BigInt    @id @default(autoincrement())
   password                String    @db.VarChar(128)
@@ -37,12 +40,16 @@ model User {
   accessWindowStart       DateTime? @map("access_window_start") @db.Timestamptz(6)
   accessWindowEnd         DateTime? @map("access_window_end") @db.Timestamptz(6)
 
-  supplierProfile   Supplier?
-  customerProfile   Customer?
-  assignedSales     Sale[]         @relation("AssignedDriver")
+  supplierProfile  Supplier?
+  customerProfile  Customer?
+  assignedSales    Sale[]          @relation("AssignedDriver")
   confirmedPayments Payment[]      @relation("ConfirmedBy")
-  ownSales          Sale[]         @relation("SaleUser")
-  refreshTokens     RefreshToken[]
+  ownSales         Sale[]          @relation("SaleUser")
+  refreshTokens    RefreshToken[]
+  stockMovements   StockMovement[] @relation("StockMovementActor")
+  purchaseOrders   PurchaseOrder[] @relation("PurchaseOrderCreator")
+  goodsReceipts    GoodsReceipt[]  @relation("GoodsReceiptActor")
+  auditLogs        AuditLog[]      @relation("AuditActor")
 
   @@map("supermarketzanzibar_customuser")
 }
@@ -68,8 +75,10 @@ model Supplier {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  products Product[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
 
   @@map("supermarketzanzibar_supplier")
 }
@@ -92,6 +101,10 @@ model Product {
   id               BigInt   @id @default(autoincrement())
   name             String   @db.VarChar(255)
   slug             String   @unique @db.VarChar(255)
+  sku              String?  @unique @db.VarChar(80)
+  brand            String?  @db.VarChar(120)
+  unitOfMeasure    String?  @default("each") @map("unit_of_measure") @db.VarChar(32)
+  modelAssetId     String?  @map("model_asset_id")
   categoryId       BigInt?  @map("category_id")
   supplierId       BigInt?  @map("supplier_id")
   price            Decimal  @db.Decimal(10, 2)
@@ -106,24 +119,25 @@ model Product {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  supplier       Supplier?        @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  saleItems      SaleItem[]
-  stockMovements StockMovement[]
-  barcodes       ProductBarcode[]
+  category           Category?           @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  modelAsset         ThreeDAsset?        @relation(fields: [modelAssetId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  saleItems          SaleItem[]
+  stockMovements     StockMovement[]
+  barcodes           ProductBarcode[]
+  shelfPositions     ShelfPosition[]
+  inventoryRecords   Inventory[]
+  inventoryBatches   InventoryBatch[]
+  purchaseOrderItems PurchaseOrderItem[]
 
   @@map("supermarketzanzibar_product")
 }
 
-/// Code 128 barcode labels for a product. A product keeps its original
-/// `Product.barcode` as the primary scan code; this table adds pack/unit
-/// codes (for example a carton of 12) and internal shelf labels.
 model ProductBarcode {
   id                 String   @id @default(cuid())
   productId          BigInt   @map("product_id")
   barcode            String   @unique @db.VarChar(100)
   barcodeType        String   @default("code128") @map("barcode_type") @db.VarChar(20)
-  /// Free-form packaging key (`each`, `pack`, `carton`); there is no Unit table yet.
   unitId             String?  @map("unit_id") @db.VarChar(50)
   quantityMultiplier Decimal  @default(1) @map("quantity_multiplier") @db.Decimal(10, 3)
   isPrimary          Boolean  @default(false) @map("is_primary")
@@ -137,6 +151,8 @@ model ProductBarcode {
 
 model Sale {
   id                    BigInt   @id @default(autoincrement())
+  storeId               String?  @map("store_id")
+  idempotencyKey        String?  @unique @map("idempotency_key") @db.VarChar(100)
   customerId            BigInt?  @map("customer_id")
   userId                BigInt?  @map("user_id")
   totalAmount           Decimal  @map("total_amount") @db.Decimal(12, 2)
@@ -158,6 +174,7 @@ model Sale {
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  store          Store?     @relation(fields: [storeId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   customer       Customer?  @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user           User?      @relation("SaleUser", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   assignedDriver User?      @relation("AssignedDriver", fields: [assignedDriverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -185,17 +202,24 @@ model SaleItem {
 }
 
 model StockMovement {
-  id           BigInt   @id @default(autoincrement())
-  productId    BigInt   @map("product_id")
-  saleItemId   BigInt?  @map("sale_item_id")
-  quantity     Int
-  movementType String   @map("movement_type") @db.VarChar(10)
-  date         DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    BigInt   @id @default(autoincrement())
+  productId             BigInt   @map("product_id")
+  saleItemId            BigInt?  @map("sale_item_id")
+  sourceLocationId      String?  @map("source_location_id")
+  destinationLocationId String?  @map("destination_location_id")
+  performedById         BigInt?  @map("performed_by_id")
+  reference             String?  @db.VarChar(120)
+  notes                 String?
+  quantity              Int
+  movementType          String   @map("movement_type") @db.VarChar(24)
+  date                  DateTime @default(now()) @map("date") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  saleItem SaleItem? @relation(fields: [saleItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  saleItem    SaleItem? @relation(fields: [saleItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  performedBy User?     @relation("StockMovementActor", fields: [performedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
+  @@index([productId, date])
   @@map("supermarketzanzibar_stockmovement")
 }
 
@@ -230,4 +254,271 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("refresh_token")
+}
+
+// ============================================================================
+// PHASE 6 — ADDITIVE 3D DIGITAL TWIN, WAREHOUSE & OPERATIONS MODELS
+// ============================================================================
+
+model Store {
+  id        String   @id @default(cuid())
+  code      String   @unique @db.VarChar(40)
+  name      String   @db.VarChar(200)
+  address   String   @default("")
+  location  String   @default("") @db.VarChar(200)
+  status    String   @default("active") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  departments        Department[]
+  shelves            Shelf[]
+  warehouseLocations WarehouseLocation[]
+  inventoryRecords   Inventory[]
+  inventoryBatches   InventoryBatch[]
+  purchaseOrders     PurchaseOrder[]
+  goodsReceipts      GoodsReceipt[]
+  sales              Sale[]
+
+  @@map("supermarketzanzibar_store")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  storeId     String   @map("store_id")
+  code        String   @db.VarChar(30)
+  name        String   @db.VarChar(150)
+  description String   @default("")
+  status      String   @default("active") @db.VarChar(30)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  shelves Shelf[]
+
+  @@unique([storeId, code])
+  @@map("supermarketzanzibar_department")
+}
+
+model Shelf {
+  id           String   @id @default(cuid())
+  storeId      String   @map("store_id")
+  departmentId String   @map("department_id")
+  shelfCode    String   @map("shelf_code") @db.VarChar(40)
+  shelfName    String   @map("shelf_name") @db.VarChar(160)
+  fixtureKind  String   @default("gondola") @map("fixture_kind") @db.VarChar(40)
+  capacity     Int      @default(120)
+  status       String   @default("active") @db.VarChar(30)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  department Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  positions  ShelfPosition[]
+
+  @@unique([storeId, shelfCode])
+  @@index([departmentId])
+  @@map("supermarketzanzibar_shelf")
+}
+
+model ShelfPosition {
+  id               String   @id @default(cuid())
+  shelfId          String   @map("shelf_id")
+  productId        BigInt?  @map("product_id")
+  positionCode     String   @map("position_code") @db.VarChar(40)
+  slotIndex        Int      @default(0) @map("slot_index")
+  quantity         Int      @default(0)
+  maximumCapacity  Int      @default(24) @map("maximum_capacity")
+  reservedQuantity Int      @default(0) @map("reserved_quantity")
+  reorderLevel     Int      @default(6) @map("reorder_level")
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  shelf   Shelf    @relation(fields: [shelfId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([shelfId, positionCode])
+  @@index([productId])
+  @@map("supermarketzanzibar_shelfposition")
+}
+
+model WarehouseLocation {
+  id            String   @id @default(cuid())
+  storeId       String   @map("store_id")
+  warehouseCode String   @default("WH-MAIN") @map("warehouse_code") @db.VarChar(40)
+  zoneCode      String   @map("zone_code") @db.VarChar(30)
+  rackCode      String   @map("rack_code") @db.VarChar(30)
+  levelCode     String   @map("level_code") @db.VarChar(30)
+  positionCode  String   @map("position_code") @db.VarChar(30)
+  locationType  String   @default("ambient") @map("location_type") @db.VarChar(30)
+  capacity      Int      @default(200)
+  status        String   @default("active") @db.VarChar(30)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  store            Store            @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inventoryRecords Inventory[]
+  inventoryBatches InventoryBatch[]
+  goodsReceipts    GoodsReceipt[]
+
+  @@unique([storeId, warehouseCode, rackCode, levelCode, positionCode])
+  @@index([storeId, zoneCode, rackCode])
+  @@map("supermarketzanzibar_warehouselocation")
+}
+
+model Inventory {
+  id                  String   @id @default(cuid())
+  productId           BigInt   @map("product_id")
+  storeId             String   @map("store_id")
+  warehouseLocationId String?  @map("warehouse_location_id")
+  quantityOnHand      Int      @default(0) @map("quantity_on_hand")
+  reservedQuantity    Int      @default(0) @map("reserved_quantity")
+  reorderLevel        Int      @default(10) @map("reorder_level")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  warehouseLocation WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([productId, storeId, warehouseLocationId])
+  @@index([storeId, productId])
+  @@map("supermarketzanzibar_inventory")
+}
+
+model InventoryBatch {
+  id                  String    @id @default(cuid())
+  productId           BigInt    @map("product_id")
+  storeId             String    @map("store_id")
+  warehouseLocationId String?   @map("warehouse_location_id")
+  batchNumber         String    @map("batch_number") @db.VarChar(80)
+  quantity            Int       @default(0)
+  costPrice           Decimal   @default(0) @map("cost_price") @db.Decimal(10, 2)
+  expiryDate          DateTime? @map("expiry_date") @db.Timestamptz(6)
+  status              String    @default("active") @db.VarChar(30)
+  receivedAt          DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  warehouseLocation WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([productId, expiryDate])
+  @@index([status, expiryDate])
+  @@map("supermarketzanzibar_inventorybatch")
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  orderNumber  String    @unique @map("order_number") @db.VarChar(60)
+  storeId      String    @map("store_id")
+  supplierId   BigInt    @map("supplier_id")
+  status       String    @default("ordered") @db.VarChar(30)
+  expectedDate DateTime? @map("expected_date") @db.Timestamptz(6)
+  notes        String    @default("")
+  totalAmount  Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  createdById  BigInt?   @map("created_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy     User?               @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items         PurchaseOrderItem[]
+  goodsReceipts GoodsReceipt[]
+
+  @@index([storeId, status])
+  @@map("supermarketzanzibar_purchaseorder")
+}
+
+model PurchaseOrderItem {
+  id               String  @id @default(cuid())
+  purchaseOrderId  String  @map("purchase_order_id")
+  productId        BigInt  @map("product_id")
+  orderedQuantity  Int     @map("ordered_quantity")
+  receivedQuantity Int     @default(0) @map("received_quantity")
+  unitCost         Decimal @map("unit_cost") @db.Decimal(10, 2)
+  lineTotal        Decimal @map("line_total") @db.Decimal(12, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([purchaseOrderId])
+  @@map("supermarketzanzibar_purchaseorderitem")
+}
+
+model GoodsReceipt {
+  id                  String   @id @default(cuid())
+  receiptNumber       String   @unique @map("receipt_number") @db.VarChar(60)
+  purchaseOrderId     String?  @map("purchase_order_id")
+  storeId             String   @map("store_id")
+  supplierId          BigInt?  @map("supplier_id")
+  warehouseLocationId String?  @map("warehouse_location_id")
+  receivedById        BigInt?  @map("received_by_id")
+  totalUnits          Int      @default(0) @map("total_units")
+  notes               String   @default("")
+  receivedAt          DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  purchaseOrder     PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplier          Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  warehouseLocation WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  receivedBy        User?              @relation("GoodsReceiptActor", fields: [receivedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([storeId, receivedAt])
+  @@map("supermarketzanzibar_goodsreceipt")
+}
+
+model ThreeDAsset {
+  id        String   @id @default(cuid())
+  assetKey  String   @unique @map("asset_key") @db.VarChar(120)
+  assetName String   @map("asset_name") @db.VarChar(160)
+  assetType String   @map("asset_type") @db.VarChar(40)
+  filePath  String   @map("file_path") @db.VarChar(255)
+  format    String   @default("glb") @db.VarChar(16)
+  version   String   @default("1.0.0") @db.VarChar(32)
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  products Product[]
+  mappings ThreeDObjectMapping[]
+
+  @@map("supermarketzanzibar_threedasset")
+}
+
+model ThreeDObjectMapping {
+  id               String   @id @default(cuid())
+  assetId          String?  @map("asset_id")
+  objectName       String   @unique @map("object_name") @db.VarChar(160)
+  objectType       String   @map("object_type") @db.VarChar(40)
+  linkedEntityType String   @map("linked_entity_type") @db.VarChar(40)
+  linkedEntityId   String   @map("linked_entity_id") @db.VarChar(80)
+  posX             Float    @default(0) @map("pos_x")
+  posY             Float    @default(0) @map("pos_y")
+  posZ             Float    @default(0) @map("pos_z")
+  rotX             Float    @default(0) @map("rot_x")
+  rotY             Float    @default(0) @map("rot_y")
+  rotZ             Float    @default(0) @map("rot_z")
+  scaleX           Float    @default(1) @map("scale_x")
+  scaleY           Float    @default(1) @map("scale_y")
+  scaleZ           Float    @default(1) @map("scale_z")
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  asset ThreeDAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([linkedEntityType, linkedEntityId])
+  @@map("supermarketzanzibar_threedobjectmapping")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    BigInt?  @map("actor_id")
+  action     String   @db.VarChar(80)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.VarChar(80)
+  summary    String   @default("")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("supermarketzanzibar_auditlog")
 }

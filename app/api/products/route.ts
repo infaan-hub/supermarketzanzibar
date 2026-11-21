@@ -13,7 +13,7 @@ import {
   validationError,
 } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/request";
+import { requireExplorer, requireStaff } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
 import { getProductById } from "@/lib/products";
@@ -88,7 +88,7 @@ function serializeProduct(product: ProductWithRelations) {
 }
 
 export async function GET(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requireExplorer(request);
   if (!guard.ok) return guard.response;
 
   try {

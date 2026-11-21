@@ -522,6 +522,7 @@ export interface CheckoutPayload {
   paymentMethod: "cash" | "mobile_money" | "card" | "bank_transfer";
   taxRatePercent?: number;
   discount?: number;
+  idempotencyKey?: string;
 }
 
 export interface CheckoutResponse {
@@ -621,4 +622,250 @@ export async function fetchReports(
 
 export async function fetchSystemInfo(): Promise<SystemInfoResponse> {
   return request<SystemInfoResponse>("/api/settings");
+}
+
+/* ------------------------------------------------------------------ */
+/* 3D Digital Twin, Departments, Shelves, Warehouse, POs & GRN        */
+/* ------------------------------------------------------------------ */
+
+export async function fetchDigitalTwin(): Promise<
+  import("@/types/digital-twin").DigitalTwinSnapshot
+> {
+  return request<import("@/types/digital-twin").DigitalTwinSnapshot>(
+    "/api/digital-twin",
+  );
+}
+
+export async function initializeDigitalTwin(): Promise<
+  import("@/types/digital-twin").DigitalTwinSnapshot
+> {
+  return request<import("@/types/digital-twin").DigitalTwinSnapshot>(
+    "/api/digital-twin",
+    { method: "POST" },
+  );
+}
+
+export async function locateInTwin(
+  query: string,
+): Promise<import("@/types/digital-twin").TwinLocateResult> {
+  return request<import("@/types/digital-twin").TwinLocateResult>(
+    `/api/digital-twin/locate?q=${encodeURIComponent(query)}`,
+  );
+}
+
+export async function transferWarehouseStockToShelf(input: {
+  shelfPositionId: string;
+  warehouseLocationId?: string;
+  quantity: number;
+  notes?: string;
+}): Promise<{
+  movementId: string;
+  productId: string;
+  productName: string;
+  shelfCode: string;
+  positionId: string;
+  positionCode: string;
+  newShelfQuantity: number;
+  newWarehouseQuantity: number;
+}> {
+  return request("/api/digital-twin/transfer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchDepartments(): Promise<{
+  departments: import("@/types/api").DepartmentSummary[];
+  migrationRequired?: boolean;
+}> {
+  return request("/api/departments");
+}
+
+export async function createDepartment(input: {
+  code: string;
+  name: string;
+  description?: string;
+}): Promise<{ department: import("@/types/api").DepartmentSummary }> {
+  return request("/api/departments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateDepartment(
+  id: string,
+  input: { name?: string; description?: string; status?: "active" | "inactive" },
+): Promise<{ department: import("@/types/api").DepartmentSummary }> {
+  return request(`/api/departments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchShelves(departmentCode?: string): Promise<{
+  shelves: import("@/types/api").ShelfRecord[];
+  migrationRequired?: boolean;
+}> {
+  const qs = departmentCode
+    ? `?department=${encodeURIComponent(departmentCode)}`
+    : "";
+  return request(`/api/shelves${qs}`);
+}
+
+export async function createShelf(input: {
+  departmentId: string;
+  shelfCode: string;
+  shelfName: string;
+  fixtureKind?: string;
+  capacity?: number;
+  slotCount?: number;
+}) {
+  return request("/api/shelves", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateShelfPosition(
+  positionId: string,
+  input: {
+    productId?: string | null;
+    maximumCapacity?: number;
+    reorderLevel?: number;
+    reservedQuantity?: number;
+  },
+) {
+  return request(`/api/shelves/positions/${encodeURIComponent(positionId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchWarehouse(params?: {
+  zone?: string;
+  rack?: string;
+}): Promise<import("@/types/api").WarehouseOverviewResponse> {
+  const qs = new URLSearchParams();
+  if (params?.zone) qs.set("zone", params.zone);
+  if (params?.rack) qs.set("rack", params.rack);
+  const tail = qs.toString() ? `?${qs.toString()}` : "";
+  return request(`/api/warehouse${tail}`);
+}
+
+export async function receiveDirectWarehouseStock(input: {
+  productId: string;
+  warehouseLocationId: string;
+  quantity: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}) {
+  return request("/api/warehouse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchPurchaseOrders(status?: string): Promise<{
+  purchaseOrders: import("@/types/api").PurchaseOrderRecord[];
+  migrationRequired?: boolean;
+}> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request(`/api/purchase-orders${qs}`);
+}
+
+export async function createPurchaseOrder(input: {
+  supplierId: string;
+  expectedDate?: string;
+  notes?: string;
+  items: Array<{ productId: string; orderedQuantity: number; unitCost: number }>;
+}) {
+  return request("/api/purchase-orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updatePurchaseOrderStatus(
+  id: string,
+  status: "draft" | "ordered" | "partially_received" | "received" | "cancelled",
+) {
+  return request(`/api/purchase-orders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function fetchGoodsReceipts(): Promise<{
+  receipts: import("@/types/api").GoodsReceiptRecord[];
+  migrationRequired?: boolean;
+}> {
+  return request("/api/goods-received");
+}
+
+export async function createGoodsReceipt(input: {
+  purchaseOrderId?: string | null;
+  warehouseLocationId?: string | null;
+  notes?: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    batchNumber?: string;
+    expiryDate?: string;
+  }>;
+}) {
+  return request("/api/goods-received", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchInventoryBatches(filter?: string): Promise<{
+  batches: import("@/types/api").InventoryBatchRecord[];
+  migrationRequired?: boolean;
+}> {
+  const qs = filter ? `?filter=${encodeURIComponent(filter)}` : "";
+  return request(`/api/batches${qs}`);
+}
+
+export async function createInventoryBatch(input: {
+  productId: string;
+  batchNumber: string;
+  quantity: number;
+  expiryDate?: string | null;
+  warehouseLocationId?: string | null;
+  status?: "active" | "expired" | "quarantined";
+}) {
+  return request("/api/batches", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function submitStockAdjustment(input: {
+  productId: string;
+  reason: "DAMAGED" | "LOST" | "EXPIRED" | "COUNT" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT";
+  quantity: number;
+  notes?: string;
+}) {
+  return request<{
+    product: { id: string; name: string; quantity: number };
+    movementId: string;
+    delta: number;
+    reason: string;
+  }>("/api/stock/adjustments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
