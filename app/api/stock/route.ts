@@ -1,11 +1,14 @@
-// GET /api/stock - List stock levels.
-//
-// Returns product-stock pairs for inventory management.
+// GET /api/stock - List current stock levels for active products.
 
-import { json } from "@/lib/http";
+import type { NextRequest } from "next/server";
+import { json, serverError } from "@/lib/http";
+import { requireStaff } from "@/lib/auth/request";
 import { findStockLevels } from "@/lib/stock";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   try {
     const stock = await findStockLevels();
 
@@ -14,19 +17,19 @@ export async function GET() {
         productId: s.productId.toString(),
         productName: s.productName,
         barcode: s.barcode,
-        category: s.category && s.categoryId
-          ? { id: s.categoryId.toString(), name: s.category }
-          : null,
+        category:
+          s.category && s.categoryId
+            ? { id: s.categoryId.toString(), name: s.category }
+            : null,
         quantity: s.quantity,
+        price: s.price,
+        costPrice: s.costPrice,
         lowStockThreshold: s.lowStockThreshold,
         reorderLevel: s.reorderLevel,
       })),
     });
   } catch (error) {
     console.error("List stock failed:", error);
-    return json(
-      { detail: "An unexpected error occurred." },
-      { status: 500 },
-    );
+    return serverError();
   }
 }

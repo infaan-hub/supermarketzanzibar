@@ -1,93 +1,44 @@
-// POST /api/auth/login - User login.
-//
-// Verifies credentials and returns access + refresh tokens.
+// POST /api/auth/login - Authenticate user and issue JWT access + refresh tokens.
 
 import type { NextRequest } from "next/server";
 import { json } from "@/lib/http";
-import { authenticate } from "@/lib/auth/request";
-import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
-import { validatePassword, type LoginInput } from "@/lib/auth/password";
-import { prisma } from "@/lib/db";
+import { AuthError, loginUser } from "@/services/auth.service";
+import { REFRESH_TOKEN_TTL_SECONDS, env } from "@/lib/env";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as LoginInput;
-    const user = await prisma.user.findUnique({
-      where: { username: body.username },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        phone: true,
-        fullName: true,
-        password: true,
-        role: true,
-        isActive: true,
-      },
-    });
+    const body = (await request.json().catch(() => null)) as {
+      username?: string;
+      password?: string;
+    } | null;
 
-    if (!user || !validatePassword(body.password, user.password)) {
-      return json(
-        { detail: "Invalid credentials." },
-        { status: 401 },
-      );
+    if (!body || typeof body !== "object") {
+      return json({ detail: "Username and password are required." }, { status: 400 });
     }
 
-    if (!user.isActive) {
-      return json(
-        { detail: "Account is disabled." },
-        { status: 403 },
-      );
-    }
-
-    const auth = await authenticate(request);
-    if (auth.ok) {
-      return json(
-        { detail: "Already authenticated." },
-        { status: 400 },
-      );
-    }
-
-    const accessToken = await signAccessToken({
-      id: user.id,
-      role: user.role,
-      username: user.username,
-    });
-    const refreshToken = await signRefreshToken({
-      id: user.id,
-      role: user.role,
-      username: user.username,
-    });
+    const result = await loginUser(body.username ?? "", body.password ?? "");
 
     const res = json({
-      access: accessToken,
-      refresh: refreshToken,
-      user: {
-        id: user.id.toString(),
-        username: user.username,
-        email: user.email,
-        full_name: user.fullName,
-        phone: user.phone,
-        role: user.role,
-        is_active: user.isActive,
-      },
+      access: result.access,
+      refresh: result.refresh,
+      user: result.user,
     });
 
-    res.cookies.set("refresh_token", refreshToken, {
+    res.cookies.set("refresh_token", result.refresh, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: env.isProduction,
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
       path: "/",
     });
 
     return res;
   } catch (error) {
+    if (error instanceof AuthError) {
+      return json({ detail: error.message }, { status: error.status });
+    }
     console.error("Login failed:", error);
-    return json(
-      { detail: "An unexpected error occurred." },
-      { status: 500 },
-    );
+    return json({ detail: "An unexpected error occurred." }, { status: 500 });
   }
 }
 

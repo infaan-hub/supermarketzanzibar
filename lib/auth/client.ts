@@ -1,9 +1,10 @@
-// Client-only access-token helpers.
+// Client-side access-token helpers and same-tab auth change notifications.
 //
-// The login page stores the access token in localStorage and the rest of the
-// app does not currently send it to API routes. This module decodes the token
-// only to personalise the dashboard greeting. It must never be used as proof
-// of identity or authorization: the signature is not verified here.
+// Tokens are verified server-side on every request; decoded claims here are
+// used only for UX hints (greetings, expiry checks before refresh).
+
+export const ACCESS_TOKEN_KEY = "ss_access_token";
+export const AUTH_CHANGE_EVENT = "sz-auth-change";
 
 export interface AccessTokenClaims {
   sub?: string;
@@ -26,15 +27,37 @@ function decodeBase64Url(segment: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-export function readAccessTokenClaims(): AccessTokenClaims | null {
+export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-
-  let token: string | null = null;
   try {
-    token = window.localStorage.getItem("ss_access_token");
+    return window.localStorage.getItem(ACCESS_TOKEN_KEY);
   } catch {
     return null;
   }
+}
+
+export function setAccessToken(token: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  } catch {
+    // ignore storage quota/privacy mode errors
+  }
+}
+
+export function clearAccessToken(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+    window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
+export function readAccessTokenClaims(): AccessTokenClaims | null {
+  const token = getAccessToken();
   if (!token) return null;
 
   const segments = token.split(".");
@@ -60,7 +83,6 @@ export function readAccessTokenClaims(): AccessTokenClaims | null {
   }
 }
 
-/** A friendly first name for the greeting, e.g. "infaan" -> "Infaan". */
 export function readWelcomeName(): string | null {
   const username = readAccessTokenClaims()?.username?.trim();
   if (!username) return null;

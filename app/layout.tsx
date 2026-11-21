@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { Shell } from "@/components/layout/shell";
 
 export const metadata: Metadata = {
-  title: "Supermarket Zanzibar - POS System",
-  description: "Supermarket management system with point of sale support",
+  title: "Supermarket Zanzibar — POS & Inventory",
+  description:
+    "Supermarket Zanzibar point of sale, barcode inventory, and analytics platform",
 };
 
 export const viewport: Viewport = {
@@ -21,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background">
-        <Shell title="Supermarket Zanzibar">{children}</Shell>
+        <AuthProvider>
+          <Shell title="Supermarket Zanzibar">{children}</Shell>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchPayments } from "@/lib/api";
 import type { PaymentsResponse } from "@/types/api";
 
-export function usePayments() {
+export function usePayments({
+  search,
+  status,
+  method,
+  page = 1,
+  take = 50,
+}: {
+  search?: string;
+  status?: string;
+  method?: string;
+  page?: number;
+  take?: number;
+} = {}) {
   const [data, setData] = useState<PaymentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,7 +28,7 @@ export function usePayments() {
       try {
         setLoading(true);
         setError(null);
-        const d = await fetchPayments();
+        const d = await fetchPayments({ search, status, method, page, take });
         if (!cancelled) setData(d);
       } catch (err) {
         if (!cancelled)
@@ -27,7 +40,8 @@ export function usePayments() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [search, status, method, page, take, tick]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  return { data, loading, error, refresh };
 }

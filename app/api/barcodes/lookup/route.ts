@@ -1,10 +1,9 @@
-// GET  /api/barcodes/lookup?barcode=...  - resolve a scanned barcode.
-// POST /api/barcodes/lookup { barcode }  - same, for scanner clients that POST.
-//
-// Returns the product, packaging unit, current price and branch stock so the
-// POS can add the correct line to the cart.
+// GET  /api/barcodes/lookup?barcode=...  - Resolve a scanned barcode.
+// POST /api/barcodes/lookup { barcode }  - Same, for scanner clients that POST.
 
+import type { NextRequest } from "next/server";
 import { badRequest, json, notFound, serverError } from "@/lib/http";
+import { requireStaff } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import { resolveBarcode } from "@/services/barcode.service";
 
@@ -41,12 +40,18 @@ async function lookup(rawBarcode: string | null | undefined) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   return lookup(searchParams.get("barcode") ?? searchParams.get("code"));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();

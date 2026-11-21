@@ -1,30 +1,35 @@
 // JWT access/refresh token issuing and verification.
 //
-// Preserves the original contract:
+// Contract:
 //   - Authorization: Bearer <access>
 //   - Access token lifetime: 30 minutes
-//   - Refresh token lifetime: 7 days with rotation
-//   - Refresh tokens carry a unique `jti` so rotation/revocation can be tracked
-//     server-side in the refresh_token table.
+//   - Refresh token lifetime: 7 days with rotation (HttpOnly cookie + jti)
 
 import { jwtVerify, SignJWT, type JWTPayload } from "jose";
-import { env } from "@/lib/env";
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
+  env,
 } from "@/lib/env";
 
-export type Role = "admin" | "supplier" | "driver" | "customer" | string;
+export type Role =
+  | "admin"
+  | "manager"
+  | "cashier"
+  | "supplier"
+  | "driver"
+  | "customer"
+  | string;
 
 export interface AccessTokenClaims extends JWTPayload {
-  sub: string; // user id
+  sub: string;
   token_type: "access";
   role: Role;
   username: string;
 }
 
 export interface RefreshTokenClaims extends JWTPayload {
-  sub: string; // user id
+  sub: string;
   token_type: "refresh";
   jti: string;
   role: Role;
@@ -32,7 +37,10 @@ export interface RefreshTokenClaims extends JWTPayload {
 }
 
 const encoder = new TextEncoder();
-const secret = encoder.encode(env.jwtSecret);
+
+function getSecret(): Uint8Array {
+  return encoder.encode(env.jwtSecret);
+}
 
 export function randomJti(): string {
   return (
@@ -59,14 +67,17 @@ export async function signAccessToken(user: {
     .setSubject(user.id.toString())
     .setIssuedAt(now)
     .setExpirationTime(now + ACCESS_TOKEN_TTL_SECONDS)
-    .sign(secret);
+    .sign(getSecret());
 }
 
-export async function signRefreshToken(user: {
-  id: bigint;
-  role: string;
-  username: string;
-}, jti: string = randomJti()): Promise<string> {
+export async function signRefreshToken(
+  user: {
+    id: bigint;
+    role: string;
+    username: string;
+  },
+  jti: string = randomJti(),
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({
     token_type: "refresh",
@@ -79,7 +90,7 @@ export async function signRefreshToken(user: {
     .setJti(jti)
     .setIssuedAt(now)
     .setExpirationTime(now + REFRESH_TOKEN_TTL_SECONDS)
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export class TokenError extends Error {
@@ -94,7 +105,7 @@ export class TokenError extends Error {
 
 async function verify(token: string): Promise<JWTPayload> {
   try {
-    const { payload } = await jwtVerify(token, secret, {
+    const { payload } = await jwtVerify(token, getSecret(), {
       algorithms: ["HS256"],
     });
     return payload;

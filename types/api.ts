@@ -1,8 +1,4 @@
-// API response types for the Supermarket Zanzibar backend.
-// These mirror the exact JSON contracts produced by app/api/ so the frontend
-// stays typed and in sync with the server. Field names match the server as-is
-// (mixed camelCase / snake_case) rather than being "normalized", because the
-// frontend depends on the server's real response shape.
+// API response & request types for the Supermarket Zanzibar full-stack app.
 
 export interface Pagination {
   page: number;
@@ -11,9 +7,25 @@ export interface Pagination {
   pages: number;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: Pagination;
+// ---- Auth ------------------------------------------------------------------
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  address: string;
+  role: string;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface LoginResponse {
+  access: string;
+  refresh: string;
+  user: AuthUser;
 }
 
 // ---- Products --------------------------------------------------------------
@@ -28,25 +40,75 @@ export interface ProductSupplier {
   companyName: string;
 }
 
+export interface ProductBarcodeItem {
+  id: string;
+  barcode: string;
+  barcodeType: string;
+  unitId: string | null;
+  quantityMultiplier: string;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   slug: string;
   price: number | string;
+  costPrice?: number | string;
   quantity: number;
   barcode?: string | null;
-  /** Physical barcode scanned during registration, stored as an alias. */
   sourceBarcode?: string | null;
   description?: string | null;
+  isActive?: boolean;
   category: ProductCategory | null;
   supplier: ProductSupplier | null;
   image_available: boolean;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductStockMovementSummary {
+  id: string;
+  quantity: number;
+  movementType: string;
+  date: string;
+  saleId: string | null;
+}
+
+export interface ProductDetail extends Product {
+  costPrice: number | string;
+  isActive: boolean;
+  updatedAt: string;
+  barcodes: ProductBarcodeItem[];
+  recentMovements: ProductStockMovementSummary[];
 }
 
 export interface ProductsResponse {
   products: Product[];
   pagination: Pagination;
+}
+
+export interface CreateProductRequest {
+  name: string;
+  sourceBarcode?: string;
+  barcode?: string;
+  price: number | string;
+  costPrice?: number | string;
+  quantity?: number;
+  categoryId?: string | null;
+  supplierId?: string | null;
+  description?: string;
+}
+
+export interface UpdateProductRequest {
+  name?: string;
+  price?: number | string;
+  costPrice?: number | string;
+  categoryId?: string | null;
+  supplierId?: string | null;
+  description?: string;
+  isActive?: boolean;
 }
 
 // ---- Barcodes --------------------------------------------------------------
@@ -76,19 +138,22 @@ export interface BarcodeLookupResponse {
   inStock: boolean;
 }
 
-/** Payload for registering a product from the inventory terminal. */
-export interface CreateProductRequest {
-  name: string;
-  /** Physical barcode scanned during counting; the system generates the product's own barcode. */
-  sourceBarcode?: string;
-  /** Legacy alias for `sourceBarcode`. */
-  barcode?: string;
-  price: number | string;
-  costPrice?: number | string;
-  /** Counted units; recorded as opening stock. */
-  quantity?: number;
-  categoryId?: string | null;
-  description?: string;
+export interface BulkBarcodeItem {
+  id: string;
+  productId: string;
+  productName: string;
+  categoryName: string | null;
+  price: number;
+  stock: number;
+  barcode: string;
+  barcodeType: string;
+  unitId: string;
+  quantityMultiplier: number;
+  isPrimary: boolean;
+}
+
+export interface AllBarcodesResponse {
+  barcodes: BulkBarcodeItem[];
 }
 
 // ---- Categories ------------------------------------------------------------
@@ -97,8 +162,8 @@ export interface Category {
   id: string;
   name: string;
   description: string;
+  productCount: number;
   image_available: boolean;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,10 +177,13 @@ export interface CategoriesResponse {
 
 export interface Customer {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   phone: string;
   address: string;
+  loyaltyPoints: number;
+  ordersCount: number;
   is_active: boolean;
   createdAt: string;
 }
@@ -123,6 +191,32 @@ export interface Customer {
 export interface CustomersResponse {
   customers: Customer[];
   pagination: Pagination;
+}
+
+export interface CustomerSaleSummary {
+  id: string;
+  grandTotal: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  status: string;
+  itemsCount: number;
+  createdAt: string;
+}
+
+export interface CustomerDetail {
+  id: string;
+  userId: string;
+  username: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  loyaltyPoints: number;
+  isActive: boolean;
+  createdAt: string;
+  totalSpent: number;
+  ordersCount: number;
+  sales: CustomerSaleSummary[];
 }
 
 // ---- Suppliers -------------------------------------------------------------
@@ -134,6 +228,8 @@ export interface Supplier {
   phone: string;
   email: string;
   address: string;
+  productsCount: number;
+  lowStockCount: number;
   is_active: boolean;
   createdAt: string;
 }
@@ -141,6 +237,31 @@ export interface Supplier {
 export interface SuppliersResponse {
   suppliers: Supplier[];
   pagination: Pagination;
+}
+
+export interface SupplierProductSummary {
+  id: string;
+  name: string;
+  barcode: string;
+  category: string | null;
+  price: number;
+  costPrice: number;
+  quantity: number;
+  isActive: boolean;
+}
+
+export interface SupplierDetail {
+  id: string;
+  userId: string;
+  companyName: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  address: string;
+  isActive: boolean;
+  createdAt: string;
+  products: SupplierProductSummary[];
+  lowStockProducts: SupplierProductSummary[];
 }
 
 // ---- Users -----------------------------------------------------------------
@@ -151,8 +272,10 @@ export interface User {
   email: string;
   phone: string;
   full_name: string;
+  address?: string;
   role: string;
   is_active: boolean;
+  lastLogin?: string | null;
   createdAt: string;
 }
 
@@ -164,8 +287,10 @@ export interface UsersResponse {
 // ---- Sales -----------------------------------------------------------------
 
 export interface SaleItem {
+  id?: string;
   productId: string;
   productName: string;
+  barcode?: string | null;
   price: number | string;
   quantity: number;
   lineTotal: number | string;
@@ -174,17 +299,48 @@ export interface SaleItem {
 export interface Sale {
   id: string;
   customer: { id: string; name: string } | null;
-  items: SaleItem[];
-  subtotal: number | string;
+  customerFullName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  itemsCount?: number;
+  totalAmount: number | string;
   taxAmount: number | string;
   discount: number | string;
-  changeDue: number | string;
   grandTotal: number | string;
   status: string;
   paymentMethod: string;
   paymentStatus: string;
+  controlNumber?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SaleDetail {
+  id: string;
+  status: string;
+  paymentMethod: string;
+  paymentConfirmed: boolean;
+  subtotal: number;
+  taxAmount: number;
+  discount: number;
+  grandTotal: number;
+  customerId: string | null;
+  customerFullName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress: string;
+  deliveryLocation: string | null;
+  createdAt: string;
+  updatedAt: string;
+  payment: {
+    id: string;
+    controlNumber: string;
+    paymentMethod: string;
+    status: string;
+    confirmedBy: string | null;
+    createdAt: string;
+  } | null;
+  items: SaleItem[];
 }
 
 export interface SalesResponse {
@@ -192,7 +348,7 @@ export interface SalesResponse {
   pagination: Pagination;
 }
 
-// ---- Stock -----------------------------------------------------------------
+// ---- Stock & Movements -----------------------------------------------------
 
 export interface StockItem {
   productId: string;
@@ -200,6 +356,8 @@ export interface StockItem {
   barcode: string;
   category: { id: string; name: string } | null;
   quantity: number;
+  price: number;
+  costPrice: number;
   lowStockThreshold: number;
   reorderLevel: number;
 }
@@ -208,11 +366,9 @@ export interface StockResponse {
   stock: StockItem[];
 }
 
-/** Receive (IN) or issue (OUT) stock for a scanned barcode. */
 export interface StockAdjustmentRequest {
   barcode: string;
   movementType: "IN" | "OUT";
-  /** Number of packages/scans; a pack label multiplies this by its factor. */
   quantity?: number;
 }
 
@@ -236,28 +392,115 @@ export interface StockAdjustmentResponse {
   units: number;
 }
 
+export interface StockMovementRow {
+  id: string;
+  productId: string;
+  productName: string;
+  barcode: string;
+  category: string | null;
+  movementType: string;
+  quantity: number;
+  saleId: string | null;
+  date: string;
+}
+
+export interface StockMovementsResponse {
+  movements: StockMovementRow[];
+  summary: {
+    totalIn: number;
+    totalOut: number;
+    netChange: number;
+  };
+  pagination: Pagination;
+}
+
 // ---- Payments --------------------------------------------------------------
 
 export interface Payment {
   id: string;
   saleId: string;
-  amount: number | string;
+  controlNumber: string;
+  amount: number;
   paymentMethod: string;
   status: string;
-  referenceNumber: string;
+  customerName: string;
+  saleStatus: string;
+  confirmedBy: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface PaymentsResponse {
   payments: Payment[];
+  summary: {
+    totalConfirmedAmount: number;
+    confirmedCount: number;
+    pendingAmount: number;
+    pendingCount: number;
+  };
+  pagination: Pagination;
 }
 
-// ---- Dashboard stats -------------------------------------------------------
+// ---- Reports (Z-Report & Profit Analytics) ---------------------------------
 
-/**
- * Shape kept for the legacy `/api/dashboard/stats` endpoint. The dashboard now
- * reads `/api/dashboard/overview`, but other integrations may still use this.
- */
+export interface ReportsResponse {
+  generatedAt: string;
+  timeZone: string;
+  range: DashboardRangeSummary;
+  financials: {
+    grossRevenue: number;
+    subtotalRevenue: number;
+    taxCollected: number;
+    discountsGiven: number;
+    costOfGoodsSold: number;
+    grossProfit: number;
+    grossMarginPercent: number;
+    confirmedOrders: number;
+    cancelledOrders: number;
+    averageOrderValue: number;
+    unitsSold: number;
+  };
+  paymentBreakdown: Array<{
+    method: string;
+    orders: number;
+    amount: number;
+    share: number;
+  }>;
+  topProfitProducts: Array<{
+    productId: string;
+    name: string;
+    barcode: string;
+    unitsSold: number;
+    revenue: number;
+    cogs: number;
+    profit: number;
+    marginPercent: number;
+  }>;
+  slowMovingProducts: Array<{
+    productId: string;
+    name: string;
+    barcode: string;
+    category: string | null;
+    stock: number;
+    stockValue: number;
+    unitsSold: number;
+  }>;
+}
+
+// ---- System Diagnostics (Settings) -----------------------------------------
+
+export interface SystemInfoResponse {
+  timeZone: string;
+  smtpConfigured: boolean;
+  nodeEnv: string;
+  defaultTaxRatePercent: number;
+  defaultLowStockThreshold: number;
+  defaultReorderLevel: number;
+  databaseConnected: boolean;
+}
+
+// ---- Dashboard -------------------------------------------------------------
+
 export interface DashboardStats {
   totalSalesToday: number;
   totalSalesWeek: number;
@@ -268,15 +511,12 @@ export interface DashboardStats {
   totalProducts: number;
 }
 
-// ---- Dashboard overview ----------------------------------------------------
-
 export type DashboardRange = "today" | "week" | "month" | "year";
 
 export interface DashboardMetricDelta {
   current: number;
   previous: number;
   change: number;
-  /** Null when the previous period was zero, so no percentage exists. */
   changePercent: number | null;
   direction: "up" | "down" | "flat" | "new";
 }
@@ -309,7 +549,6 @@ export interface DashboardPaymentMethod {
   method: string;
   orders: number;
   amount: number;
-  /** Share of confirmed orders in the period (0–1). */
   share: number;
 }
 
@@ -385,7 +624,6 @@ export interface DashboardOverview {
   stockMovements: DashboardStockMovement[];
 }
 
-/** @deprecated Use `DashboardOverview` for the live dashboard. */
 export type DashboardResponse = DashboardOverview;
 
 // ---- Request options -------------------------------------------------------
@@ -393,8 +631,14 @@ export type DashboardResponse = DashboardOverview;
 export interface ListOptions {
   search?: string;
   categoryId?: string;
+  supplierId?: string;
   status?: string;
+  method?: string;
+  type?: string;
   role?: string;
+  productId?: string;
+  lowStock?: boolean;
+  includeInactive?: boolean;
   start?: string;
   end?: string;
   page?: number;

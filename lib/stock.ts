@@ -10,13 +10,17 @@ export interface StockLevel {
   categoryId: bigint | null;
   category: string | null;
   quantity: number;
+  price: number;
+  costPrice: number;
   lowStockThreshold: number;
   reorderLevel: number;
 }
 
 export async function findStockLevels(): Promise<StockLevel[]> {
   const products = await prisma.product.findMany({
+    where: { isActive: true },
     include: { category: true },
+    orderBy: [{ quantity: "asc" }, { name: "asc" }],
   });
 
   return products.map((p) => ({
@@ -26,6 +30,8 @@ export async function findStockLevels(): Promise<StockLevel[]> {
     categoryId: p.categoryId,
     category: p.category?.name ?? null,
     quantity: p.quantity,
+    price: Number(p.price),
+    costPrice: Number(p.costPrice),
     lowStockThreshold: LOW_STOCK_THRESHOLD,
     reorderLevel: REORDER_LEVEL,
   }));

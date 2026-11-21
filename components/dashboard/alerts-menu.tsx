@@ -136,7 +136,7 @@ export function AlertsMenu({
 
                 {pendingCount > 0 ? (
                   <Link
-                    href="/sales"
+                    href="/payments"
                     className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-subtle"
                     onClick={() => setOpen(false)}
                   >

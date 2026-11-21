@@ -1,65 +1,59 @@
-// POST /api/auth/refresh - Refresh access token.
-//
-// Uses the `refresh_token` cookie to issue a new access token.
+// POST /api/auth/refresh - Rotate refresh token and issue a fresh access token.
 
 import type { NextRequest } from "next/server";
 import { json } from "@/lib/http";
-import { verifyRefreshToken, signAccessToken } from "@/lib/auth/jwt";
-import { prisma } from "@/lib/db";
+import { REFRESH_TOKEN_TTL_SECONDS, env } from "@/lib/env";
+import { AuthError, refreshTokens } from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const cookie = request.cookies.get("refresh_token");
-    if (!cookie) {
-      return json(
-        { detail: "Refresh token not found." },
-        { status: 401 },
-      );
+    let token = request.cookies.get("refresh_token")?.value ?? "";
+
+    if (!token) {
+      const body = (await request.json().catch(() => null)) as {
+        refresh?: string;
+      } | null;
+      if (body && typeof body.refresh === "string") {
+        token = body.refresh.trim();
+      }
     }
 
-    let claims;
-    try {
-      claims = await verifyRefreshToken(cookie.value);
-    } catch {
-      return json(
-        { detail: "Invalid or expired refresh token." },
-        { status: 401 },
-      );
+    if (!token) {
+      return json({ detail: "Refresh token not found." }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: BigInt(claims.sub) },
-      select: { id: true, username: true, role: true, isActive: true },
-    });
-
-    if (!user || !user.isActive) {
-      return json(
-        { detail: "User not found or inactive." },
-        { status: 401 },
-      );
-    }
-
-    const accessToken = await signAccessToken({
-      id: user.id,
-      role: user.role,
-      username: user.username,
-    });
+    const rotated = await refreshTokens(token);
 
     const res = json({
-      access: accessToken,
-      user: {
-        id: user.id.toString(),
-        username: user.username,
-        role: user.role,
-        is_active: user.isActive,
-      },
+      access: rotated.access,
+      refresh: rotated.refresh,
+      user: rotated.user,
+    });
+
+    res.cookies.set("refresh_token", rotated.refresh, {
+      httpOnly: true,
+      secure: env.isProduction,
+      sameSite: "lax",
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
+      path: "/",
     });
 
     return res;
   } catch (error) {
+    if (error instanceof AuthError) {
+      const res = json({ detail: error.message }, { status: error.status });
+      if (error.status === 401) {
+        res.cookies.set("refresh_token", "", {
+          httpOnly: true,
+          secure: env.isProduction,
+          sameSite: "lax",
+          maxAge: 0,
+          path: "/",
+        });
+      }
+      return res;
+    }
     console.error("Refresh failed:", error);
-    return json({ detail: "An unexpected error occurred." }, {
-      status: 500,
-    });
+    return json({ detail: "An unexpected error occurred." }, { status: 500 });
   }
 }

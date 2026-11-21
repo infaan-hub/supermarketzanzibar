@@ -1,4 +1,5 @@
 import { useId } from "react";
+import Link from "next/link";
 import type { DashboardRecentSale } from "@/types/api";
 import {
   formatCount,
@@ -81,11 +82,17 @@ export function RecentSales({ sales }: { sales: DashboardRecentSale[] }) {
                   className="align-middle transition-colors hover:bg-surface-subtle/60"
                 >
                   <td className="min-w-0 px-2.5 py-3 sm:px-4">
-                    <p className="truncate text-[13px] font-medium text-foreground sm:text-sm">
+                    <Link
+                      href={`/sales/${sale.id}`}
+                      className="block truncate text-[13px] font-medium text-foreground hover:text-primary sm:text-sm"
+                    >
                       {sale.customer}
-                    </p>
+                    </Link>
                     <p className="mt-0.5 truncate text-[11px] text-muted">
-                      #{sale.id} · {formatCount(sale.units)}{" "}
+                      <Link href={`/sales/${sale.id}`} className="hover:underline">
+                        #{sale.id}
+                      </Link>{" "}
+                      · {formatCount(sale.units)}{" "}
                       {sale.units === 1 ? "unit" : "units"}
                     </p>
                   </td>

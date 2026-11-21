@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchSales } from "@/lib/api";
 import type { SalesResponse } from "@/types/api";
 
 export function useSales({
+  search,
   status,
+  method,
   page = 1,
   take = 50,
 }: {
+  search?: string;
   status?: string;
+  method?: string;
   page?: number;
   take?: number;
-}) {
+} = {}) {
   const [data, setData] = useState<SalesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +28,7 @@ export function useSales({
       try {
         setLoading(true);
         setError(null);
-        const d = await fetchSales({ status, page, take });
+        const d = await fetchSales({ search, status, method, page, take });
         if (!cancelled) setData(d);
       } catch (err) {
         if (!cancelled)
@@ -35,7 +40,8 @@ export function useSales({
     return () => {
       cancelled = true;
     };
-  }, [status, page, take]);
+  }, [search, status, method, page, take, tick]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  return { data, loading, error, refresh };
 }

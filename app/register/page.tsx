@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { fetchBootstrap } from "@/lib/api";
 
 interface FormState {
   username: string;
@@ -26,13 +35,22 @@ const initial: FormState = {
   password_confirm: "",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initial);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [successRole, setSuccessRole] = useState<string | null>(null);
+  const [isBootstrapAdmin, setIsBootstrapAdmin] = useState(false);
+
+  useEffect(() => {
+    fetchBootstrap()
+      .then((res) => setIsBootstrapAdmin(!res.hasAdmin))
+      .catch(() => undefined);
+  }, []);
 
   function update<K extends keyof FormState>(key: K, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -42,15 +60,18 @@ export default function RegisterPage() {
     const errs: Record<string, string> = {};
     if (!form.username.trim()) errs.username = "Username is required.";
     if (!form.email.trim()) errs.email = "Email is required.";
-    else if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(form.email))
-      errs.email = "Enter a valid email.";
+    else if (!EMAIL_RE.test(form.email.trim())) {
+      errs.email = "Enter a valid email address.";
+    }
     if (!form.full_name.trim()) errs.full_name = "Full name is required.";
     if (!form.phone.trim()) errs.phone = "Phone is required.";
     if (!form.password) errs.password = "Password is required.";
-    else if (form.password.length < 8)
+    else if (form.password.length < 8) {
       errs.password = "Password must be at least 8 characters.";
-    if (form.password !== form.password_confirm)
+    }
+    if (form.password !== form.password_confirm) {
       errs.password_confirm = "Passwords do not match.";
+    }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -74,7 +95,10 @@ export default function RegisterPage() {
           password_confirm: form.password_confirm,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
       if (!res.ok) {
         const fe: Record<string, string> = {};
         let general: string | null = null;
@@ -93,8 +117,8 @@ export default function RegisterPage() {
         }
         return;
       }
-      setSuccess(true);
-      setTimeout(() => router.push("/login"), 1200);
+      setSuccessRole(typeof data.role === "string" ? data.role : "customer");
+      setTimeout(() => router.push("/login"), 1400);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -102,27 +126,39 @@ export default function RegisterPage() {
     }
   }
 
-  if (success) {
+  if (successRole) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
+      <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
         <Card className="w-full max-w-md">
-          <CardContent className="py-10 text-center">
+          <CardContent className="py-10 text-center space-y-2">
             <p className="font-display text-xl font-semibold text-success">
-              Account created successfully
+              {successRole === "admin"
+                ? "Administrator account created"
+                : "Account created successfully"}
             </p>
-            <p className="mt-2 text-sm text-muted">Redirecting to sign in…</p>
+            <p className="text-sm text-muted">Redirecting to sign in…</p>
           </CardContent>
         </Card>
       </div>
     );
   }
+
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">Create account</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-2xl">
+              {isBootstrapAdmin ? "Initial Admin Setup" : "Create account"}
+            </CardTitle>
+            {isBootstrapAdmin && (
+              <Badge variant="success">First Admin Bootstrap</Badge>
+            )}
+          </div>
           <CardDescription>
-            Register as a customer to start shopping.
+            {isBootstrapAdmin
+              ? "Create the first administrator account for Supermarket Zanzibar."
+              : "Register an account. Staff roles can be assigned by an administrator."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -137,7 +173,10 @@ export default function RegisterPage() {
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="username"
+                  className="text-sm font-medium text-foreground"
+                >
                   Username
                 </label>
                 <Input
@@ -151,7 +190,10 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="email" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-medium text-foreground"
+                >
                   Email
                 </label>
                 <Input
@@ -167,7 +209,10 @@ export default function RegisterPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="full_name" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="full_name"
+                className="text-sm font-medium text-foreground"
+              >
                 Full name
               </label>
               <Input
@@ -182,7 +227,10 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label htmlFor="phone" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="phone"
+                  className="text-sm font-medium text-foreground"
+                >
                   Phone
                 </label>
                 <Input
@@ -196,7 +244,10 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="address" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="address"
+                  className="text-sm font-medium text-foreground"
+                >
                   Address (optional)
                 </label>
                 <Input
@@ -208,7 +259,10 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium text-foreground"
+                >
                   Password
                 </label>
                 <Input
@@ -224,7 +278,10 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="password_confirm" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="password_confirm"
+                  className="text-sm font-medium text-foreground"
+                >
                   Confirm password
                 </label>
                 <Input
@@ -236,18 +293,23 @@ export default function RegisterPage() {
                   required
                 />
                 {fieldErrors.password_confirm && (
-                  <p className="text-xs text-danger">{fieldErrors.password_confirm}</p>
+                  <p className="text-xs text-danger">
+                    {fieldErrors.password_confirm}
+                  </p>
                 )}
               </div>
             </div>
             <Button type="submit" className="w-full" isLoading={loading}>
-              Create account
+              {isBootstrapAdmin ? "Create administrator" : "Create account"}
             </Button>
             <p className="text-center text-sm text-muted">
               Already have an account?{" "}
-              <a href="/login" className="font-medium text-primary hover:underline">
+              <Link
+                href="/login"
+                className="font-medium text-primary hover:underline"
+              >
                 Sign in
-              </a>
+              </Link>
             </p>
           </form>
         </CardContent>

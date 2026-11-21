@@ -6,10 +6,10 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { DashboardRange } from "@/types/api";
 import { useDashboard } from "@/hooks/useDashboard";
-import { readWelcomeName } from "@/lib/auth/client";
+import { useAuth } from "@/components/auth/auth-provider";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { DashboardError } from "@/components/dashboard/dashboard-error";
@@ -25,13 +25,14 @@ import { StockActivity } from "@/components/dashboard/stock-activity";
 
 export default function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>("today");
-  const [userName, setUserName] = useState<string | null>(null);
+  const { user } = useAuth();
   const { data, loading, refreshing, error, lastUpdated, refresh } =
     useDashboard(range);
 
-  useEffect(() => {
-    setUserName(readWelcomeName());
-  }, []);
+  const userName =
+    user?.full_name?.trim().split(/\s+/)[0] ||
+    user?.username ||
+    null;
 
   if (!data && loading) {
     return <DashboardSkeleton />;
@@ -74,10 +75,7 @@ export default function DashboardPage() {
         <DashboardNotice error={refreshError} onRetry={refresh} />
       ) : null}
 
-      <div
-        className="space-y-5 sm:space-y-6"
-        aria-busy={refreshing}
-      >
+      <div className="space-y-5 sm:space-y-6" aria-busy={refreshing}>
         <MetricStrip data={data} />
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">

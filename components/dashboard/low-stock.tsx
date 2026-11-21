@@ -1,4 +1,5 @@
 import { useId } from "react";
+import Link from "next/link";
 import type {
   DashboardInventory,
   DashboardLowStockItem,
@@ -81,9 +82,12 @@ export function LowStockTable({
                   return (
                     <tr key={item.id} className="align-middle">
                       <td className="min-w-0 px-4 py-3 sm:px-5">
-                        <p className="truncate text-sm font-medium text-foreground">
+                        <Link
+                          href={`/products/${item.id}`}
+                          className="block truncate text-sm font-medium text-foreground hover:text-primary"
+                        >
                           {item.name}
-                        </p>
+                        </Link>
                         <p className="mt-0.5 truncate font-mono text-[11px] text-muted">
                           {item.barcode}
                         </p>

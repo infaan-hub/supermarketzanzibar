@@ -1,9 +1,7 @@
-// Barcode service: resolve scanned Code 128 labels to products and packaging.
+// Barcode service: resolve, list, create, and remove Code 128 labels.
 //
 // `Product.barcode` remains the primary scan code for backwards compatibility.
 // `ProductBarcode` adds pack/unit labels (a carton of 12, a shelf label, ...).
-// Lookup checks the dedicated table first and falls back to the product table so
-// scanners keep working before/without the barcode migration.
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -16,9 +14,7 @@ export interface BarcodeLookupResult {
   barcodeType: string;
   source: BarcodeSource;
   packaging: {
-    /** Packaging label, e.g. `each`, `pack`, `carton`. */
     unitId: string;
-    /** Base units represented by one scan. */
     quantityMultiplier: number;
     isPrimary: boolean;
   };
@@ -27,19 +23,13 @@ export interface BarcodeLookupResult {
     name: string;
     slug: string;
     category: { id: string; name: string } | null;
-    /** Price of one base unit (the product's current branch price). */
     unitPrice: string;
-    /** Price of one scanned package. */
     price: string;
-    /** Base units available at the current branch. */
     stock: number;
     isActive: boolean;
   };
-  /** Price of one scanned package. */
   price: string;
-  /** Base units available at the current branch. */
   stock: number;
-  /** Whole packages that can still be sold. */
   availableUnits: number;
   inStock: boolean;
 }
@@ -47,7 +37,7 @@ export interface BarcodeLookupResult {
 export class BarcodeError extends Error {
   constructor(
     message: string,
-    public code: "not_found" | "conflict" | "unavailable",
+    public code: "not_found" | "conflict" | "unavailable" | "bad_request",
   ) {
     super(message);
     this.name = "BarcodeError";
@@ -83,8 +73,6 @@ export async function resolveBarcode(
       include: { product: { include: { category: true } } },
     });
   } catch (error) {
-    // Before the migration is applied the table does not exist yet. The
-    // legacy Product.barcode path below still resolves primary labels.
     if (!isMissingBarcodeTable(error)) throw error;
   }
 
@@ -157,6 +145,90 @@ export async function listProductBarcodes(productId: bigint) {
     if (isMissingBarcodeTable(error)) return [];
     throw error;
   }
+}
+
+/** List all active product + pack labels for the bulk label print studio. */
+export async function listAllBarcodes() {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    include: { category: true },
+    orderBy: { name: "asc" },
+  });
+
+  let extraLabels: Array<{
+    id: string;
+    productId: bigint;
+    barcode: string;
+    barcodeType: string;
+    unitId: string | null;
+    quantityMultiplier: Prisma.Decimal;
+    isPrimary: boolean;
+    createdAt: Date;
+  }> = [];
+
+  try {
+    extraLabels = await prisma.productBarcode.findMany({
+      where: { product: { isActive: true } },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    });
+  } catch (error) {
+    if (!isMissingBarcodeTable(error)) throw error;
+  }
+
+  const productById = new Map(products.map((p) => [p.id.toString(), p]));
+  const seen = new Set<string>();
+  const rows: Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    categoryName: string | null;
+    price: number;
+    stock: number;
+    barcode: string;
+    barcodeType: string;
+    unitId: string;
+    quantityMultiplier: number;
+    isPrimary: boolean;
+  }> = [];
+
+  for (const label of extraLabels) {
+    const product = productById.get(label.productId.toString());
+    if (!product) continue;
+    seen.add(label.barcode);
+    const multiplier = Number(label.quantityMultiplier);
+    rows.push({
+      id: label.id,
+      productId: product.id.toString(),
+      productName: product.name,
+      categoryName: product.category?.name ?? null,
+      price: Number(product.price) * multiplier,
+      stock: product.quantity,
+      barcode: label.barcode,
+      barcodeType: label.barcodeType,
+      unitId: toUnitId(label.unitId),
+      quantityMultiplier: multiplier,
+      isPrimary: label.isPrimary,
+    });
+  }
+
+  for (const product of products) {
+    if (!product.barcode || seen.has(product.barcode)) continue;
+    rows.push({
+      id: `primary-${product.id.toString()}`,
+      productId: product.id.toString(),
+      productName: product.name,
+      categoryName: product.category?.name ?? null,
+      price: Number(product.price),
+      stock: product.quantity,
+      barcode: product.barcode,
+      barcodeType: "code128",
+      unitId: "each",
+      quantityMultiplier: 1,
+      isPrimary: true,
+    });
+  }
+
+  return rows;
 }
 
 export interface CreateProductBarcodeInput {
@@ -246,6 +318,35 @@ export async function createProductBarcode(input: CreateProductBarcodeInput) {
       error.code === "P2002"
     ) {
       throw new BarcodeError("This barcode is already assigned.", "conflict");
+    }
+    throw error;
+  }
+}
+
+/** Delete a non-primary pack/shelf barcode label. */
+export async function deleteProductBarcode(id: string) {
+  try {
+    const existing = await prisma.productBarcode.findUnique({
+      where: { id },
+      select: { id: true, isPrimary: true },
+    });
+    if (!existing) {
+      throw new BarcodeError("Barcode label not found.", "not_found");
+    }
+    if (existing.isPrimary) {
+      throw new BarcodeError(
+        "Primary product barcode cannot be deleted.",
+        "bad_request",
+      );
+    }
+    await prisma.productBarcode.delete({ where: { id } });
+  } catch (error) {
+    if (error instanceof BarcodeError) throw error;
+    if (isMissingBarcodeTable(error)) {
+      throw new BarcodeError(
+        "Barcode labels table is not available yet.",
+        "unavailable",
+      );
     }
     throw error;
   }

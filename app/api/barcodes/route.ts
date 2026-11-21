@@ -1,52 +1,48 @@
-// GET  /api/barcodes?productId=...  - list labels attached to a product.
-// POST /api/barcodes                 - attach a label (admin only).
-//
-// The POS resolves scanned labels through /api/barcodes/lookup. This route is
-// for inventory setup: register pack/carton labels or print internal labels.
+// GET  /api/barcodes?productId=...  - List labels for one product (or all active labels when omitted).
+// POST /api/barcodes                - Attach a pack/shelf label (manager/admin).
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import {
-  authenticate,
-  hasRole,
-} from "@/lib/auth/request";
+import { requireManager, requireStaff } from "@/lib/auth/request";
 import {
   badRequest,
   conflict,
   created,
-  forbidden,
   json,
   notFound,
   serverError,
   serviceUnavailable,
-  unauthorized,
   validationError,
 } from "@/lib/http";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import {
   BarcodeError,
   createProductBarcode,
+  listAllBarcodes,
   listProductBarcodes,
 } from "@/services/barcode.service";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const productIdParam = searchParams.get("productId");
 
-  if (!productIdParam) {
-    return badRequest("A productId is required.");
-  }
-
-  let productId: bigint;
   try {
-    productId = BigInt(productIdParam);
-  } catch {
-    return badRequest("productId must be a numeric product id.");
-  }
+    if (!productIdParam) {
+      const barcodes = await listAllBarcodes();
+      return json({ barcodes });
+    }
 
-  try {
+    let productId: bigint;
+    try {
+      productId = BigInt(productIdParam);
+    } catch {
+      return badRequest("productId must be a numeric product id.");
+    }
+
     const barcodes = await listProductBarcodes(productId);
-
     return json({
       barcodes: barcodes.map((b) => ({
         id: b.id,
@@ -65,13 +61,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await authenticate(request);
-  if (!auth.ok) {
-    return unauthorized(auth.error);
-  }
-  if (!hasRole(auth.user, "admin")) {
-    return forbidden("Only administrators can manage barcodes.");
-  }
+  const guard = await requireManager(request);
+  if (!guard.ok) return guard.response;
 
   let body: unknown;
   try {
@@ -125,8 +116,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // SaleItem.quantity and stock are integer base units, so a package must
-  // represent a whole number of units.
   if (!quantityMultiplier.isInteger()) {
     return validationError({
       quantityMultiplier: ["quantityMultiplier must be a whole number."],
@@ -144,9 +133,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const unitId =
-    typeof input.unitId === "string" ? input.unitId.trim() : null;
-
+  const unitId = typeof input.unitId === "string" ? input.unitId.trim() : null;
   if (unitId && unitId.length > 50) {
     return validationError({
       unitId: ["unitId must be 50 characters or fewer."],
@@ -177,6 +164,7 @@ export async function POST(request: NextRequest) {
       if (error.code === "not_found") return notFound(error.message);
       if (error.code === "conflict") return conflict(error.message);
       if (error.code === "unavailable") return serviceUnavailable(error.message);
+      return badRequest(error.message);
     }
 
     console.error("Create product barcode failed:", error);

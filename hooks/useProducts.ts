@@ -1,21 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchProducts } from "@/lib/api";
 import type { ProductsResponse } from "@/types/api";
 
 export function useProducts({
+  search,
   categoryId,
+  supplierId,
+  lowStock,
+  includeInactive,
   page = 1,
   take = 100,
 }: {
+  search?: string;
   categoryId?: string;
+  supplierId?: string;
+  lowStock?: boolean;
+  includeInactive?: boolean;
   page?: number;
   take?: number;
-}) {
+} = {}) {
   const [data, setData] = useState<ProductsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +32,15 @@ export function useProducts({
       try {
         setLoading(true);
         setError(null);
-        const d = await fetchProducts({ categoryId, page, take });
+        const d = await fetchProducts({
+          search,
+          categoryId,
+          supplierId,
+          lowStock,
+          includeInactive,
+          page,
+          take,
+        });
         if (!cancelled) setData(d);
       } catch (err) {
         if (!cancelled)
@@ -35,7 +52,8 @@ export function useProducts({
     return () => {
       cancelled = true;
     };
-  }, [categoryId, page, take]);
+  }, [search, categoryId, supplierId, lowStock, includeInactive, page, take, tick]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  return { data, loading, error, refresh };
 }

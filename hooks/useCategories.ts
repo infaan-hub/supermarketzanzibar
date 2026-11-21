@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchCategories } from "@/lib/api";
 import type { CategoriesResponse } from "@/types/api";
 
-export function useCategories() {
+export function useCategories(search?: string) {
   const [data, setData] = useState<CategoriesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,7 +16,7 @@ export function useCategories() {
       try {
         setLoading(true);
         setError(null);
-        const d = await fetchCategories();
+        const d = await fetchCategories({ search, take: 100 });
         if (!cancelled) setData(d);
       } catch (err) {
         if (!cancelled)
@@ -27,7 +28,8 @@ export function useCategories() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [search, tick]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  return { data, loading, error, refresh };
 }

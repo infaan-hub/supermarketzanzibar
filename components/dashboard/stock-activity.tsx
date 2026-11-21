@@ -22,7 +22,7 @@ export function StockActivity({
         titleId={titleId}
         title="Stock activity"
         description="Latest inventory movements"
-        action={<PanelLink href="/stock">Inventory</PanelLink>}
+        action={<PanelLink href="/stock/movements">Full log</PanelLink>}
       />
 
       {movements.length === 0 ? (

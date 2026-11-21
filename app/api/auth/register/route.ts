@@ -1,10 +1,9 @@
-// POST /api/auth/register - Public customer registration.
+// POST /api/auth/register - Public account registration (with first-admin bootstrap).
 
 import type { NextRequest } from "next/server";
-import { json, created, validationError } from "@/lib/http";
-import { registerCustomer } from "@/services/auth.service";
-import { serializeUser } from "@/lib/serializers";
-import { AuthError } from "@/services/auth.service";
+import { created, json, validationError } from "@/lib/http";
+import { isEmailValid } from "@/lib/validation";
+import { AuthError, registerPublicUser } from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +28,10 @@ export async function POST(request: NextRequest) {
         form.get("password_confirm") ?? form.get("passwordConfirm") ?? "",
       );
     } else {
-      const body = (await request.json()) as Record<string, unknown>;
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!body) {
+        return json({ detail: "Invalid JSON payload." }, { status: 400 });
+      }
       username = String(body.username ?? "").trim();
       email = String(body.email ?? "").trim();
       fullName = String(body.full_name ?? body.fullName ?? "").trim();
@@ -42,19 +44,25 @@ export async function POST(request: NextRequest) {
     const errors: Record<string, string[]> = {};
     if (!username) errors.username = ["This field is required."];
     if (!email) errors.email = ["This field is required."];
+    else if (!isEmailValid(email)) errors.email = ["Enter a valid email address."];
     if (!fullName) errors.full_name = ["This field is required."];
     if (!phone) errors.phone = ["This field is required."];
     if (!password) errors.password = ["This field is required."];
-    if (password && password.length < 8)
-      errors.password = [...(errors.password ?? []), "Ensure this field has at least 8 characters."];
-    if (password !== passwordConfirm)
+    if (password && password.length < 8) {
+      errors.password = [
+        ...(errors.password ?? []),
+        "Password must be at least 8 characters.",
+      ];
+    }
+    if (password !== passwordConfirm) {
       errors.password_confirm = ["Passwords do not match."];
+    }
 
     if (Object.keys(errors).length > 0) {
       return validationError(errors);
     }
 
-    const user = await registerCustomer({
+    const user = await registerPublicUser({
       username,
       email,
       fullName,
@@ -64,13 +72,9 @@ export async function POST(request: NextRequest) {
       passwordConfirm,
     });
 
-    return created(serializeUser(user));
+    return created(user);
   } catch (error) {
     if (error instanceof AuthError) {
-      if (error.code === "bad_request") {
-        // Surface as field-level-ish detail.
-        return json({ detail: error.message }, { status: 400 });
-      }
       return json({ detail: error.message }, { status: error.status });
     }
     console.error("Register failed:", error);

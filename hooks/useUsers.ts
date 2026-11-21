@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchUsers } from "@/lib/api";
 import type { UsersResponse } from "@/types/api";
 
@@ -14,10 +14,11 @@ export function useUsers({
   role?: string;
   page?: number;
   take?: number;
-}) {
+} = {}) {
   const [data, setData] = useState<UsersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +38,8 @@ export function useUsers({
     return () => {
       cancelled = true;
     };
-  }, [search, role, page, take]);
+  }, [search, role, page, take, tick]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  return { data, loading, error, refresh };
 }

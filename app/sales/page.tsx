@@ -1,39 +1,69 @@
 // Sales page.
 //
-// Browse orders with status filtering, powered by the typed API client.
+// Searchable, filterable order history with direct links to Sale Detail and
+// database-backed Receipt Reprints.
 
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import Link from "@/components/ui/link";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useSales } from "@/hooks/useSales";
-import { formatMoney, formatDate } from "@/lib/format";
+import {
+  formatBusinessDateTime,
+  formatMoney,
+  paymentMethodLabel,
+  saleStatusTone,
+  statusLabel,
+} from "@/lib/format";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "completed", label: "Completed" },
-  { value: "pending", label: "Pending" },
+  { value: "payment_confirmed", label: "Payment Confirmed" },
+  { value: "pending_payment", label: "Pending Payment" },
+  { value: "processing", label: "Processing" },
   { value: "cancelled", label: "Cancelled" },
 ];
 
-export default function SalesPage() {
-  const [statusFilter, setStatusFilter] = useState("");
-  const { data, loading, error } = useSales({ status: statusFilter });
+const METHOD_OPTIONS = [
+  { value: "", label: "All Methods" },
+  { value: "cash", label: "Cash" },
+  { value: "mobile_money", label: "Mobile Money" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+];
 
-  if (loading) {
+export default function SalesPage() {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [methodFilter, setMethodFilter] = useState("");
+
+  const { data, loading, error, refresh } = useSales({
+    search: search.trim() || undefined,
+    status: statusFilter || undefined,
+    method: methodFilter || undefined,
+  });
+
+  if (loading && !data) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <SkeletonText lines={2} className="w-[40%]" />
-        </div>
-        <div className="bg-background rounded-lg border border-border shadow-sm h-80">
-          <SkeletonText lines={5} className="p-6" />
+      <div className="mx-auto max-w-[1400px] space-y-6">
+        <SkeletonText lines={2} className="w-[40%]" />
+        <div className="h-80 rounded-lg border border-border bg-background p-6">
+          <SkeletonText lines={6} />
         </div>
       </div>
     );
@@ -41,15 +71,17 @@ export default function SalesPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
+      <div className="mx-auto max-w-[1400px] space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          Sales
+        </h1>
         <EmptyState
           title="Unable to load sales"
           description={error.message}
           action={
-            <button onClick={() => window.location.reload()} className="btn-try">
+            <Button variant="secondary" onClick={refresh}>
               Try again
-            </button>
+            </Button>
           }
         />
       </div>
@@ -58,92 +90,130 @@ export default function SalesPage() {
 
   const sales = data?.sales ?? [];
 
-  if (sales.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
-            <p className="text-muted">Order records for the POS dashboard.</p>
-          </div>
-          <Link href="/pos" className="inline-flex h-10 items-center justify-center rounded bg-primary px-4 text-sm font-medium text-white shadow-sm hover:bg-primary/90">
-            New Sale
-          </Link>
-        </div>
-        <EmptyState title="No sales" description="No orders match your filters." />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Sales</h1>
-          <p className="text-muted">Order records for the POS dashboard.</p>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Sales
+          </h1>
+          <p className="text-sm text-muted">
+            Completed and pending POS orders. Select any order to inspect items
+            or reprint its receipt.
+          </p>
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-56"
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-          <Link href="/pos" className="inline-flex h-11 w-full items-center justify-center rounded bg-primary px-4 text-center text-sm font-medium text-white shadow-sm hover:bg-primary/90 sm:h-10 sm:w-auto">
-            New Sale
-          </Link>
-        </div>
+        <Link
+          href="/pos"
+          className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white shadow-sm hover:bg-[#0f5c23]"
+        >
+          + New Sale
+        </Link>
       </div>
 
-      <div className="bg-background rounded-lg border border-border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[16%] font-mono text-sm">Order</TableHead>
-              <TableHead className="w-[20%]">Customer</TableHead>
-              <TableHead className="w-[14%] text-right">Total</TableHead>
-              <TableHead className="w-[14%]">Payment</TableHead>
-              <TableHead className="w-[14%]">Status</TableHead>
-              <TableHead className="w-[22%] text-right">Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sales.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium">#{s.id}</TableCell>
-                <TableCell className="text-sm">{s.customer?.name ?? "Walk-in"}</TableCell>
-                <TableCell className="text-sm font-medium text-right">
-                  {formatMoney(s.grandTotal)}
-                </TableCell>
-                <TableCell className="text-sm text-muted capitalize">
-                  {s.paymentMethod}
-                </TableCell>
-                <TableCell className="text-sm">
-                  <Badge
-                    variant={
-                      s.status === "completed"
-                        ? "success"
-                        : s.status === "pending"
-                        ? "warning"
-                        : "danger"
-                    }
-                  >
-                    {s.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted text-right">
-                  {formatDate(s.createdAt)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          placeholder="Search by order #, control #, or customer…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="sm:w-48"
+        >
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={methodFilter}
+          onChange={(e) => setMethodFilter(e.target.value)}
+          className="sm:w-44"
+        >
+          {METHOD_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
       </div>
+
+      {sales.length === 0 ? (
+        <EmptyState
+          title="No matching sales"
+          description="No orders match your current filters."
+        />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Control #</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sales.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-mono font-semibold">
+                    <Link
+                      href={`/sales/${s.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      #{s.id}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {s.customerFullName || s.customer?.name || "Walk-in Customer"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted">
+                    {s.controlNumber ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-semibold tabular-nums">
+                    {formatMoney(s.grandTotal)}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted">
+                    {paymentMethodLabel(s.paymentMethod)}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <Badge variant={saleStatusTone(s.status)}>
+                      {statusLabel(s.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted">
+                    {formatBusinessDateTime(s.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/sales/${s.id}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Details
+                      </Link>
+                      <Link
+                        href={`/receipt/${s.id}`}
+                        className="text-xs font-medium text-foreground hover:underline"
+                      >
+                        Receipt
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

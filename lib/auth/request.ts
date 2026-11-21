@@ -1,15 +1,19 @@
-// Request authentication helpers shared by all protected Route Handlers.
-//
-// Parses `Authorization: Bearer <access>`, verifies the token, loads the user,
-// and provides role/permission guards. Secrets and hashes are never exposed.
+// Request authentication & RBAC guards shared by all protected Route Handlers.
 
-import type { NextRequest } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAccessToken, type Role } from "@/lib/auth/jwt";
+import {
+  ADMIN_ROLES,
+  MANAGER_ROLES,
+  STAFF_ROLES,
+  normalizeRole,
+} from "@/lib/auth/roles";
 import {
   hasActiveScheduledAccess,
   scheduledAccessDenialDetail,
 } from "@/lib/auth/schedule";
+import { forbidden, unauthorized } from "@/lib/http";
 
 export interface CurrentUser {
   id: bigint;
@@ -28,23 +32,34 @@ export type AuthResult =
   | { ok: true; user: CurrentUser }
   | { ok: false; error: string; expired: boolean };
 
-export function extractBearerToken(req: NextRequest): string | null {
-  const header = req.headers.get("authorization") || req.headers.get("Authorization");
+export type GuardResult =
+  | { ok: true; user: CurrentUser }
+  | { ok: false; response: NextResponse };
+
+export function extractBearerToken(req: Request | NextRequest): string | null {
+  const header =
+    req.headers.get("authorization") || req.headers.get("Authorization");
   if (!header) return null;
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   return match ? match[1].trim() : null;
 }
 
-export async function authenticate(req: NextRequest): Promise<AuthResult> {
+export async function authenticate(req: Request | NextRequest): Promise<AuthResult> {
   const token = extractBearerToken(req);
   if (!token) {
-    return { ok: false, error: "Authentication credentials were not provided.", expired: false };
+    return {
+      ok: false,
+      error: "Authentication credentials were not provided.",
+      expired: false,
+    };
   }
+
   let claims;
   try {
     claims = await verifyAccessToken(token);
   } catch (err) {
-    const expired = err instanceof Error && (err as { code?: string }).code === "expired";
+    const expired =
+      err instanceof Error && (err as { code?: string }).code === "expired";
     return {
       ok: false,
       error: expired ? "Token has expired." : "Invalid token.",
@@ -65,6 +80,54 @@ export async function authenticate(req: NextRequest): Promise<AuthResult> {
   }
 
   return { ok: true, user: toCurrentUser(user) };
+}
+
+export async function requireAuth(req: Request | NextRequest): Promise<GuardResult> {
+  const auth = await authenticate(req);
+  if (!auth.ok) {
+    return { ok: false, response: unauthorized(auth.error) };
+  }
+  return { ok: true, user: auth.user };
+}
+
+export async function requireRoles(
+  req: Request | NextRequest,
+  roles: readonly string[],
+  forbiddenDetail = "You do not have permission to perform this action.",
+): Promise<GuardResult> {
+  const auth = await authenticate(req);
+  if (!auth.ok) {
+    return { ok: false, response: unauthorized(auth.error) };
+  }
+  const normalized = normalizeRole(auth.user.role);
+  if (!roles.includes(normalized)) {
+    return { ok: false, response: forbidden(forbiddenDetail) };
+  }
+  return { ok: true, user: auth.user };
+}
+
+export function requireStaff(req: Request | NextRequest): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    STAFF_ROLES,
+    "Staff access is required for this operation.",
+  );
+}
+
+export function requireManager(req: Request | NextRequest): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    MANAGER_ROLES,
+    "Manager or administrator permission is required.",
+  );
+}
+
+export function requireAdmin(req: Request | NextRequest): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    ADMIN_ROLES,
+    "Administrator permission is required.",
+  );
 }
 
 export function toCurrentUser(user: {
@@ -94,10 +157,11 @@ export function toCurrentUser(user: {
 }
 
 export function hasRole(user: CurrentUser | null, ...roles: Role[]): boolean {
-  return Boolean(user && roles.includes(user.role));
+  if (!user) return false;
+  const normalized = normalizeRole(user.role);
+  return roles.some((r) => normalizeRole(r) === normalized);
 }
 
-// Enforce supplier/driver scheduled-access windows, matching Django behavior.
 export function scheduledAccessOk(user: CurrentUser): boolean {
   return hasActiveScheduledAccess(user);
 }

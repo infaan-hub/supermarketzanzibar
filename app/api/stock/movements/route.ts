@@ -1,11 +1,18 @@
+// GET  /api/stock/movements - Paginated & filterable stock movement audit ledger.
 // POST /api/stock/movements - Receive (IN) or issue (OUT) stock by barcode.
-//
-// The stock page uses this endpoint for scanning. A scanned pack label applies
-// its quantity multiplier, the product's quantity is updated atomically, and a
-// StockMovement row records the change for the audit trail.
 
-import { badRequest, conflict, json, notFound, serverError, validationError } from "@/lib/http";
+import type { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
+import {
+  badRequest,
+  conflict,
+  json,
+  notFound,
+  serverError,
+  validationError,
+} from "@/lib/http";
 import { prisma } from "@/lib/db";
+import { requireStaff } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import { resolveBarcode } from "@/services/barcode.service";
 
@@ -18,7 +25,109 @@ class StockAdjustmentError extends Error {
   }
 }
 
-export async function POST(request: Request) {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type")?.trim().toUpperCase();
+    const productId = searchParams.get("productId")?.trim();
+    const search = searchParams.get("search")?.trim();
+    const start = searchParams.get("start")?.trim();
+    const end = searchParams.get("end")?.trim();
+    const take = searchParams.get("take");
+    const page = searchParams.get("page");
+
+    const where: Prisma.StockMovementWhereInput = {};
+    if (type === "IN" || type === "OUT") {
+      where.movementType = type;
+    }
+    if (productId && /^\d+$/.test(productId)) {
+      where.productId = BigInt(productId);
+    }
+    if (search) {
+      where.product = {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { barcode: { contains: search, mode: "insensitive" } },
+        ],
+      };
+    }
+    if (start || end) {
+      where.date = {};
+      if (start) where.date.gte = new Date(start);
+      if (end) {
+        const endDate = new Date(end);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+          endDate.setUTCHours(23, 59, 59, 999);
+        }
+        where.date.lte = endDate;
+      }
+    }
+
+    const takeNum = take ? Math.min(Math.max(Number(take), 1), 200) : 50;
+    const pageNum = page ? Math.max(Number(page), 1) : 1;
+
+    const [movements, total, inAgg, outAgg] = await Promise.all([
+      prisma.stockMovement.findMany({
+        where,
+        include: {
+          product: { include: { category: true } },
+          saleItem: { select: { saleId: true } },
+        },
+        orderBy: { date: "desc" },
+        take: takeNum,
+        skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
+      }),
+      prisma.stockMovement.count({ where }),
+      prisma.stockMovement.aggregate({
+        where: { ...where, movementType: "IN" },
+        _sum: { quantity: true },
+      }),
+      prisma.stockMovement.aggregate({
+        where: { ...where, movementType: "OUT" },
+        _sum: { quantity: true },
+      }),
+    ]);
+
+    const totalIn = inAgg._sum.quantity ?? 0;
+    const totalOut = outAgg._sum.quantity ?? 0;
+
+    return json({
+      movements: movements.map((m) => ({
+        id: m.id.toString(),
+        productId: m.productId.toString(),
+        productName: m.product.name,
+        barcode: m.product.barcode,
+        category: m.product.category?.name ?? null,
+        movementType: m.movementType,
+        quantity: m.quantity,
+        saleId: m.saleItem ? m.saleItem.saleId.toString() : null,
+        date: m.date,
+      })),
+      summary: {
+        totalIn,
+        totalOut,
+        netChange: totalIn - totalOut,
+      },
+      pagination: {
+        page: pageNum,
+        take: takeNum,
+        total,
+        pages: Math.max(1, Math.ceil(total / takeNum)),
+      },
+    });
+  } catch (error) {
+    console.error("List stock movements failed:", error);
+    return serverError();
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();

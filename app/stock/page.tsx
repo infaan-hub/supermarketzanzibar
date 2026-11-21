@@ -5,6 +5,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -240,6 +241,12 @@ export default function StockPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/stock/movements"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Stock history →
+          </Link>
           <Badge variant={criticalCount ? "danger" : "success"}>
             {criticalCount} critical
           </Badge>
@@ -628,7 +635,12 @@ export default function StockPage() {
                   return (
                     <TableRow key={item.productId}>
                       <TableCell>
-                        <div className="font-medium">{item.productName}</div>
+                        <Link
+                          href={`/products/${item.productId}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {item.productName}
+                        </Link>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2">
                           <p className="font-mono text-[11px] text-muted">
                             {item.barcode || "—"}

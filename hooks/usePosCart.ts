@@ -1,13 +1,14 @@
 // Shared POS cart state.
 //
-// The cart, customer details and payment method are persisted to localStorage
-// so the point-of-sale terminal and the dedicated shopping-cart page can
-// share one basket across navigations.
+// Persisted to localStorage so /pos, /shopping-cart, and the header badge
+// stay in sync across navigations. Uses authenticated `submitCheckout()`
+// and reads the live store tax rate from StoreSettings.
 
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { lookupBarcode } from "@/lib/api";
+import { lookupBarcode, submitCheckout } from "@/lib/api";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 export interface CartItem {
   key: string;
@@ -28,6 +29,7 @@ export interface PosProduct {
 }
 
 export interface CustomerForm {
+  customerId?: string | null;
   fullName: string;
   email: string;
   phone: string;
@@ -40,16 +42,33 @@ export interface Receipt {
   customerFullName: string;
   customerEmail: string;
   subtotal: number;
+  discount: number;
   taxAmount: number;
+  taxRatePercent: number;
   grandTotal: number;
-  items: Array<{ productName: string; quantity: number; price: number; total: number }>;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
   paymentMethod: string;
   createdAt: string;
 }
 
-const CART_KEY = "ss_pos_cart";
+export const CART_KEY = "ss_pos_cart";
+export const CART_CHANGE_EVENT = "sz-cart-change";
 const CUSTOMER_KEY = "ss_pos_customer";
 const PAYMENT_KEY = "ss_pos_payment";
+const DISCOUNT_KEY = "ss_pos_discount";
+
+const EMPTY_CUSTOMER: CustomerForm = {
+  customerId: null,
+  fullName: "",
+  email: "",
+  phone: "",
+  address: "",
+};
 
 function playBeep() {
   if (typeof window === "undefined") return;
@@ -65,10 +84,7 @@ function playBeep() {
     oscillator.type = "sine";
     oscillator.frequency.value = 880;
     gain.gain.setValueAtTime(0.18, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      context.currentTime + 0.14,
-    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.14);
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start();
@@ -77,7 +93,7 @@ function playBeep() {
       context.close().catch(() => undefined);
     };
   } catch {
-    // Audio is a progressive enhancement; ignore failures.
+    // Audio is progressive enhancement; ignore errors.
   }
 }
 
@@ -97,13 +113,22 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
+export function readCartItemCount(): number {
+  const items = readJson<CartItem[]>(CART_KEY, []);
+  return items.reduce((sum, item) => sum + item.quantity, 0);
+}
+
 export function usePosCart() {
+  const { settings } = useStoreSettings();
   const [cart, setCart] = useState<CartItem[]>(() => readJson(CART_KEY, []));
   const [customer, setCustomer] = useState<CustomerForm>(() =>
-    readJson(CUSTOMER_KEY, { fullName: "", email: "", phone: "", address: "" }),
+    readJson(CUSTOMER_KEY, EMPTY_CUSTOMER),
   );
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">(
-    () => readJson(PAYMENT_KEY, "cash"),
+  const [paymentMethod, setPaymentMethod] = useState<
+    "cash" | "mobile_money" | "card" | "bank_transfer"
+  >(() => readJson(PAYMENT_KEY, "cash"));
+  const [discountInput, setDiscountInput] = useState<string>(() =>
+    readJson(DISCOUNT_KEY, ""),
   );
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -118,6 +143,7 @@ export function usePosCart() {
   useEffect(() => {
     try {
       window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      window.dispatchEvent(new Event(CART_CHANGE_EVENT));
     } catch {
       // ignore
     }
@@ -139,10 +165,23 @@ export function usePosCart() {
     }
   }, [paymentMethod]);
 
-  const taxRate = 0.15;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DISCOUNT_KEY, JSON.stringify(discountInput));
+    } catch {
+      // ignore
+    }
+  }, [discountInput]);
+
+  const taxRatePercent = settings.taxRatePercent;
+  const taxRate = taxRatePercent / 100;
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxAmount = subtotal * taxRate;
-  const grandTotal = subtotal + taxAmount;
+  const parsedDiscount = Math.max(0, Number(discountInput) || 0);
+  const discount = Math.min(parsedDiscount, subtotal);
+  const taxableAmount = Math.max(0, subtotal - discount);
+  const taxAmount = taxableAmount * taxRate;
+  const grandTotal = taxableAmount + taxAmount;
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addCartLine = useCallback((line: Omit<CartItem, "key" | "quantity">) => {
     const key = `${line.productId}:${line.unitId ?? "each"}`;
@@ -168,6 +207,8 @@ export function usePosCart() {
         unitId: null,
         barcode: product.barcode ?? null,
       });
+      setScanError(null);
+      setScanSuccess(`Added ${product.name} to cart.`);
     },
     [addCartLine],
   );
@@ -188,10 +229,13 @@ export function usePosCart() {
 
   const clearCart = useCallback(() => {
     setCart([]);
+    setDiscountInput("");
     setCheckoutError(null);
     setReceipt(null);
     try {
       window.localStorage.removeItem(CART_KEY);
+      window.localStorage.removeItem(DISCOUNT_KEY);
+      window.dispatchEvent(new Event(CART_CHANGE_EVENT));
     } catch {
       // ignore
     }
@@ -211,7 +255,7 @@ export function usePosCart() {
 
         if (!result.inStock) {
           setScanError(
-            `${result.product.name} is out of stock at this branch (${result.stock} base units).`,
+            `${result.product.name} is out of stock (${result.stock} base units).`,
           );
           return false;
         }
@@ -269,71 +313,46 @@ export function usePosCart() {
       setCheckoutError("Add at least one item before checkout.");
       return null;
     }
-    if (!customer.email || !customer.fullName || !customer.phone) {
-      setCheckoutError("Customer name, email, and phone are required.");
-      return null;
-    }
 
     const cartSnapshot = cart;
-    const snapshotSubtotal = cartSnapshot.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
-    const snapshotTax = snapshotSubtotal * taxRate;
-    const snapshotTotal = snapshotSubtotal + snapshotTax;
-
     setCheckingOut(true);
     setCheckoutError(null);
 
     try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          items: cartSnapshot.map((i) => ({
-            productId: i.productId,
-            quantity: i.quantity * i.quantityMultiplier,
-            price: Number((i.price / i.quantityMultiplier).toFixed(2)),
-          })),
-          customerFullName: customer.fullName,
-          customerEmail: customer.email,
-          customerPhone: customer.phone,
-          customerAddress: customer.address,
-          paymentMethod,
-        }),
+      const result = await submitCheckout({
+        items: cartSnapshot.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity * i.quantityMultiplier,
+          price: Number((i.price / i.quantityMultiplier).toFixed(2)),
+        })),
+        customerId: customer.customerId ?? null,
+        customerFullName: customer.fullName.trim() || "Walk-in Customer",
+        customerEmail: customer.email.trim() || undefined,
+        customerPhone: customer.phone.trim() || undefined,
+        customerAddress: customer.address.trim() || undefined,
+        paymentMethod,
+        taxRatePercent,
+        discount,
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Checkout failed." }));
-        setCheckoutError(err.detail || "Checkout failed.");
-        return null;
-      }
-
-      const result = await res.json();
-      const serverSubtotal = Number(result.sale?.subtotal ?? snapshotSubtotal);
-      const serverTax = Number(result.sale?.taxAmount ?? snapshotTax);
-      const serverTotal = Number(result.sale?.grandTotal ?? snapshotTotal);
-
       const newReceipt: Receipt = {
-        saleId: result.sale?.id ?? result.id ?? "",
-        controlNumber:
-          result.sale?.controlNumber ??
-          result.payment?.control_number ??
-          result.controlNumber ??
-          "",
-        customerFullName: customer.fullName,
-        customerEmail: customer.email,
-        subtotal: serverSubtotal,
-        taxAmount: serverTax,
-        grandTotal: serverTotal,
+        saleId: result.sale.id,
+        controlNumber: result.sale.controlNumber,
+        customerFullName: result.sale.customerFullName,
+        customerEmail: result.sale.customerEmail,
+        subtotal: result.sale.subtotal,
+        discount: result.sale.discount,
+        taxAmount: result.sale.taxAmount,
+        taxRatePercent,
+        grandTotal: result.sale.grandTotal,
         items: cartSnapshot.map((i) => ({
           productName: i.unitId ? `${i.productName} (${i.unitId})` : i.productName,
           quantity: i.quantity,
           price: i.price,
           total: i.price * i.quantity,
         })),
-        paymentMethod,
-        createdAt: new Date().toISOString(),
+        paymentMethod: result.sale.paymentMethod,
+        createdAt: result.sale.createdAt,
       };
 
       setReceipt(newReceipt);
@@ -344,6 +363,8 @@ export function usePosCart() {
       }
 
       setCart([]);
+      setCustomer(EMPTY_CUSTOMER);
+      setDiscountInput("");
       setScanValue("");
       setScanError(null);
       setScanSuccess(null);
@@ -359,10 +380,15 @@ export function usePosCart() {
   return {
     cart,
     setCart,
+    itemCount,
     customer,
     setCustomer,
     paymentMethod,
     setPaymentMethod,
+    discountInput,
+    setDiscountInput,
+    discount,
+    taxRatePercent,
     checkingOut,
     receipt,
     setReceipt,

@@ -1,5 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { roleLabel } from "@/lib/auth/roles";
+import { CART_CHANGE_EVENT, readCartItemCount } from "@/hooks/usePosCart";
+
 export function Header({
   title,
   sidebarOpen,
@@ -9,10 +16,30 @@ export function Header({
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
 }) {
+  const { user } = useAuth();
+  const { settings } = useStoreSettings();
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const sync = () => setCartCount(readCartItemCount());
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener(CART_CHANGE_EVENT, sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(CART_CHANGE_EVENT, sync);
+    };
+  }, []);
+
+  const displayStore = settings.storeName || title;
+  const initials = (user?.full_name || user?.username || "SZ")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <header className="app-header sticky top-0 z-30 shrink-0 border-b border-border bg-background/90 shadow-sm backdrop-blur-md">
+    <header className="app-header sticky top-0 z-30 shrink-0 border-b border-border bg-background/90 shadow-sm backdrop-blur-md print:hidden">
       <div className="app-header-inner flex h-full min-w-0 items-center justify-between gap-3 px-3 sm:px-5 lg:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-accent/10 hover:text-foreground"
@@ -24,37 +51,39 @@ export function Header({
             {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
           <span className="max-w-[55vw] truncate font-display font-semibold text-foreground sm:hidden">
-            {title}
+            {displayStore}
           </span>
         </div>
 
-        <div className="hidden sm:flex items-center gap-4">
-          <button
-            className="inline-flex items-center justify-center h-10 w-10 rounded-lg border border-transparent bg-background/80 text-muted hover:bg-accent/5 hover:text-foreground transition-colors"
-            aria-label="Notifications"
+        <div className="flex items-center gap-3">
+          <Link
+            href="/pos"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-subtle px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-surface-muted"
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="hidden md:block text-sm text-muted">
-              Supermarket Zanzibar
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-xs font-semibold text-primary-hover">
-              SZ
+            <span>POS</span>
+            {cartCount > 0 && (
+              <span className="rounded-full bg-primary-hover px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+
+          <Link
+            href="/profile"
+            className="hidden sm:flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-accent/5"
+          >
+            <div className="text-right leading-tight">
+              <p className="text-xs font-semibold text-foreground">
+                {user?.full_name || user?.username || displayStore}
+              </p>
+              <p className="text-[11px] text-muted">
+                {user ? roleLabel(user.role) : displayStore}
+              </p>
             </div>
-          </div>
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-xs font-semibold text-primary-hover">
+              {initials}
+            </div>
+          </Link>
         </div>
       </div>
     </header>

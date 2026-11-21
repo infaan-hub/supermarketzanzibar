@@ -1,42 +1,39 @@
-// GET /api/products/categories - List all product categories.
-//
-// Used by the product picker and category filter.
+// GET /api/products/categories - List all product categories with product counts.
 
-import { json } from "@/lib/http";
-import { findManyCategories, countCategories } from "@/lib/categories";
+import type { NextRequest } from "next/server";
+import { prisma } from "@/lib/db";
+import { json, serverError } from "@/lib/http";
+import { requireStaff } from "@/lib/auth/request";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   try {
-    const [categories, total] = await Promise.all([
-      findManyCategories({
-        orderBy: { name: "asc" },
-      }),
-      countCategories(),
-    ]);
+    const categories = await prisma.category.findMany({
+      include: { _count: { select: { products: true } } },
+      orderBy: { name: "asc" },
+    });
 
     return json({
       categories: categories.map((c) => ({
         id: c.id.toString(),
         name: c.name,
         description: c.description,
+        productCount: c._count.products,
         image_available: false,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),
-      pagination: { total, page: 1, take: categories.length, pages: 1 },
+      pagination: {
+        total: categories.length,
+        page: 1,
+        take: categories.length || 20,
+        pages: 1,
+      },
     });
   } catch (error) {
-    console.error("List categories failed:", error);
-    return json(
-      { detail: "An unexpected error occurred." },
-      { status: 500 },
-    );
+    console.error("List product categories failed:", error);
+    return serverError();
   }
-}
-
-export async function POST() {
-  return json(
-    { detail: "Use the admin dashboard to manage categories." },
-    { status: 403 },
-  );
 }

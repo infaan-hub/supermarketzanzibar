@@ -1,61 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useAuth } from "@/components/auth/auth-provider";
+import { fetchBootstrap, loginRequest } from "@/lib/api";
+import { canAccessPath } from "@/lib/auth/roles";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { setSession, user } = useAuth();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [needsAdmin, setNeedsAdmin] = useState(false);
+
+  const rawNext = searchParams.get("next") || "/";
+  const safeNext =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+
+  useEffect(() => {
+    if (user) {
+      router.replace(canAccessPath(user.role, safeNext) ? safeNext : "/profile");
+    }
+  }, [router, safeNext, user]);
+
+  useEffect(() => {
+    fetchBootstrap()
+      .then((res) => setNeedsAdmin(!res.hasAdmin))
+      .catch(() => undefined);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!username.trim() || !password) {
+      setError("Enter both username (or email) and password.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(
-          (data && (data.detail || data.message)) || "Invalid credentials.",
-        );
-        return;
-      }
-      if (data?.access) {
-        try {
-          localStorage.setItem("ss_access_token", data.access);
-        } catch {
-          // ignore storage errors
-        }
-      }
-      router.push("/home");
-      router.refresh();
-    } catch {
-      setError("Network error. Please try again.");
+      const data = await loginRequest(username.trim(), password);
+      setSession(data.access, data.user);
+      const target = canAccessPath(data.user.role, safeNext)
+        ? safeNext
+        : canAccessPath(data.user.role, "/")
+          ? "/"
+          : "/unauthorized";
+      router.replace(target);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid credentials.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign in</CardTitle>
-          <CardDescription>
-            Enter your credentials to access Supermarket Zanzibar.
-          </CardDescription>
+        <CardHeader className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-hover font-display text-sm font-bold text-white shadow-[0_0_14px_rgba(21,114,45,0.28)]">
+              SZ
+            </div>
+            <div>
+              <CardTitle className="text-2xl">Sign in</CardTitle>
+              <CardDescription>
+                Supermarket Zanzibar POS &amp; Inventory
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {needsAdmin && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-surface-subtle p-3 text-sm text-foreground">
+              <p className="font-medium text-primary-hover">
+                First-time setup detected
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                No administrator exists yet.{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-primary underline"
+                >
+                  Create the first admin account
+                </Link>{" "}
+                to get started.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div
@@ -66,8 +113,11 @@ export default function LoginPage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <label htmlFor="username" className="text-sm font-medium text-foreground">
-                Username
+              <label
+                htmlFor="username"
+                className="text-sm font-medium text-foreground"
+              >
+                Username or email
               </label>
               <Input
                 id="username"
@@ -76,10 +126,14 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                autoFocus
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-foreground"
+              >
                 Password
               </label>
               <Input
@@ -96,14 +150,25 @@ export default function LoginPage() {
               Sign in
             </Button>
             <p className="text-center text-sm text-muted">
-              Don&apos;t have an account?{" "}
-              <a href="/register" className="font-medium text-primary hover:underline">
+              Need an account?{" "}
+              <Link
+                href="/register"
+                className="font-medium text-primary hover:underline"
+              >
                 Register
-              </a>
+              </Link>
             </p>
           </form>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

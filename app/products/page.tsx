@@ -1,34 +1,72 @@
-// Products page.
+// Products catalogue page (`/products`).
 //
-// Browse the product catalogue with category filtering, powered by the typed
-// API client and composable UI primitives.
+// Live search, category & low-stock filtering, margin visibility, label
+// printing, and drill-down into `/products/[id]` for editing & pack barcodes.
 
 "use client";
 
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types/api";
 
 export default function ProductsPage() {
-  const { data: categoriesData, loading: catsLoading, error: catsError } =
-    useCategories();
-  const { data, loading, error } = useProducts({});
+  const { settings } = useStoreSettings();
+  const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
 
-  if (loading || catsLoading) {
+  const {
+    data: categoriesData,
+    loading: catsLoading,
+    error: catsError,
+  } = useCategories();
+  const { data, loading, error, refresh } = useProducts({
+    categoryId: categoryId || undefined,
+    take: 200,
+  });
+
+  const categories = useMemo(
+    () => categoriesData?.categories ?? [],
+    [categoriesData],
+  );
+  const allProducts = useMemo(() => data?.products ?? [], [data]);
+
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allProducts.filter((p) => {
+      if (stockFilter === "low" && p.quantity > settings.lowStockThreshold) {
+        return false;
+      }
+      if (stockFilter === "out" && p.quantity > 0) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.barcode ?? "").toLowerCase().includes(q) ||
+        (p.category?.name ?? "").toLowerCase().includes(q) ||
+        (p.supplier?.companyName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [allProducts, search, stockFilter, settings.lowStockThreshold]);
+
+  if ((loading || catsLoading) && !data) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <SkeletonText lines={2} className="w-[40%]" />
-        </div>
-        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="mx-auto max-w-[1400px] space-y-6">
+        <SkeletonText lines={2} className="w-[40%]" />
+        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <Card key={i} className="h-48">
               <Skeleton className="h-full w-full" />
@@ -41,93 +79,163 @@ export default function ProductsPage() {
 
   if (error || catsError) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold text-foreground">Products</h1>
+      <div className="mx-auto max-w-[1400px] space-y-6">
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          Products
+        </h1>
         <EmptyState
           title="Unable to load products"
           description={(error || catsError)?.message}
           action={
-            <button onClick={() => window.location.reload()} className="btn-try">
+            <Button variant="secondary" onClick={refresh}>
               Try again
-            </button>
+            </Button>
           }
         />
       </div>
     );
   }
 
-  const products = data?.products ?? [];
-  const categories = categoriesData?.categories ?? [];
-
-  if (products.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold text-foreground">Products</h1>
-        <EmptyState
-          title="No products"
-          description="The catalogue is empty. Add products to get started."
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Products</h1>
-          <p className="text-muted">Browse and manage the product catalogue.</p>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Products
+          </h1>
+          <p className="text-sm text-muted">
+            {filteredProducts.length} of {allProducts.length} active products.
+            Click any product to edit details or manage carton/pack barcodes.
+          </p>
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <Select
-            value=""
-            onChange={() => {}}
-            className="w-full sm:w-64"
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/barcodes"
+            className="inline-flex h-10 items-center justify-center rounded border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent/5"
           >
-            <option>All Categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-          <Input placeholder="Search products…" className="w-full sm:w-64" />
+            Print Labels
+          </Link>
+          <Link
+            href="/stock"
+            className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white shadow-sm hover:bg-[#0f5c23]"
+          >
+            + Register Product
+          </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          placeholder="Search by name, barcode, category, or supplier…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+        <Select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="w-full sm:w-56"
+          aria-label="Filter by category"
+        >
+          <option value="">All Categories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.productCount})
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={stockFilter}
+          onChange={(e) =>
+            setStockFilter(e.target.value as "all" | "low" | "out")
+          }
+          className="w-full sm:w-44"
+          aria-label="Filter by stock level"
+        >
+          <option value="all">All Stock Levels</option>
+          <option value="low">
+            Low Stock (≤ {settings.lowStockThreshold})
+          </option>
+          <option value="out">Out of Stock (0)</option>
+        </Select>
       </div>
+
+      {filteredProducts.length === 0 ? (
+        <EmptyState
+          title="No products match"
+          description="Try adjusting your search or filter, or register a new product from Stock & Counting."
+          action={
+            <Link
+              href="/stock"
+              className="inline-flex h-10 items-center rounded bg-primary-hover px-4 text-sm font-medium text-white"
+            >
+              Register Product
+            </Link>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredProducts.map((p) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              lowThreshold={settings.lowStockThreshold}
+              reorderLevel={settings.reorderLevel}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ProductCard({ product }: { product: Product }) {
-  const isLow = product.quantity < 10;
-  const isRunningLow = product.quantity < 20;
+function ProductCard({
+  product,
+  lowThreshold,
+  reorderLevel,
+}: {
+  product: Product;
+  lowThreshold: number;
+  reorderLevel: number;
+}) {
+  const isOut = product.quantity <= 0;
+  const isLow = product.quantity <= lowThreshold;
+  const isRunningLow = product.quantity <= reorderLevel;
+
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-5">
+    <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
+      <CardContent className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📦</span>
-          </div>
-          <Badge variant={isLow ? "danger" : isRunningLow ? "warning" : "success"}>
+          <Badge variant="secondary">
+            {product.category?.name ?? "Uncategorized"}
+          </Badge>
+          <Badge
+            variant={
+              isOut || isLow ? "danger" : isRunningLow ? "warning" : "success"
+            }
+          >
             {product.quantity} units
           </Badge>
         </div>
-        <CardTitle className="text-base">{product.name}</CardTitle>
-        {product.category && (
-          <p className="text-xs text-muted">{product.category.name}</p>
-        )}
+
+        <Link
+          href={`/products/${product.id}`}
+          className="mt-3 block group"
+        >
+          <CardTitle className="text-base group-hover:text-primary transition-colors">
+            {product.name}
+          </CardTitle>
+        </Link>
+
         {product.supplier && (
-          <p className="text-xs text-muted">{product.supplier.companyName}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Supplier: {product.supplier.companyName}
+          </p>
         )}
+
         {product.barcode && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="break-all font-mono text-[11px] text-muted">
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded bg-surface-subtle px-2.5 py-1.5">
+            <span className="truncate font-mono text-[11px] text-foreground">
               {product.barcode}
             </span>
             <a
@@ -141,16 +249,44 @@ function ProductCard({ product }: { product: Product }) {
             </a>
           </div>
         )}
-        <div className="mt-4 flex items-end justify-between gap-2">
-          <span className="font-display font-bold text-lg text-foreground">
-            {formatMoney(product.price)}
-          </span>
-          <span className={cn(
-            "text-sm font-medium",
-            isLow ? "text-danger" : isRunningLow ? "text-warning" : "text-success",
-          )}>
-            {isLow ? "Low stock" : isRunningLow ? "Running low" : "In stock"}
-          </span>
+
+        <div className="mt-auto flex items-end justify-between gap-2 pt-4">
+          <div>
+            <span className="font-display text-lg font-bold text-foreground tabular-nums">
+              {formatMoney(product.price)}
+            </span>
+            {product.costPrice !== undefined && Number(product.costPrice) > 0 && (
+              <p className="text-[11px] text-muted tabular-nums">
+                Cost: {formatMoney(product.costPrice)}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span
+              className={cn(
+                "text-xs font-medium",
+                isOut || isLow
+                  ? "text-danger"
+                  : isRunningLow
+                    ? "text-warning"
+                    : "text-success",
+              )}
+            >
+              {isOut
+                ? "Out of stock"
+                : isLow
+                  ? "Low stock"
+                  : isRunningLow
+                    ? "Reorder soon"
+                    : "In stock"}
+            </span>
+            <Link
+              href={`/products/${product.id}`}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Manage →
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

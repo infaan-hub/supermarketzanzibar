@@ -1,10 +1,8 @@
-// GET  /api/products - List active products.
+// GET  /api/products - List products with search, category, supplier, and stock filters.
 // POST /api/products - Register a product from the inventory terminal.
-//
-// Product registration is used by the stock page: scan a physical barcode,
-// name the product, set its price/opening stock, and make it sellable at the POS.
 
 import { randomUUID } from "node:crypto";
+import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import {
   badRequest,
@@ -15,8 +13,10 @@ import {
   validationError,
 } from "@/lib/http";
 import { prisma } from "@/lib/db";
+import { requireStaff } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
-import { findManyProducts, countProducts, getProductById } from "@/lib/products";
+import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
+import { getProductById } from "@/lib/products";
 import {
   BarcodeError,
   createProductBarcode,
@@ -66,10 +66,12 @@ function serializeProduct(product: ProductWithRelations) {
     id: product.id.toString(),
     name: product.name,
     slug: product.slug,
-    price: product.price,
+    price: Number(product.price),
+    costPrice: Number(product.costPrice),
     quantity: product.quantity,
     barcode: product.barcode,
     description: product.description,
+    isActive: product.isActive,
     category: product.category
       ? { id: product.category.id.toString(), name: product.category.name }
       : null,
@@ -81,68 +83,76 @@ function serializeProduct(product: ProductWithRelations) {
       : null,
     image_available: Boolean(product.imageData),
     createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
   };
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   try {
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get("categoryId");
+    const search = searchParams.get("search")?.trim();
+    const categoryId = searchParams.get("categoryId")?.trim();
+    const supplierId = searchParams.get("supplierId")?.trim();
+    const lowStock = searchParams.get("lowStock") === "true";
+    const includeInactive = searchParams.get("includeInactive") === "true";
     const take = searchParams.get("take");
     const page = searchParams.get("page");
 
-    const where = {
-      isActive: true,
-      ...(categoryId ? { categoryId: BigInt(categoryId) } : {}),
-    };
+    const where: Prisma.ProductWhereInput = {};
+    if (!includeInactive) where.isActive = true;
+    if (categoryId && /^\d+$/.test(categoryId)) {
+      where.categoryId = BigInt(categoryId);
+    }
+    if (supplierId && /^\d+$/.test(supplierId)) {
+      where.supplierId = BigInt(supplierId);
+    }
+    if (lowStock) {
+      where.quantity = { lte: LOW_STOCK_THRESHOLD };
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { barcode: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
-    const takeNum = take ? Math.min(Number(take), 100) : 20;
+    const takeNum = take ? Math.min(Math.max(Number(take), 1), 200) : 50;
     const pageNum = page ? Math.max(Number(page), 1) : 1;
 
     const [products, total] = await Promise.all([
-      findManyProducts({
+      prisma.product.findMany({
         where,
+        include: { category: true, supplier: true },
+        orderBy: { name: "asc" },
         take: takeNum,
         skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
       }),
-      countProducts(where),
+      prisma.product.count({ where }),
     ]);
 
     return json({
-      products: products.map((p) => ({
-        id: p.id.toString(),
-        name: p.name,
-        slug: p.slug,
-        price: p.price,
-        quantity: p.quantity,
-        barcode: p.barcode,
-        description: p.description,
-        category: p.category
-          ? { id: p.category.id.toString(), name: p.category.name }
-          : null,
-        supplier: p.supplier
-          ? { id: p.supplier.id.toString(), companyName: p.supplier.companyName }
-          : null,
-        image_available: Boolean(p.imageData),
-        createdAt: p.createdAt,
-      })),
+      products: products.map(serializeProduct),
       pagination: {
         page: pageNum,
         take: takeNum,
         total,
-        pages: Math.ceil(total / takeNum),
+        pages: Math.max(1, Math.ceil(total / takeNum)),
       },
     });
   } catch (error) {
     console.error("List products failed:", error);
-    return json(
-      { detail: "An unexpected error occurred." },
-      { status: 500 },
-    );
+    return serverError();
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if (!guard.ok) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -162,9 +172,6 @@ export async function POST(request: Request) {
     return validation("name", "Product name must be 255 characters or fewer.");
   }
 
-  // `sourceBarcode` is the physical label scanned while counting. It is kept
-  // as an alias; the product's own barcode is generated by the system below.
-  // `barcode` is accepted as a legacy alias for the same scanned value.
   const sourceBarcode = normalizeBarcode(
     typeof input.sourceBarcode === "string"
       ? input.sourceBarcode
@@ -228,6 +235,22 @@ export async function POST(request: Request) {
     }
   }
 
+  let supplierId: bigint | null = null;
+  if (
+    input.supplierId !== undefined &&
+    input.supplierId !== null &&
+    input.supplierId !== ""
+  ) {
+    try {
+      supplierId = BigInt(String(input.supplierId));
+    } catch {
+      return validation("supplierId", "Supplier must be a numeric id.");
+    }
+    if (supplierId <= 0n) {
+      return validation("supplierId", "Supplier must be a numeric id.");
+    }
+  }
+
   const description =
     typeof input.description === "string" ? input.description.trim() : "";
   if (description.length > 5000) {
@@ -241,6 +264,14 @@ export async function POST(request: Request) {
         select: { id: true },
       });
       if (!category) return validation("categoryId", "Category not found.");
+    }
+
+    if (supplierId !== null) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: supplierId },
+        select: { id: true },
+      });
+      if (!supplier) return validation("supplierId", "Supplier not found.");
     }
 
     if (sourceBarcode) {
@@ -263,8 +294,6 @@ export async function POST(request: Request) {
           return conflict(`Barcode "${sourceBarcode}" is already assigned.`);
         }
       } catch (labelError) {
-        // The barcode migration may not have been applied yet. The product's
-        // own `barcode` column still supports lookups without that table.
         if (!isMissingBarcodeTable(labelError)) throw labelError;
       }
     }
@@ -272,13 +301,12 @@ export async function POST(request: Request) {
     const slug = await uniqueSlug(name, sourceBarcode || "product");
 
     const product = await prisma.$transaction(async (tx) => {
-      // The id is generated by PostgreSQL, so insert with a temporary unique
-      // value and then replace it with the system barcode derived from that id.
       const inserted = await tx.product.create({
         data: {
           name,
           slug,
           categoryId,
+          supplierId,
           price,
           costPrice,
           quantity,
@@ -336,9 +364,6 @@ export async function POST(request: Request) {
       }
     };
 
-    // The generated system barcode is the primary label. The scanned
-    // manufacturer/shelf code is stored as an alias when possible so the POS
-    // can still resolve the original product barcode.
     await syncLabel(product.barcode, true);
     if (sourceBarcode && sourceBarcode !== product.barcode) {
       await syncLabel(sourceBarcode, false, "scanned");

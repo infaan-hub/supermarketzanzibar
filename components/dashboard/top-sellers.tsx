@@ -1,4 +1,5 @@
 import { useId } from "react";
+import Link from "next/link";
 import type { DashboardTopSeller } from "@/types/api";
 import {
   formatCount,
@@ -43,9 +44,12 @@ export function TopSellers({
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-foreground sm:text-sm">
+                <Link
+                  href={`/products/${seller.productId}`}
+                  className="block truncate text-[13px] font-medium text-foreground hover:text-primary sm:text-sm"
+                >
                   {seller.name}
-                </p>
+                </Link>
                 <div
                   className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-muted"
                   aria-hidden="true"
