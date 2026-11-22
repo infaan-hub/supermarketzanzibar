@@ -23,6 +23,7 @@ import {
   DEFAULT_STORE_CODE,
   isMissingTwinTables,
 } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureDigitalTwinSchema();
     let store = await prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
     if (!store) {
       store = await prisma.store.create({

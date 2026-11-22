@@ -23,6 +23,7 @@ import { classifyInventoryState } from "@/lib/digital-twin/inventory-state";
 import { publishInventoryEvent } from "@/lib/realtime/event-bus";
 import { recordAuditLog } from "@/lib/audit";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 import type {
   DigitalTwinSnapshot,
   TwinDepartmentNode,
@@ -86,6 +87,10 @@ function departmentCodeForProduct(
  * Product records using their actual `Product.quantity`.
  */
 export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
+  // Automatically ensure all strictly additive Digital Twin tables & nullable
+  // columns exist in PostgreSQL (safe & idempotent on existing Neon DBs).
+  await ensureDigitalTwinSchema();
+
   const store = await prisma.store.upsert({
     where: { code: DEFAULT_STORE_CODE },
     update: {},
@@ -98,191 +103,215 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
     },
   });
 
-  // 1. Register all 31 validated GLB assets.
-  const assetIdByKey = new Map<string, string>();
-  for (const entry of ASSET_MANIFEST) {
-    const asset = await prisma.threeDAsset.upsert({
-      where: { assetKey: entry.key },
-      update: {
-        assetName: entry.name,
-        assetType: entry.category,
-        filePath: entry.path,
-        format: entry.format,
-        version: entry.version,
-      },
-      create: {
-        assetKey: entry.key,
-        assetName: entry.name,
-        assetType: entry.category,
-        filePath: entry.path,
-        format: entry.format,
-        version: entry.version,
-        metadata: { source: entry.source, defaultScale: entry.defaultScale },
-      },
-    });
-    assetIdByKey.set(entry.key, asset.id);
-  }
+  // 1. Bulk-register all 31 validated GLB assets (2 queries instead of 31).
+  await prisma.threeDAsset.createMany({
+    data: ASSET_MANIFEST.map((entry) => ({
+      assetKey: entry.key,
+      assetName: entry.name,
+      assetType: entry.category,
+      filePath: entry.path,
+      format: entry.format,
+      version: entry.version,
+      metadata: { source: entry.source, defaultScale: entry.defaultScale },
+    })),
+    skipDuplicates: true,
+  });
+  const allAssets = await prisma.threeDAsset.findMany({
+    select: { id: true, assetKey: true },
+  });
+  const assetIdByKey = new Map(allAssets.map((a) => [a.assetKey, a.id]));
 
-  // 2. Upsert all retail departments.
-  const deptByCode = new Map<string, string>();
-  for (const area of PHYSICAL_AREAS.filter((a) => a.category === "retail")) {
-    const dept = await prisma.department.upsert({
-      where: { storeId_code: { storeId: store.id, code: area.code } },
-      update: { name: area.name, description: area.description },
-      create: {
-        storeId: store.id,
-        code: area.code,
-        name: area.name,
-        description: area.description,
-        status: "active",
-      },
-    });
-    deptByCode.set(area.code, dept.id);
-  }
+  // 2. Bulk-register all 10 retail departments (2 queries instead of 10).
+  const retailAreas = PHYSICAL_AREAS.filter((a) => a.category === "retail");
+  await prisma.department.createMany({
+    data: retailAreas.map((area) => ({
+      storeId: store.id,
+      code: area.code,
+      name: area.name,
+      description: area.description,
+      status: "active",
+    })),
+    skipDuplicates: true,
+  });
+  const allDepts = await prisma.department.findMany({
+    where: { storeId: store.id },
+    select: { id: true, code: true },
+  });
+  const deptByCode = new Map(allDepts.map((d) => [d.code, d.id]));
 
-  // 3. Upsert all 18 shelves + empty positions + persistent 3D object mappings.
-  const shelfByCode = new Map<string, string>();
+  // 3. Bulk-register all 18 shelves + 108 shelf positions (4 queries instead of 126).
+  await prisma.shelf.createMany({
+    data: SHELF_FIXTURES.flatMap((fixture) => {
+      const departmentId = deptByCode.get(fixture.departmentCode);
+      if (!departmentId) return [];
+      return [
+        {
+          storeId: store.id,
+          departmentId,
+          shelfCode: fixture.code,
+          shelfName: fixture.name,
+          fixtureKind: fixture.kind,
+          capacity: fixture.capacity,
+          status: "active",
+        },
+      ];
+    }),
+    skipDuplicates: true,
+  });
+  const allShelves = await prisma.shelf.findMany({
+    where: { storeId: store.id },
+    select: { id: true, shelfCode: true },
+  });
+  const shelfByCode = new Map(allShelves.map((s) => [s.shelfCode, s.id]));
+
+  const positionSeedRows: Array<{
+    shelfId: string;
+    positionCode: string;
+    slotIndex: number;
+    quantity: number;
+    maximumCapacity: number;
+    reorderLevel: number;
+  }> = [];
+  const mappingSeedRows: Array<{
+    objectName: string;
+    objectType: string;
+    linkedEntityType: string;
+    linkedEntityId: string;
+    assetId: string | null;
+    posX: number;
+    posY: number;
+    posZ: number;
+    rotY: number;
+  }> = [];
+
   for (const fixture of SHELF_FIXTURES) {
-    const departmentId = deptByCode.get(fixture.departmentCode);
-    if (!departmentId) continue;
+    const shelfId = shelfByCode.get(fixture.code);
+    if (!shelfId) continue;
 
-    const shelf = await prisma.shelf.upsert({
-      where: {
-        storeId_shelfCode: { storeId: store.id, shelfCode: fixture.code },
-      },
-      update: {
-        shelfName: fixture.name,
-        fixtureKind: fixture.kind,
-        capacity: fixture.capacity,
-      },
-      create: {
-        storeId: store.id,
-        departmentId,
-        shelfCode: fixture.code,
-        shelfName: fixture.name,
-        fixtureKind: fixture.kind,
-        capacity: fixture.capacity,
-        status: "active",
-      },
-    });
-    shelfByCode.set(fixture.code, shelf.id);
-
-    await prisma.threeDObjectMapping.upsert({
-      where: { objectName: fixture.code },
-      update: {
-        linkedEntityType: "SHELF",
-        linkedEntityId: shelf.id,
-        assetId: assetIdByKey.get(fixture.assetKey) ?? null,
-        posX: fixture.position[0],
-        posY: fixture.position[1],
-        posZ: fixture.position[2],
-        rotY: fixture.rotationY,
-      },
-      create: {
-        objectName: fixture.code,
-        objectType: "SHELF",
-        linkedEntityType: "SHELF",
-        linkedEntityId: shelf.id,
-        assetId: assetIdByKey.get(fixture.assetKey) ?? null,
-        posX: fixture.position[0],
-        posY: fixture.position[1],
-        posZ: fixture.position[2],
-        rotY: fixture.rotationY,
-      },
+    mappingSeedRows.push({
+      objectName: fixture.code,
+      objectType: "SHELF",
+      linkedEntityType: "SHELF",
+      linkedEntityId: shelfId,
+      assetId: assetIdByKey.get(fixture.assetKey) ?? null,
+      posX: fixture.position[0],
+      posY: fixture.position[1],
+      posZ: fixture.position[2],
+      rotY: fixture.rotationY,
     });
 
     const totalSlots = Math.min(6, fixture.tiers * fixture.slotsPerTier);
     for (let slot = 0; slot < totalSlots; slot += 1) {
-      const positionCode = `POS_${String(slot + 1).padStart(2, "0")}`;
-      await prisma.shelfPosition.upsert({
-        where: { shelfId_positionCode: { shelfId: shelf.id, positionCode } },
-        update: { slotIndex: slot },
-        create: {
-          shelfId: shelf.id,
-          positionCode,
-          slotIndex: slot,
-          quantity: 0,
-          maximumCapacity: 24,
-          reorderLevel: 6,
-        },
+      positionSeedRows.push({
+        shelfId,
+        positionCode: `POS_${String(slot + 1).padStart(2, "0")}`,
+        slotIndex: slot,
+        quantity: 0,
+        maximumCapacity: 24,
+        reorderLevel: 6,
       });
     }
   }
 
-  // 4. Upsert all warehouse rack locations (Zones A-D).
-  const whLocations: Array<{ id: string; rackCode: string; zoneCode: string }> =
-    [];
+  await prisma.shelfPosition.createMany({
+    data: positionSeedRows,
+    skipDuplicates: true,
+  });
+
+  // 4. Bulk-register all 72 warehouse rack locations (Zones A-D) (2 queries instead of 144).
+  const whSeedRows: Array<{
+    storeId: string;
+    warehouseCode: string;
+    zoneCode: string;
+    rackCode: string;
+    levelCode: string;
+    positionCode: string;
+    locationType: string;
+    capacity: number;
+    status: string;
+  }> = [];
+
   for (const rack of WAREHOUSE_RACKS) {
     for (let lvl = 0; lvl < rack.levels; lvl += 1) {
       const levelCode = `Level_${String(lvl + 1).padStart(2, "0")}`;
       for (let p = 0; p < rack.positionsPerLevel; p += 1) {
-        const positionCode = `Position_${String(p + 1).padStart(3, "0")}`;
-        const loc = await prisma.warehouseLocation.upsert({
-          where: {
-            storeId_warehouseCode_rackCode_levelCode_positionCode: {
-              storeId: store.id,
-              warehouseCode: "WH-MAIN",
-              rackCode: rack.rackCode,
-              levelCode,
-              positionCode,
-            },
-          },
-          update: {
-            zoneCode: rack.zoneCode,
-            locationType: rack.locationType,
-          },
-          create: {
-            storeId: store.id,
-            warehouseCode: "WH-MAIN",
-            zoneCode: rack.zoneCode,
-            rackCode: rack.rackCode,
-            levelCode,
-            positionCode,
-            locationType: rack.locationType,
-            capacity: 200,
-            status: "active",
-          },
-        });
-        whLocations.push({
-          id: loc.id,
-          rackCode: loc.rackCode,
-          zoneCode: loc.zoneCode,
-        });
-
-        const coords = warehouseSlotWorldPosition(rack, lvl, p);
-        const objName = `${rack.rackCode}_${levelCode}_${positionCode}`;
-        await prisma.threeDObjectMapping.upsert({
-          where: { objectName: objName },
-          update: {
-            linkedEntityType: "WAREHOUSE_LOCATION",
-            linkedEntityId: loc.id,
-            assetId: assetIdByKey.get("furniture/warehouse-rack") ?? null,
-            posX: coords[0],
-            posY: coords[1],
-            posZ: coords[2],
-          },
-          create: {
-            objectName: objName,
-            objectType: "WAREHOUSE_LOCATION",
-            linkedEntityType: "WAREHOUSE_LOCATION",
-            linkedEntityId: loc.id,
-            assetId: assetIdByKey.get("furniture/warehouse-rack") ?? null,
-            posX: coords[0],
-            posY: coords[1],
-            posZ: coords[2],
-          },
+        whSeedRows.push({
+          storeId: store.id,
+          warehouseCode: "WH-MAIN",
+          zoneCode: rack.zoneCode,
+          rackCode: rack.rackCode,
+          levelCode,
+          positionCode: `Position_${String(p + 1).padStart(3, "0")}`,
+          locationType: rack.locationType,
+          capacity: 200,
+          status: "active",
         });
       }
     }
   }
 
+  await prisma.warehouseLocation.createMany({
+    data: whSeedRows,
+    skipDuplicates: true,
+  });
+  const whLocations = await prisma.warehouseLocation.findMany({
+    where: { storeId: store.id },
+    orderBy: [{ rackCode: "asc" }, { levelCode: "asc" }, { positionCode: "asc" }],
+    select: {
+      id: true,
+      rackCode: true,
+      zoneCode: true,
+      levelCode: true,
+      positionCode: true,
+    },
+  });
+
+  const whRackAssetId = assetIdByKey.get("furniture/warehouse-rack") ?? null;
+  for (const loc of whLocations) {
+    const rack = findRackByCode(loc.rackCode);
+    const lvlIdx = Math.max(0, Number(loc.levelCode.replace(/\D/g, "")) - 1);
+    const posIdx = Math.max(0, Number(loc.positionCode.replace(/\D/g, "")) - 1);
+    const coords = rack
+      ? warehouseSlotWorldPosition(rack, lvlIdx, posIdx)
+      : ([0, 1, -20] as [number, number, number]);
+    mappingSeedRows.push({
+      objectName: `${loc.rackCode}_${loc.levelCode}_${loc.positionCode}`,
+      objectType: "WAREHOUSE_LOCATION",
+      linkedEntityType: "WAREHOUSE_LOCATION",
+      linkedEntityId: loc.id,
+      assetId: whRackAssetId,
+      posX: coords[0],
+      posY: coords[1],
+      posZ: coords[2],
+      rotY: 0,
+    });
+  }
+
   // 5. Place existing real Products that do not yet have a shelf position,
   // splitting their REAL `product.quantity` between shelf capacity and warehouse reserve.
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    include: { category: true, shelfPositions: true, inventoryRecords: true },
-    orderBy: { id: "asc" },
-  });
+  const [products, emptySlots] = await Promise.all([
+    prisma.product.findMany({
+      where: { isActive: true },
+      include: { category: true, shelfPositions: true, inventoryRecords: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.shelfPosition.findMany({
+      where: { shelf: { storeId: store.id }, productId: null },
+      include: { shelf: { select: { shelfCode: true } } },
+      orderBy: [{ shelf: { shelfCode: "asc" } }, { slotIndex: "asc" }],
+    }),
+  ]);
+
+  const availableSlots = [...emptySlots];
+  const productUpdates: Array<Promise<unknown>> = [];
+  const slotUpdates: Array<Promise<unknown>> = [];
+  const inventorySeedRows: Array<{
+    productId: bigint;
+    storeId: string;
+    warehouseLocationId: string;
+    quantityOnHand: number;
+    reorderLevel: number;
+  }> = [];
 
   let whCursor = 0;
   for (const product of products) {
@@ -290,110 +319,97 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
     const modelAssetId = assetIdByKey.get(assetEntry.key) ?? null;
 
     if (!product.modelAssetId || !product.sku) {
-      await prisma.product.update({
-        where: { id: product.id },
-        data: {
-          ...(product.modelAssetId ? {} : { modelAssetId }),
-          ...(product.sku
-            ? {}
-            : { sku: `SKU-${product.id.toString().padStart(5, "0")}` }),
-        },
-      });
+      productUpdates.push(
+        prisma.product.update({
+          where: { id: product.id },
+          data: {
+            ...(product.modelAssetId ? {} : { modelAssetId }),
+            ...(product.sku
+              ? {}
+              : { sku: `SKU-${product.id.toString().padStart(5, "0")}` }),
+          },
+        }),
+      );
     }
 
-    if (product.shelfPositions.length === 0) {
+    if (product.shelfPositions.length === 0 && availableSlots.length > 0) {
       const deptCode = departmentCodeForProduct(
         product.name,
         product.category?.name,
       );
-      const deptFixtures = SHELF_FIXTURES.filter(
-        (f) => f.departmentCode === deptCode,
+      const preferredShelfIds = new Set(
+        SHELF_FIXTURES.filter((f) => f.departmentCode === deptCode)
+          .map((f) => shelfByCode.get(f.code))
+          .filter((id): id is string => Boolean(id)),
       );
-      const preferredShelfIds = deptFixtures
-        .map((f) => shelfByCode.get(f.code))
-        .filter((id): id is string => Boolean(id));
 
-      let emptySlot = await prisma.shelfPosition.findFirst({
-        where: {
-          shelfId: { in: preferredShelfIds },
-          productId: null,
-        },
-        include: { shelf: true },
-        orderBy: [{ shelf: { shelfCode: "asc" } }, { slotIndex: "asc" }],
-      });
+      let slotIdx = availableSlots.findIndex((s) =>
+        preferredShelfIds.has(s.shelfId),
+      );
+      if (slotIdx === -1) slotIdx = 0;
 
-      if (!emptySlot) {
-        emptySlot = await prisma.shelfPosition.findFirst({
-          where: { productId: null },
-          include: { shelf: true },
-          orderBy: [{ shelf: { shelfCode: "asc" } }, { slotIndex: "asc" }],
-        });
-      }
-
+      const [emptySlot] = availableSlots.splice(slotIdx, 1);
       if (emptySlot) {
-        // Real stock split: put up to shelf capacity on shelf, remainder in warehouse.
         const onShelf = Math.min(product.quantity, emptySlot.maximumCapacity);
         const inWarehouse = Math.max(0, product.quantity - onShelf);
 
-        await prisma.shelfPosition.update({
-          where: { id: emptySlot.id },
-          data: {
-            productId: product.id,
-            quantity: onShelf,
-          },
-        });
+        slotUpdates.push(
+          prisma.shelfPosition.update({
+            where: { id: emptySlot.id },
+            data: { productId: product.id, quantity: onShelf },
+          }),
+        );
 
         const fixture = findFixtureByCode(emptySlot.shelf.shelfCode);
         const slotCoords = fixture
           ? shelfSlotWorldPosition(fixture, emptySlot.slotIndex)
           : ([0, 1, 0] as [number, number, number]);
-        const posObjName = `${emptySlot.shelf.shelfCode}_${emptySlot.positionCode}`;
 
-        await prisma.threeDObjectMapping.upsert({
-          where: { objectName: posObjName },
-          update: {
-            linkedEntityType: "PRODUCT",
-            linkedEntityId: product.id.toString(),
-            assetId: modelAssetId,
-            posX: slotCoords[0],
-            posY: slotCoords[1],
-            posZ: slotCoords[2],
-          },
-          create: {
-            objectName: posObjName,
-            objectType: "PRODUCT_POSITION",
-            linkedEntityType: "PRODUCT",
-            linkedEntityId: product.id.toString(),
-            assetId: modelAssetId,
-            posX: slotCoords[0],
-            posY: slotCoords[1],
-            posZ: slotCoords[2],
-          },
+        mappingSeedRows.push({
+          objectName: `${emptySlot.shelf.shelfCode}_${emptySlot.positionCode}`,
+          objectType: "PRODUCT_POSITION",
+          linkedEntityType: "PRODUCT",
+          linkedEntityId: product.id.toString(),
+          assetId: modelAssetId,
+          posX: slotCoords[0],
+          posY: slotCoords[1],
+          posZ: slotCoords[2],
+          rotY: 0,
         });
 
         if (product.inventoryRecords.length === 0 && whLocations.length > 0) {
           const whTarget = whLocations[whCursor % whLocations.length];
           whCursor += 1;
-          await prisma.inventory.upsert({
-            where: {
-              productId_storeId_warehouseLocationId: {
-                productId: product.id,
-                storeId: store.id,
-                warehouseLocationId: whTarget.id,
-              },
-            },
-            update: { quantityOnHand: inWarehouse },
-            create: {
-              productId: product.id,
-              storeId: store.id,
-              warehouseLocationId: whTarget.id,
-              quantityOnHand: inWarehouse,
-              reorderLevel: LOW_STOCK_THRESHOLD,
-            },
+          inventorySeedRows.push({
+            productId: product.id,
+            storeId: store.id,
+            warehouseLocationId: whTarget.id,
+            quantityOnHand: inWarehouse,
+            reorderLevel: LOW_STOCK_THRESHOLD,
           });
         }
       }
     }
+  }
+
+  // Execute product, shelf-slot, warehouse inventory, and 3D mapping writes in bulk.
+  if (productUpdates.length > 0) {
+    await Promise.all(productUpdates);
+  }
+  if (slotUpdates.length > 0) {
+    await Promise.all(slotUpdates);
+  }
+  if (inventorySeedRows.length > 0) {
+    await prisma.inventory.createMany({
+      data: inventorySeedRows,
+      skipDuplicates: true,
+    });
+  }
+  if (mappingSeedRows.length > 0) {
+    await prisma.threeDObjectMapping.createMany({
+      data: mappingSeedRows,
+      skipDuplicates: true,
+    });
   }
 
   await recordAuditLog({
@@ -422,26 +438,36 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
     store = await prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
   } catch (error) {
     if (isMissingTwinTables(error)) {
-      return {
-        initialized: false,
-        generatedAt: now.toISOString(),
-        store: null,
-        departments: [],
-        shelves: [],
-        warehouseRacks: [],
-        mappings: [],
-        summary: {
-          totalProducts: 0,
-          totalShelfUnits: 0,
-          totalWarehouseUnits: 0,
-          lowStockCount: 0,
-          outOfStockCount: 0,
-          expiringSoonCount: 0,
-          expiredCount: 0,
-        },
-      };
+      // Auto-create additive tables once on first access if deploy build skipped DB.
+      try {
+        await ensureDigitalTwinSchema(true);
+        store = await prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
+      } catch (retryError) {
+        if (isMissingTwinTables(retryError)) {
+          return {
+            initialized: false,
+            generatedAt: now.toISOString(),
+            store: null,
+            departments: [],
+            shelves: [],
+            warehouseRacks: [],
+            mappings: [],
+            summary: {
+              totalProducts: 0,
+              totalShelfUnits: 0,
+              totalWarehouseUnits: 0,
+              lowStockCount: 0,
+              outOfStockCount: 0,
+              expiringSoonCount: 0,
+              expiredCount: 0,
+            },
+          };
+        }
+        throw retryError;
+      }
+    } else {
+      throw error;
     }
-    throw error;
   }
 
   if (!store) {

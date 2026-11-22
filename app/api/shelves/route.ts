@@ -18,6 +18,7 @@ import {
 import { recordAuditLog } from "@/lib/audit";
 import { publishInventoryEvent } from "@/lib/realtime/event-bus";
 import { isMissingTwinTables } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureDigitalTwinSchema();
     const dept = await prisma.department.findUnique({
       where: { id: parsed.data.departmentId },
       select: { id: true, storeId: true, code: true, name: true },

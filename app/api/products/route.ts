@@ -22,6 +22,7 @@ import {
   createProductBarcode,
   isMissingBarcodeTable,
 } from "@/services/barcode.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 const MAX_MONEY = new Prisma.Decimal("99999999.99");
 
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
+    await ensureDigitalTwinSchema().catch(() => undefined);
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
     const categoryId = searchParams.get("categoryId")?.trim();

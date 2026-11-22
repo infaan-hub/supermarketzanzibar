@@ -79,14 +79,29 @@ ALTER TABLE "supermarketzanzibar_product" ADD COLUMN IF NOT EXISTS "brand" VARCH
 ALTER TABLE "supermarketzanzibar_product" ADD COLUMN IF NOT EXISTS "unit_of_measure" VARCHAR(32) DEFAULT 'each';
 ALTER TABLE "supermarketzanzibar_product" ADD COLUMN IF NOT EXISTS "model_asset_id" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "supermarketzanzibar_product_sku_key"
-    ON "supermarketzanzibar_product" ("sku") WHERE "sku" IS NOT NULL;
+    ON "supermarketzanzibar_product" ("sku");
 
 ALTER TABLE "supermarketzanzibar_sale" ADD COLUMN IF NOT EXISTS "store_id" TEXT;
 ALTER TABLE "supermarketzanzibar_sale" ADD COLUMN IF NOT EXISTS "idempotency_key" VARCHAR(100);
 CREATE UNIQUE INDEX IF NOT EXISTS "supermarketzanzibar_sale_idempotency_key_key"
-    ON "supermarketzanzibar_sale" ("idempotency_key") WHERE "idempotency_key" IS NOT NULL;
+    ON "supermarketzanzibar_sale" ("idempotency_key");
 
-ALTER TABLE "supermarketzanzibar_stockmovement" ALTER COLUMN "movement_type" TYPE VARCHAR(24);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'supermarketzanzibar_stockmovement'
+          AND column_name = 'movement_type'
+          AND character_maximum_length IS NOT NULL
+          AND character_maximum_length < 24
+    ) THEN
+        ALTER TABLE "supermarketzanzibar_stockmovement"
+            ALTER COLUMN "movement_type" TYPE VARCHAR(24);
+    END IF;
+END
+$$;
 ALTER TABLE "supermarketzanzibar_stockmovement" ADD COLUMN IF NOT EXISTS "source_location_id" TEXT;
 ALTER TABLE "supermarketzanzibar_stockmovement" ADD COLUMN IF NOT EXISTS "destination_location_id" TEXT;
 ALTER TABLE "supermarketzanzibar_stockmovement" ADD COLUMN IF NOT EXISTS "performed_by_id" BIGINT;

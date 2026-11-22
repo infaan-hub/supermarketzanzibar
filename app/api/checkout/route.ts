@@ -18,6 +18,7 @@ import {
   isMissingTwinTables,
   syncTwinDeductionInTx,
 } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 const VALID_METHODS = new Set(["cash", "mobile_money", "card", "bank_transfer"]);
 
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
+    await ensureDigitalTwinSchema().catch(() => undefined);
     const body = (await request.json().catch(() => null)) as Record<
       string,
       unknown

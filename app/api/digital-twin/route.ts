@@ -12,6 +12,7 @@ import {
 } from "@/services/digital-twin.service";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const guard = await requireExplorer(request);
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (isMissingTwinTables(error)) {
       return serviceUnavailable(
-        "Digital Twin database tables are not yet deployed. Run `npx prisma migrate deploy`.",
+        "Unable to deploy Digital Twin database tables automatically. Verify PostgreSQL DDL permissions or run `npm run prisma:deploy:safe`.",
       );
     }
     console.error("Load digital twin snapshot failed:", error);
@@ -41,10 +42,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (isMissingTwinTables(error)) {
       return serviceUnavailable(
-        "Digital Twin database tables are not yet deployed. Run `npx prisma migrate deploy` first.",
+        "Unable to deploy Digital Twin database tables automatically. Verify PostgreSQL DDL permissions or run `npm run prisma:deploy:safe`.",
       );
     }
     console.error("Initialize digital twin layout failed:", error);
-    return serverError("Unable to initialize 3D Digital Twin layout.");
+    return serverError(
+      error instanceof Error
+        ? `Unable to initialize 3D Digital Twin layout: ${error.message}`
+        : "Unable to initialize 3D Digital Twin layout.",
+    );
   }
 }

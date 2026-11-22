@@ -15,6 +15,7 @@ import {
 import { recordAuditLog } from "@/lib/audit";
 import { publishInventoryEvent } from "@/lib/realtime/event-bus";
 import { isMissingTwinTables } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
   const data = parsed.data;
 
   try {
+    await ensureDigitalTwinSchema();
     let assetId: string | null = null;
     if (data.assetKey) {
       const asset = await prisma.threeDAsset.findUnique({

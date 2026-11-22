@@ -20,6 +20,7 @@ import {
   DEFAULT_STORE_CODE,
   isMissingTwinTables,
 } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureDigitalTwinSchema();
     const productId = BigInt(parsed.data.productId);
     const product = await prisma.product.findUnique({
       where: { id: productId },

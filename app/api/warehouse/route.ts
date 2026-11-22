@@ -19,6 +19,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { publishInventoryEvent } from "@/lib/realtime/event-bus";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
 import { isMissingTwinTables } from "@/services/digital-twin.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureDigitalTwinSchema();
     const productId = BigInt(pidStr);
     const [product, location] = await Promise.all([
       prisma.product.findUnique({ where: { id: productId } }),

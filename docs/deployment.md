@@ -23,6 +23,17 @@ pg_dump "$DATABASE_URL" --format=custom --file="backup_$(date +%Y%m%d_%H%M%S).du
 
 ### Step 2: Apply Pending Additive Migrations
 
+Deploy builds (`npm run build`) automatically run `scripts/ensure_additive_schema.mjs` whenever a live `DATABASE_URL` is configured, and clicking **Initialize 3D Store & Sync Inventory** (`POST /api/digital-twin`) also idempotently bootstraps any missing additive tables/columns (`lib/digital-twin/ensure-schema.ts`).
+
+You can also run the non-destructive applier manually at any time (works even on legacy Django-origin Neon databases without a baselined `_prisma_migrations` table):
+
+```bash
+npm run prisma:deploy:safe
+npx prisma generate
+```
+
+Or on a Prisma-baselined database:
+
 ```bash
 npx prisma migrate deploy
 npx prisma generate
