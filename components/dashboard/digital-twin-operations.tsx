@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { portalHref } from "@/lib/auth/roles";
 import type { DashboardOverview } from "@/types/api";
+import { Panel, PanelHeader, PanelLink } from "./panel";
 
 export function DigitalTwinOperations({
   operations,
@@ -24,62 +24,51 @@ export function DigitalTwinOperations({
 
   return (
     <section className="space-y-4">
-      <div className="glass-panel flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5 shadow-sm">
-        <div className="max-w-xl">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-            3D Digital Twin Supermarket & Warehouse
-          </p>
-          <h2 className="mt-0.5 font-display text-xl font-bold text-foreground">
-            Live Spatial Store Operations
-          </h2>
-          <p className="mt-1 text-xs text-muted">
-            Explore all 18 physical store zones, inspect live PostgreSQL shelf
-            quantities, view 3D inventory heatmaps, and restock directly from
-            warehouse racks.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={href("/digital-twin")}>
-            <Button size="sm">Launch 3D Supermarket</Button>
-          </Link>
-          <Link href={href("/warehouse")}>
-            <Button size="sm" variant="secondary">
-              3D Warehouse
-            </Button>
-          </Link>
-          <Link href={href("/purchase-orders")}>
-            <Button size="sm" variant="secondary">
-              Purchase Orders
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <Panel>
+        <PanelHeader
+          title="Store & warehouse operations"
+          description="Batch expiry, replenishment, and 3D floor overview"
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={href("/digital-twin")}>
+                <Button size="sm">3D Store</Button>
+              </Link>
+              <Link href={href("/warehouse")}>
+                <Button size="sm" variant="secondary">
+                  Warehouse
+                </Button>
+              </Link>
+              <Link href={href("/purchase-orders")}>
+                <Button size="sm" variant="secondary">
+                  Purchase Orders
+                </Button>
+              </Link>
+            </div>
+          }
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted">Expiring Within 14 Days</p>
-            <div className="mt-1 flex items-baseline justify-between">
-              <p className="font-display text-2xl font-bold tabular-nums text-amber-700">
+        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
+          <div className="bg-white p-4">
+            <p className="text-xs text-muted">Expiring in 14 days</p>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <p className="text-xl font-semibold tabular-nums text-warning">
                 {expiringSoon}
               </p>
               <Link
                 href={href("/stock")}
-                className="text-xs font-medium text-teal-700 hover:underline"
+                className="text-xs font-medium text-primary hover:underline"
               >
                 Review batches
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted">Expired Active Batches</p>
-            <div className="mt-1 flex items-baseline justify-between">
+          <div className="bg-white p-4">
+            <p className="text-xs text-muted">Expired active batches</p>
+            <div className="mt-1.5 flex items-baseline justify-between">
               <p
-                className={`font-display text-2xl font-bold tabular-nums ${
-                  expired > 0 ? "text-danger" : "text-success"
+                className={`text-xl font-semibold tabular-nums ${
+                  expired > 0 ? "text-danger" : "text-foreground"
                 }`}
               >
                 {expired}
@@ -88,94 +77,76 @@ export function DigitalTwinOperations({
                 {expired > 0 ? "Action needed" : "Clear"}
               </Badge>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted">Pending Purchase Orders</p>
-            <div className="mt-1 flex items-baseline justify-between">
-              <p className="font-display text-2xl font-bold tabular-nums text-foreground">
+          <div className="bg-white p-4">
+            <p className="text-xs text-muted">Open purchase orders</p>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <p className="text-xl font-semibold tabular-nums text-foreground">
                 {pendingPOs}
               </p>
               <Link
                 href={href("/goods-received")}
-                className="text-xs font-medium text-teal-700 hover:underline"
+                className="text-xs font-medium text-primary hover:underline"
               >
                 Receive stock
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted">Warehouse Reserve Stock</p>
-            <div className="mt-1 flex items-baseline justify-between">
-              <p className="font-display text-2xl font-bold tabular-nums text-teal-800">
+          <div className="bg-white p-4">
+            <p className="text-xs text-muted">Warehouse reserve</p>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <p className="text-xl font-semibold tabular-nums text-foreground">
                 {whUnits.toLocaleString()}
               </p>
               <Link
                 href={href("/warehouse")}
-                className="text-xs font-medium text-teal-700 hover:underline"
+                className="text-xs font-medium text-primary hover:underline"
               >
                 Inspect racks
               </Link>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </Panel>
 
       {departments.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">
-              Department Stock Performance
-            </CardTitle>
-            <Link
-              href={href("/departments")}
-              className="text-xs font-medium text-teal-700 hover:underline"
-            >
-              View all departments
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {departments.map((dept) => (
-                <Link
-                  key={dept.id}
-                  href={href(`/digital-twin?dept=${encodeURIComponent(dept.code)}`)}
-                  className="group rounded-xl border border-border bg-surface-subtle/60 p-3 transition-colors hover:border-teal-500 hover:bg-teal-50/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-bold text-teal-800">
-                      {dept.code}
-                    </span>
-                    {dept.outOfStockCount > 0 ? (
-                      <Badge variant="danger" className="text-[10px]">
-                        {dept.outOfStockCount} out
-                      </Badge>
-                    ) : dept.lowStockCount > 0 ? (
-                      <Badge variant="warning" className="text-[10px]">
-                        {dept.lowStockCount} low
-                      </Badge>
-                    ) : (
-                      <Badge variant="success" className="text-[10px]">
-                        OK
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-1 truncate text-xs font-semibold text-foreground group-hover:text-teal-900">
-                    {dept.name}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted tabular-nums">
-                    {dept.totalUnits} units · {dept.productCount} SKUs
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <Panel>
+          <PanelHeader
+            title="Department stock"
+            description="Click a department to inspect its aisles in 3D"
+            action={<PanelLink href="/departments">All departments</PanelLink>}
+          />
+          <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+            {departments.map((dept) => (
+              <Link
+                key={dept.id}
+                href={href(`/digital-twin?dept=${encodeURIComponent(dept.code)}`)}
+                className="rounded-md border border-border bg-white p-3 transition-colors hover:border-border-hover hover:bg-surface-subtle"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] font-medium text-muted">
+                    {dept.code}
+                  </span>
+                  {dept.outOfStockCount > 0 ? (
+                    <Badge variant="danger">{dept.outOfStockCount} out</Badge>
+                  ) : dept.lowStockCount > 0 ? (
+                    <Badge variant="warning">{dept.lowStockCount} low</Badge>
+                  ) : (
+                    <Badge variant="success">OK</Badge>
+                  )}
+                </div>
+                <p className="mt-1.5 truncate text-xs font-semibold text-foreground">
+                  {dept.name}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted tabular-nums">
+                  {dept.totalUnits} units · {dept.productCount} SKUs
+                </p>
+              </Link>
+            ))}
+          </div>
+        </Panel>
       )}
     </section>
   );

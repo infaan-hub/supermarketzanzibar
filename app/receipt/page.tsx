@@ -79,9 +79,8 @@ export default function ReceiptPage() {
   return (
     <div className="mx-auto w-full max-w-[780px] space-y-6">
       <PageHeader
-        eyebrow="Digital & Thermal Receipt"
         title="Receipt"
-        description="Latest completed transaction ready for 58mm/80mm thermal printing."
+        description="Latest completed transaction formatted for 58mm and 80mm thermal printers."
         className="print:hidden"
         actions={
           <>
@@ -95,7 +94,7 @@ export default function ReceiptPage() {
         }
       />
 
-      <div className="mx-auto max-w-[390px] rounded-2xl border border-border bg-white p-6 shadow-soft print:border-0 print:shadow-none">
+      <div className="mx-auto max-w-[390px] rounded-lg border border-border bg-white p-6 shadow-card print:border-0 print:shadow-none">
         <div className="border-b border-dashed border-border pb-4 text-center">
           <p className="font-display text-lg font-bold">{settings.storeName}</p>
           <p className="text-xs text-muted">{settings.storeAddress}</p>

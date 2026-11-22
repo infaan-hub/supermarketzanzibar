@@ -35,9 +35,9 @@ const SupermarketScene = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-[#f0faf9]">
-        <p className="text-sm font-medium text-teal-900">
-          Loading interactive 3D Supermarket Tour…
+      <div className="flex h-full items-center justify-center bg-canvas">
+        <p className="text-sm font-medium text-muted">
+          Loading 3D store…
         </p>
       </div>
     ),
@@ -155,14 +155,11 @@ export default function PublicStore3DPage() {
   );
 
   return (
-    <div className="flex h-dvh flex-col bg-[#f2fbfa]">
+    <div className="flex h-dvh flex-col bg-canvas">
       <StorefrontHeader activePage="3d" />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-200/70 bg-white/95 px-4 py-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-white px-4 py-2 text-xs">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-semibold text-teal-900">
-            Public 3D Store Tour (Read-Only):
-          </span>
           <Button
             size="sm"
             variant="secondary"
@@ -196,11 +193,11 @@ export default function PublicStore3DPage() {
             className="h-7 text-xs"
             onClick={() => setIs2D((v) => !v)}
           >
-            {is2D ? "3D View" : "2D Floorplan"}
+            {is2D ? "3D View" : "2D Floor Plan"}
           </Button>
           <Link href="/">
             <Button size="sm" className="h-7 text-xs">
-              Shop Catalog
+              Back to Shop
             </Button>
           </Link>
         </div>
@@ -210,26 +207,26 @@ export default function PublicStore3DPage() {
         <div className="relative flex-1">
           {loading ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-teal-900">Loading 3D store…</p>
+              <p className="text-sm text-muted">Loading 3D store…</p>
             </div>
           ) : error ? (
             <div className="flex h-full items-center justify-center p-6">
-              <p className="rounded-xl border border-danger/25 bg-white px-5 py-4 text-sm text-danger">
+              <p className="rounded-md border border-danger/25 bg-white px-5 py-4 text-sm text-danger">
                 {error}
               </p>
             </div>
           ) : !snapshot?.initialized ? (
             <div className="flex h-full items-center justify-center p-6">
-              <div className="max-w-md rounded-2xl border border-teal-200 bg-white p-6 text-center shadow-sm">
-                <p className="font-display text-base font-bold">
-                  3D Store Tour Coming Soon
+              <div className="max-w-md rounded-lg border border-border bg-white p-6 text-center shadow-card">
+                <p className="text-base font-semibold text-foreground">
+                  3D store layout not ready yet
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  The store manager has not initialized the 3D floor layout yet.
-                  You can browse all live products in the storefront catalog.
+                  The store floor plan has not been published yet. You can
+                  browse available products in the online catalog.
                 </p>
                 <Link href="/" className="mt-4 inline-block">
-                  <Button size="sm">Browse Products</Button>
+                  <Button size="sm">Browse products</Button>
                 </Link>
               </div>
             </div>
@@ -258,15 +255,15 @@ export default function PublicStore3DPage() {
         </div>
 
         {(selectedPos || selectedShelf) && (
-          <aside className="w-72 shrink-0 overflow-y-auto border-l border-teal-200/70 bg-white/95 p-4 text-sm">
+          <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-white p-4 text-sm">
             {selectedPos?.product ? (
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-mono text-[11px] font-bold text-teal-700">
+                    <p className="font-mono text-[11px] font-medium text-muted">
                       {selectedPos.shelfCode} · {selectedPos.positionCode}
                     </p>
-                    <h2 className="font-display text-lg font-bold">
+                    <h2 className="text-base font-semibold text-foreground">
                       {selectedPos.product.name}
                     </h2>
                   </div>
@@ -279,15 +276,15 @@ export default function PublicStore3DPage() {
                     ✕
                   </Button>
                 </div>
-                <p className="font-display text-2xl font-bold text-teal-900">
+                <p className="text-xl font-semibold text-foreground tabular-nums">
                   {formatMoney(selectedPos.product.price)}
                 </p>
                 <Badge variant={selectedPos.quantity > 0 ? "success" : "danger"}>
-                  {selectedPos.quantity > 0 ? "Available in Aisle" : "Out of Stock"}
+                  {selectedPos.quantity > 0 ? "In stock" : "Out of stock"}
                 </Badge>
                 <Link href="/" className="block pt-2">
                   <Button size="sm" className="w-full">
-                    Find in Online Catalog
+                    View in shop
                   </Button>
                 </Link>
               </div>
@@ -295,10 +292,10 @@ export default function PublicStore3DPage() {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-mono text-[11px] font-bold text-teal-700">
+                    <p className="font-mono text-[11px] font-medium text-muted">
                       {selectedShelf.code}
                     </p>
-                    <h2 className="font-display text-lg font-bold">
+                    <h2 className="text-base font-semibold text-foreground">
                       {selectedShelf.name}
                     </h2>
                   </div>
@@ -314,7 +311,7 @@ export default function PublicStore3DPage() {
                 <p className="text-xs text-muted">
                   Department: {selectedShelf.departmentName}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {selectedShelf.positions
                     .filter((p) => p.product !== null)
                     .map((p) => (
@@ -322,12 +319,12 @@ export default function PublicStore3DPage() {
                         key={p.id}
                         type="button"
                         onClick={() => handleSelectProduct(p)}
-                        className="flex w-full items-center justify-between rounded-lg border border-border bg-surface-subtle p-2 text-left text-xs hover:border-teal-500"
+                        className="flex w-full items-center justify-between rounded-md border border-border bg-white p-2 text-left text-xs transition-colors hover:border-border-hover hover:bg-surface-subtle cursor-pointer"
                       >
-                        <span className="truncate font-medium">
+                        <span className="truncate font-medium text-foreground">
                           {p.product!.name}
                         </span>
-                        <span className="ml-2 font-mono font-semibold text-teal-900">
+                        <span className="ml-2 font-mono font-medium text-foreground tabular-nums">
                           {formatMoney(p.product!.price)}
                         </span>
                       </button>

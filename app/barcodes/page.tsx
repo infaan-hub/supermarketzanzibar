@@ -115,8 +115,7 @@ export default function BarcodesStudioPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Code 128 Print Studio"
-        title="Bulk Barcode Label Studio"
+        title="Barcode Label Studio"
         description="Select products and carton/pack labels, set copy counts, and print an A4 or thermal label sheet."
         className="print:hidden"
         actions={

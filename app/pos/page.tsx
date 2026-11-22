@@ -158,9 +158,8 @@ export default function PosPage() {
   return (
     <div className="mx-auto max-w-[1440px] space-y-5">
       <PageHeader
-        eyebrow="Cashier Terminal · Live 3D Shelf Sync"
         title="Point of Sale"
-        description="Scan Code 128 barcodes continuously or tap products to build the basket and complete checkout on one screen."
+        description="Scan barcodes or select products to build the basket and complete checkout."
         actions={
           <>
             <Link href="/shopping-cart">

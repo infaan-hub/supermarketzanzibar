@@ -147,7 +147,6 @@ export default function ReportsPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Financial Intelligence · Z-Report"
         title="Reports & End-of-Day Z-Report"
         description={`${settings.storeName} · ${data.range.contextLabel} · Generated ${formatBusinessDateTime(data.generatedAt)}`}
         actions={
@@ -163,17 +162,17 @@ export default function ReportsPage() {
       />
 
       {/* Period Switcher */}
-      <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-border bg-white/90 p-1 shadow-sm print:hidden">
+      <div className="inline-flex flex-wrap gap-0.5 rounded-md border border-border bg-surface-muted p-0.5 print:hidden">
         {RANGES.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setRange(item.key)}
             className={cn(
-              "rounded-xl px-3.5 py-2 font-display text-xs font-semibold transition-all cursor-pointer",
+              "rounded px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
               range === item.key
-                ? "bg-gradient-to-b from-teal-600 to-teal-700 text-white shadow-sm"
-                : "text-muted hover:bg-surface-subtle hover:text-foreground",
+                ? "bg-white font-semibold text-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
             )}
           >
             {item.label}

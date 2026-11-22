@@ -100,9 +100,8 @@ function StockMovementsContent() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Inventory Audit Trail"
         title="Stock Movement Ledger"
-        description="Complete chronological ledger of every goods receipt, warehouse transfer, adjustment, and POS sale deduction."
+        description="Chronological record of goods receipts, warehouse transfers, adjustments, and POS sales."
         actions={
           <>
             <Link href="/stock">

@@ -199,9 +199,9 @@ export function ProductModel({
           distanceFactor={12}
           style={{ pointerEvents: "none" }}
         >
-          <div className="whitespace-nowrap rounded-lg border border-teal-200 bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-900 shadow-md backdrop-blur">
+          <div className="whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm">
             <span className="font-semibold">{product.name}</span>
-            <span className="ml-1.5 font-mono text-teal-700">
+            <span className="ml-1.5 font-mono text-primary">
               {positionNode.quantity} on shelf
             </span>
           </div>

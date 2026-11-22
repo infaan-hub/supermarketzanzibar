@@ -55,12 +55,12 @@ export function Shell({ title, children }: ShellProps) {
   }, [sidebarOpen, isDesktop, hideChrome]);
 
   if (storefront) {
-    return <div className="min-h-dvh page-surface">{children}</div>;
+    return <div className="min-h-dvh bg-canvas">{children}</div>;
   }
 
   if (authUtility || hideChrome) {
     return (
-      <div className="min-h-dvh page-surface">
+      <div className="min-h-dvh bg-canvas">
         <main className="mx-auto w-full max-w-[1400px] px-4 py-6">{children}</main>
       </div>
     );
@@ -72,7 +72,7 @@ export function Shell({ title, children }: ShellProps) {
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-teal-950/25 backdrop-blur-[2px] lg:hidden print:hidden"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden print:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -84,7 +84,7 @@ export function Shell({ title, children }: ShellProps) {
         }}
       />
       <div
-        className={`relative flex min-w-0 flex-1 flex-col transition-[margin] duration-200 print:ml-0 ${sidebarOpen ? "lg:ml-64" : "lg:ml-0"}`}
+        className={`relative flex min-w-0 flex-1 flex-col transition-[margin] duration-200 print:ml-0 ${sidebarOpen ? "lg:ml-60" : "lg:ml-0"}`}
       >
         <Header
           title={title}
@@ -94,8 +94,8 @@ export function Shell({ title, children }: ShellProps) {
         <main
           className={
             isFullViewportCanvas
-              ? "min-h-0 flex-1 overflow-hidden bg-[#f2fbfa] p-0 print:overflow-visible"
-              : "safe-main page-surface min-h-0 flex-1 overflow-x-hidden overflow-y-auto py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:py-6 lg:py-7 print:overflow-visible print:bg-white print:p-0"
+              ? "min-h-0 flex-1 overflow-hidden bg-canvas p-0 print:overflow-visible"
+              : "safe-main min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-canvas py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:py-6 print:overflow-visible print:bg-white print:p-0"
           }
         >
           {children}

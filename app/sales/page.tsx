@@ -94,7 +94,6 @@ export default function SalesPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Order Management"
         title="Sales"
         description="Completed and pending POS orders. Select any order to inspect items, process refunds, or reprint its receipt."
         actions={
@@ -104,7 +103,7 @@ export default function SalesPage() {
         }
       />
 
-      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row">
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <Input
           placeholder="Search by order #, control #, or customer…"
           value={search}

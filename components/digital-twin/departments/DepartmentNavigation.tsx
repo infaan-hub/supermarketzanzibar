@@ -43,7 +43,7 @@ export function DepartmentNavigation({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="grid grid-cols-3 gap-1 border-b border-border p-2">
+      <div className="grid grid-cols-3 gap-1 border-b border-border bg-surface-subtle p-1.5">
         {(
           [
             { key: "departments", label: "Depts" },
@@ -56,10 +56,10 @@ export function DepartmentNavigation({
             type="button"
             onClick={() => setTab(item.key)}
             className={cn(
-              "rounded-md px-2 py-1.5 text-xs font-semibold transition-colors",
+              "rounded px-2 py-1 text-xs font-medium transition-colors cursor-pointer",
               tab === item.key
-                ? "bg-teal-700 text-white shadow-sm"
-                : "text-muted hover:bg-surface-subtle hover:text-foreground",
+                ? "bg-white font-semibold text-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
             )}
           >
             {item.label}
@@ -74,13 +74,13 @@ export function DepartmentNavigation({
               type="button"
               onClick={onResetOverview}
               className={cn(
-                "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
+                "flex w-full items-center justify-between rounded-md border px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer",
                 selection === null
-                  ? "border-teal-600 bg-teal-50 text-teal-900"
+                  ? "border-primary bg-primary-soft text-primary"
                   : "border-border bg-white hover:bg-surface-subtle",
               )}
             >
-              <span>Full Supermarket Overview</span>
+              <span>Full store overview</span>
               <span className="text-[11px] text-muted">18 areas</span>
             </button>
 
@@ -95,19 +95,19 @@ export function DepartmentNavigation({
                   type="button"
                   onClick={() => onSelectDepartment(area.code)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                    "flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer",
                     active
-                      ? "border-teal-600 bg-teal-50/90 text-teal-950"
-                      : "border-border/80 bg-white hover:bg-surface-subtle",
+                      ? "border-primary bg-primary-soft text-foreground"
+                      : "border-border bg-white hover:bg-surface-subtle",
                   )}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: area.accentColor }}
                       />
-                      <span className="truncate text-xs font-semibold text-foreground">
+                      <span className="truncate text-xs font-medium text-foreground">
                         {area.name}
                       </span>
                     </div>
@@ -137,14 +137,14 @@ export function DepartmentNavigation({
                 type="button"
                 onClick={() => onSelectShelf(shelf)}
                 className={cn(
-                  "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                  "flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer",
                   active
-                    ? "border-teal-600 bg-teal-50 text-teal-950"
-                    : "border-border/80 bg-white hover:bg-surface-subtle",
+                    ? "border-primary bg-primary-soft text-foreground"
+                    : "border-border bg-white hover:bg-surface-subtle",
                 )}
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-xs font-bold text-teal-800">
+                  <p className="font-mono text-xs font-semibold text-primary">
                     {shelf.code}
                   </p>
                   <p className="truncate text-[11px] text-muted">
@@ -178,14 +178,14 @@ export function DepartmentNavigation({
                 type="button"
                 onClick={() => onSelectWarehouseRack(rack)}
                 className={cn(
-                  "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                  "flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer",
                   active
-                    ? "border-teal-600 bg-teal-50 text-teal-950"
-                    : "border-border/80 bg-white hover:bg-surface-subtle",
+                    ? "border-primary bg-primary-soft text-foreground"
+                    : "border-border bg-white hover:bg-surface-subtle",
                 )}
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-xs font-bold text-amber-800">
+                  <p className="font-mono text-xs font-semibold text-warning">
                     {rack.rackCode}
                   </p>
                   <p className="truncate text-[11px] text-muted">

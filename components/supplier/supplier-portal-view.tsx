@@ -60,7 +60,6 @@ export function SupplierPortalView({
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Supplier Portal"
         title={supplier ? supplier.companyName : "Supplier Workspace"}
         description={
           supplier

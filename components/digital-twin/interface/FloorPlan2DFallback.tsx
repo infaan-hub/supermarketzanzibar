@@ -41,17 +41,18 @@ export function FloorPlan2DFallback({
   const vbHeight = maxZ - minZ + 2;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#f4fbfa] p-4 overflow-auto">
+    <div className="flex h-full w-full flex-col overflow-auto bg-canvas p-4">
       {reason && (
-        <div className="mb-3 rounded-lg border border-teal-200 bg-white/90 px-3 py-2 text-xs text-slate-700">
-          <strong>2D Floor-Plan Mode:</strong> {reason}
+        <div className="mb-3 rounded-md border border-border bg-white px-3 py-2 text-xs text-muted">
+          <strong className="font-medium text-foreground">2D floor plan:</strong>{" "}
+          {reason}
         </div>
       )}
 
-      <div className="mx-auto flex flex-1 w-full max-w-[920px] items-center justify-center">
+      <div className="mx-auto flex w-full max-w-[920px] flex-1 items-center justify-center">
         <svg
           viewBox={`${minX - 1} ${minZ - 1} ${vbWidth} ${vbHeight}`}
-          className="h-full max-h-[680px] w-full rounded-xl border border-teal-200/80 bg-white shadow-sm"
+          className="h-full max-h-[680px] w-full rounded-lg border border-border bg-white shadow-card"
           role="img"
           aria-label="Interactive 2D supermarket and warehouse floor plan"
         >

@@ -160,9 +160,8 @@ export default function WarehousePage() {
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
       <PageHeader
-        eyebrow="3D Warehouse Digital Twin"
         title="Storage Warehouse & Racks"
-        description="Inspect Zones A–D in 3D, receive bulk pallets into exact rack levels, and transfer reserve stock to retail shelves."
+        description="Inspect Zones A–D in 3D, receive bulk pallets into rack levels, and transfer reserve stock to retail shelves."
         actions={
           <>
             <Link href={href("/digital-twin?scope=warehouse")}>
@@ -222,7 +221,7 @@ export default function WarehousePage() {
                   </p>
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
                     <div
-                      className="h-full rounded-full bg-teal-600"
+                      className="h-full rounded-full bg-primary"
                       style={{ width: `${pct}%` }}
                     />
                   </div>

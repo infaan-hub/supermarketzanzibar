@@ -155,12 +155,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {waitingForGuard ? (
-        <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+        <div className="flex min-h-dvh items-center justify-center bg-canvas px-4">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-base font-bold text-white shadow-[0_8px_20px_-4px_rgba(13,148,136,0.42)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-sm font-semibold text-white">
               SZ
             </div>
-            <p className="text-sm font-medium text-muted">
+            <p className="text-xs font-medium text-muted">
               Verifying session…
             </p>
           </div>

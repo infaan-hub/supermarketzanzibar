@@ -70,72 +70,68 @@ export function ObjectInformationPanel({
     return (
       <div className="space-y-4 p-4 text-sm">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-            Inspector
-          </p>
-          <h2 className="font-display text-lg font-bold text-foreground">
+          <h2 className="text-base font-semibold text-foreground">
             {snapshot.store?.name ?? "Supermarket Zanzibar"}
           </h2>
           <p className="mt-1 text-xs text-muted">
-            Click any department sign, shelf, product, or warehouse pallet slot
-            in the 3D viewport to inspect live PostgreSQL inventory and execute
-            real operations.
+            Select any department, shelf, product, or warehouse rack in the
+            viewport to inspect stock levels and restock shelves.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-lg border border-border bg-surface-subtle p-3">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border">
+          <div className="bg-white p-3">
             <p className="text-[11px] text-muted">Tracked SKUs</p>
-            <p className="font-display text-xl font-bold tabular-nums">
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
               {snapshot.summary.totalProducts}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-surface-subtle p-3">
-            <p className="text-[11px] text-muted">Active Shelves</p>
-            <p className="font-display text-xl font-bold tabular-nums">
+          <div className="bg-white p-3">
+            <p className="text-[11px] text-muted">Shelves</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
               {snapshot.shelves.length}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-surface-subtle p-3">
-            <p className="text-[11px] text-muted">Shelf Units</p>
-            <p className="font-display text-xl font-bold tabular-nums text-teal-800">
+          <div className="bg-white p-3">
+            <p className="text-[11px] text-muted">Shelf units</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
               {snapshot.summary.totalShelfUnits}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-surface-subtle p-3">
-            <p className="text-[11px] text-muted">Warehouse Units</p>
-            <p className="font-display text-xl font-bold tabular-nums text-amber-800">
+          <div className="bg-white p-3">
+            <p className="text-[11px] text-muted">Warehouse units</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
               {snapshot.summary.totalWarehouseUnits}
             </p>
           </div>
         </div>
 
-        <div className="space-y-2 pt-2">
-          <p className="text-xs font-semibold text-foreground">Quick Links</p>
+        <div className="space-y-2 pt-1">
+          <p className="text-xs font-medium text-muted">Shortcuts</p>
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={href("/pos")}
-              className="inline-flex h-9 items-center justify-center rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 px-3 font-display text-xs font-semibold text-white shadow-sm hover:from-teal-500 hover:to-teal-700"
+              className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-white transition-colors hover:bg-primary-hover"
             >
               Open POS
             </Link>
             <Link
               href={href("/warehouse")}
-              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
+              className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-subtle"
             >
-              Warehouse Ops
+              Warehouse
             </Link>
             <Link
               href={href("/shelves")}
-              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
+              className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-subtle"
             >
-              Shelves Setup
+              Shelves
             </Link>
             <Link
               href={href("/purchase-orders")}
-              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
+              className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-subtle"
             >
-              Purchase Orders
+              Purchase orders
             </Link>
           </div>
         </div>
@@ -418,7 +414,7 @@ export function ObjectInformationPanel({
                 <div className="rounded-lg border border-border bg-white p-3 text-xs space-y-1">
                   <p className="text-muted">Stored Product</p>
                   <Link
-                    href={`/products/${loc.product.id}`}
+                    href={href(`/products/${loc.product.id}`)}
                     className="block text-sm font-semibold text-primary hover:underline"
                   >
                     {loc.product.name}
@@ -452,15 +448,15 @@ export function ObjectInformationPanel({
                       setBusy(false);
                     }
                   }}
-                  className="space-y-2.5 rounded-lg border border-teal-200 bg-teal-50/60 p-3"
+                  className="space-y-2.5 rounded-md border border-border bg-surface-subtle p-3"
                 >
-                  <p className="text-xs font-semibold text-teal-900">
-                    Transfer to Retail Shelf
+                  <p className="text-xs font-medium text-foreground">
+                    Transfer to retail shelf
                   </p>
                   {matchingShelfSlots.length === 0 ? (
                     <p className="text-[11px] text-muted">
                       Assign this product to a shelf position on{" "}
-                      <Link href="/shelves" className="text-primary underline">
+                      <Link href={href("/shelves")} className="text-primary underline">
                         Shelves &amp; Locations
                       </Link>{" "}
                       before transferring.

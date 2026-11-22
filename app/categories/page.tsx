@@ -141,9 +141,8 @@ export default function CategoriesPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Catalog Taxonomy"
         title="Categories"
-        description="Organize supermarket products for faster POS filtering, storefront browsing, and reporting."
+        description="Organize products for POS filtering, storefront browsing, and reporting."
         actions={
           <Input
             placeholder="Search categories…"

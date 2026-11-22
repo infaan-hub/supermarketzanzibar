@@ -232,9 +232,8 @@ export default function StockPage() {
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
       <PageHeader
-        eyebrow="Visual Camera Counter · Barcode IN/OUT · Expiry Batches"
         title="Inventory & Stock"
-        description="Register new products with visual camera counting, scan Code 128 IN/OUT adjustments, or reconcile expiry batches and write-offs."
+        description="Register new products with camera counting, scan barcode IN/OUT adjustments, or reconcile expiry batches."
         actions={
           <>
             <Badge variant={criticalCount ? "danger" : "success"}>

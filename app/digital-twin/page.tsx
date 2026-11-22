@@ -27,9 +27,9 @@ export default function DigitalTwinPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="flex h-full w-full items-center justify-center bg-[#f2fbfa]">
-          <p className="text-sm font-medium text-teal-900">
-            Preparing 3D Digital Twin Supermarket…
+        <div className="flex h-full w-full items-center justify-center bg-canvas">
+          <p className="text-sm font-medium text-muted">
+            Loading 3D store…
           </p>
         </div>
       }

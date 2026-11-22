@@ -85,9 +85,8 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-[1160px] space-y-6">
       <PageHeader
-        eyebrow="System Configuration"
         title="Store & POS Settings"
-        description="Configure receipt branding, VAT/tax percentage used at checkout, thermal paper width, and inventory alert thresholds."
+        description="Configure receipt branding, VAT rate, thermal paper width, and inventory alert thresholds."
       />
 
       {savedNotice && (

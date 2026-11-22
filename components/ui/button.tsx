@@ -12,9 +12,8 @@ export interface ButtonProps
 
 function baseStyles() {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-xl font-display font-semibold tracking-tight transition-all duration-150 cursor-pointer",
-    "active:scale-[0.98]",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2",
+    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors duration-150 cursor-pointer select-none",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1",
     "disabled:opacity-50 disabled:pointer-events-none",
   );
 }
@@ -23,15 +22,15 @@ function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default")
   return cn(
     {
       default:
-        "bg-gradient-to-b from-teal-600 to-teal-700 text-white shadow-[0_6px_16px_-4px_rgba(13,148,136,0.42)] hover:from-teal-500 hover:to-teal-700 hover:shadow-[0_10px_20px_-6px_rgba(13,148,136,0.52)]",
+        "bg-primary text-white shadow-sm hover:bg-primary-hover",
       secondary:
-        "border border-border bg-white/95 text-foreground shadow-sm hover:border-teal-400/70 hover:bg-surface-subtle hover:text-teal-950",
+        "border border-border bg-white text-foreground shadow-sm hover:border-border-hover hover:bg-surface-subtle",
       ghost:
-        "bg-transparent text-muted hover:bg-surface-subtle hover:text-teal-900",
+        "bg-transparent text-muted hover:bg-surface-subtle hover:text-foreground",
       danger:
-        "bg-gradient-to-b from-red-600 to-red-700 text-white shadow-[0_6px_16px_-4px_rgba(220,38,38,0.38)] hover:from-red-500 hover:to-red-700",
+        "bg-danger text-white shadow-sm hover:bg-red-800",
       success:
-        "bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-[0_6px_16px_-4px_rgba(5,150,105,0.38)] hover:from-emerald-500 hover:to-emerald-700",
+        "bg-success text-white shadow-sm hover:bg-green-800",
     }[variant],
   );
 }
@@ -39,9 +38,9 @@ function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default")
 function sizeStyles(size: NonNullable<ButtonProps["size"]> = "md") {
   return cn(
     {
-      sm: "h-8.5 px-3 text-xs",
-      md: "h-10 px-4 text-sm",
-      lg: "h-11 px-6 text-base",
+      sm: "h-8 px-2.5 text-xs",
+      md: "h-9 px-3.5 text-sm",
+      lg: "h-10 px-5 text-sm",
     }[size],
   );
 }

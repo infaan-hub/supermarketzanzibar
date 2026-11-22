@@ -56,7 +56,7 @@ export default function DepartmentsPage() {
       setCode("");
       setName("");
       setDescription("");
-      setSuccess("Department created in PostgreSQL.");
+      setSuccess("Department added.");
       await load();
     } catch (err) {
       setError(
@@ -68,14 +68,13 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-6">
+    <div className="mx-auto w-full max-w-[1360px] space-y-6">
       <PageHeader
-        eyebrow="Supermarket Spatial Directory"
         title="Store Departments"
-        description="Every retail department connects live shelf stock directly to its 3D Digital Twin aisle zone."
+        description="Manage retail departments and inspect their aisles in the 3D store."
         actions={
           <Link href={href("/digital-twin")}>
-            <Button size="sm">Open 3D Supermarket</Button>
+            <Button size="sm">Open 3D Store</Button>
           </Link>
         }
       />

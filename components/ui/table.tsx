@@ -7,7 +7,7 @@ export type TableProps = React.HTMLAttributes<HTMLTableElement>;
 export const Table = React.forwardRef<HTMLTableElement, TableProps>(
   function Table({ className, ...props }, ref) {
     return (
-      <div className="w-full overflow-auto rounded-2xl border border-border/80 bg-white">
+      <div className="w-full overflow-auto rounded-lg border border-border bg-white">
         <table
           ref={ref}
           className={cn("w-full min-w-[640px] text-sm sm:min-w-full", className)}
@@ -27,7 +27,7 @@ export const TableHeader = React.forwardRef<
   return (
     <thead
       ref={ref}
-      className={cn("border-b border-border bg-surface-subtle/90", className)}
+      className={cn("border-b border-border bg-surface-subtle", className)}
       {...props}
     />
   );
@@ -42,7 +42,7 @@ export const TableBody = React.forwardRef<
   return (
     <tbody
       ref={ref}
-      className={cn("divide-y divide-border/70 bg-white", className)}
+      className={cn("divide-y divide-border bg-white", className)}
       {...props}
     />
   );
@@ -58,7 +58,7 @@ export const TableFooter = React.forwardRef<
     <tfoot
       ref={ref}
       className={cn(
-        "border-t border-border bg-surface-subtle/60 font-medium",
+        "border-t border-border bg-surface-subtle font-medium",
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ export const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
       <tr
         ref={ref}
         className={cn(
-          "transition-colors hover:bg-surface-subtle/75 data-[selected]:bg-teal-50/70",
+          "transition-colors hover:bg-surface-subtle/70 data-[selected]:bg-primary-soft/60",
           className,
         )}
         {...props}
@@ -91,7 +91,7 @@ export const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
       <th
         ref={ref}
         className={cn(
-          "h-11 px-4 text-left font-display text-[11px] font-semibold uppercase tracking-[0.08em] text-teal-900/75",
+          "h-10 px-4 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted",
           className,
         )}
         {...props}
@@ -107,7 +107,7 @@ export const TableCell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
     return (
       <td
         ref={ref}
-        className={cn("px-4 py-3.5 align-middle text-foreground", className)}
+        className={cn("px-4 py-3 align-middle text-foreground", className)}
         {...props}
       />
     );
@@ -123,7 +123,7 @@ export const TableCaption = React.forwardRef<
   return (
     <caption
       ref={ref}
-      className={cn("mt-4 text-sm text-muted", className)}
+      className={cn("mt-3 text-xs text-muted", className)}
       {...props}
     />
   );

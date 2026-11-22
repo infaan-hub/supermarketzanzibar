@@ -20,22 +20,27 @@ export function InventoryOverlay({
 }) {
   return (
     <div className="pointer-events-none flex flex-wrap items-center justify-between gap-2">
-      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-teal-200/70 bg-white/90 px-3 py-1.5 text-xs shadow-sm backdrop-blur-md">
-        <span className="inline-flex items-center gap-1.5 font-semibold text-teal-900">
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-md border border-border bg-white/95 px-3 py-1.5 text-xs shadow-sm">
+        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
           <span
             className={`h-2 w-2 rounded-full ${
-              realtimeConnected ? "bg-emerald-500" : "bg-amber-500"
+              realtimeConnected ? "bg-success" : "bg-warning"
             }`}
           />
-          {realtimeConnected ? "Live Sync" : "Reconnecting…"}
+          {realtimeConnected ? "Live" : "Reconnecting…"}
         </span>
         <span className="text-border">|</span>
-        <span>
-          Shelf: <strong className="tabular-nums">{summary.totalShelfUnits}</strong>
+        <span className="text-muted">
+          Shelf:{" "}
+          <strong className="font-semibold text-foreground tabular-nums">
+            {summary.totalShelfUnits}
+          </strong>
         </span>
-        <span>
+        <span className="text-muted">
           Warehouse:{" "}
-          <strong className="tabular-nums">{summary.totalWarehouseUnits}</strong>
+          <strong className="font-semibold text-foreground tabular-nums">
+            {summary.totalWarehouseUnits}
+          </strong>
         </span>
         <Badge
           variant={summary.lowStockCount > 0 ? "warning" : "success"}
@@ -58,7 +63,7 @@ export function InventoryOverlay({
 
       {viewMode !== "realistic" && (
         <div
-          className="pointer-events-auto flex flex-wrap items-center gap-3 rounded-xl border border-teal-200/70 bg-white/90 px-3 py-1.5 text-[11px] shadow-sm backdrop-blur-md"
+          className="pointer-events-auto flex flex-wrap items-center gap-3 rounded-md border border-border bg-white/95 px-3 py-1.5 text-[11px] shadow-sm"
           aria-label="Inventory visualization legend"
         >
           <span className="inline-flex items-center gap-1.5">
@@ -67,7 +72,7 @@ export function InventoryOverlay({
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-            Low Stock
+            Low stock
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
@@ -75,7 +80,7 @@ export function InventoryOverlay({
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-            Empty / Inactive
+            Empty
           </span>
         </div>
       )}
@@ -83,7 +88,7 @@ export function InventoryOverlay({
       {lastEventMessage && (
         <div
           role="status"
-          className="pointer-events-auto rounded-lg border border-emerald-200 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm"
+          className="pointer-events-auto rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm"
         >
           {lastEventMessage}
         </div>

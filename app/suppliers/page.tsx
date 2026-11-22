@@ -109,9 +109,8 @@ export default function SuppliersPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Vendor Directory"
         title="Suppliers"
-        description="Vendors, supplied product catalogues, and low-stock reorder queues."
+        description="Vendors, supplied catalogues, and low-stock reorder queues."
         actions={
           <>
             <Input

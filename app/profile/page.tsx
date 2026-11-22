@@ -98,7 +98,6 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-[1040px] space-y-6">
       <PageHeader
-        eyebrow={`Account · ${roleLabel(user.role)}`}
         title="My Profile"
         description={`@${user.username}${user.last_login ? ` · Last sign-in ${formatBusinessDateTime(user.last_login)}` : ""}`}
         actions={

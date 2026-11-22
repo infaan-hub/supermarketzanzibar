@@ -161,9 +161,8 @@ function GoodsReceivedInner() {
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
       <PageHeader
-        eyebrow="Receiving Dock & Batch Intake"
         title="Goods Received (GRN)"
-        description="Receive supplier shipments against purchase orders, assign warehouse rack locations, and log expiry batches atomically."
+        description="Receive supplier shipments against purchase orders, assign warehouse rack locations, and log expiry batches."
         actions={
           <>
             <Link href={href("/purchase-orders")}>

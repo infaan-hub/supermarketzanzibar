@@ -6,13 +6,6 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { fetchBootstrap } from "@/lib/api";
 
 interface FormState {
@@ -129,61 +122,59 @@ export default function RegisterPage() {
   if (successRole) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
-        <Card className="w-full max-w-md">
-          <CardContent className="py-10 text-center space-y-2">
-            <p className="font-display text-xl font-semibold text-success">
-              {successRole === "admin"
-                ? "Administrator account created"
-                : "Account created successfully"}
-            </p>
-            <p className="text-sm text-muted">Redirecting to sign in…</p>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-sm rounded-lg border border-border bg-white p-8 text-center shadow-card">
+          <p className="text-base font-semibold text-success">
+            {successRole === "admin"
+              ? "Administrator account created"
+              : "Account created"}
+          </p>
+          <p className="mt-1 text-sm text-muted">Redirecting to sign in…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[84vh] items-center justify-center py-8">
-      <Card className="w-full max-w-xl rounded-3xl shadow-soft">
-        <CardHeader className="border-b border-border/70 bg-surface-subtle/60 pb-5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-sm">
-                SZ
-              </div>
-              <div>
-                <CardTitle className="text-xl sm:text-2xl">
-                  {isBootstrapAdmin ? "Initial Admin Setup" : "Create account"}
-                </CardTitle>
-                <CardDescription>
-                  {isBootstrapAdmin
-                    ? "Create the first administrator account for Supermarket Zanzibar."
-                    : "Register for Supermarket Zanzibar. Staff roles are assigned in /admin/users."}
-                </CardDescription>
-              </div>
-            </div>
-            {isBootstrapAdmin && (
-              <Badge variant="success">First Admin Bootstrap</Badge>
-            )}
+    <div className="flex min-h-[84vh] items-center justify-center px-4 py-10">
+      <div className="w-full max-w-lg space-y-5">
+        <div className="space-y-2 text-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2.5 text-foreground"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-white">
+              SZ
+            </span>
+            <span className="text-base font-semibold tracking-tight">
+              Supermarket Zanzibar
+            </span>
+          </Link>
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              {isBootstrapAdmin ? "Initial administrator setup" : "Create an account"}
+            </h1>
+            {isBootstrapAdmin && <Badge variant="success">First Admin</Badge>}
           </div>
-        </CardHeader>
-        <CardContent className="pt-6">
+          <p className="text-sm text-muted">
+            {isBootstrapAdmin
+              ? "Create the first administrator account for your store."
+              : "Register your details. Staff permissions can be granted by an administrator."}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-border bg-white p-6 shadow-card">
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div
                 role="alert"
-                className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
+                className="rounded-md border border-danger/25 bg-danger-soft px-3 py-2 text-xs text-danger"
               >
                 {error}
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label
-                  htmlFor="username"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="username" className="text-xs font-medium text-foreground">
                   Username
                 </label>
                 <Input
@@ -197,10 +188,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="email" className="text-xs font-medium text-foreground">
                   Email
                 </label>
                 <Input
@@ -216,10 +204,7 @@ export default function RegisterPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <label
-                htmlFor="full_name"
-                className="text-sm font-medium text-foreground"
-              >
+              <label htmlFor="full_name" className="text-xs font-medium text-foreground">
                 Full name
               </label>
               <Input
@@ -234,10 +219,7 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label
-                  htmlFor="phone"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="phone" className="text-xs font-medium text-foreground">
                   Phone
                 </label>
                 <Input
@@ -251,10 +233,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label
-                  htmlFor="address"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="address" className="text-xs font-medium text-foreground">
                   Address (optional)
                 </label>
                 <Input
@@ -266,10 +245,7 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="password" className="text-xs font-medium text-foreground">
                   Password
                 </label>
                 <Input
@@ -285,10 +261,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label
-                  htmlFor="password_confirm"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="password_confirm" className="text-xs font-medium text-foreground">
                   Confirm password
                 </label>
                 <Input
@@ -306,28 +279,23 @@ export default function RegisterPage() {
                 )}
               </div>
             </div>
-            <Button type="submit" className="w-full" isLoading={loading}>
+            <Button type="submit" size="lg" className="w-full" isLoading={loading}>
               {isBootstrapAdmin ? "Create administrator" : "Create account"}
             </Button>
-            <p className="pt-1 text-center text-xs text-muted">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-semibold text-teal-700 hover:underline"
-              >
-                Sign in
-              </Link>
-              {" · "}
-              <Link
-                href="/"
-                className="font-semibold text-teal-700 hover:underline"
-              >
-                Browse Storefront
-              </Link>
-            </p>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+
+        <p className="text-center text-xs text-muted">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-foreground hover:text-primary hover:underline">
+            Sign in
+          </Link>
+          <span className="mx-2 text-border-hover">·</span>
+          <Link href="/" className="font-medium text-foreground hover:text-primary hover:underline">
+            Back to store
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

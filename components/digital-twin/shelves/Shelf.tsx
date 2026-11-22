@@ -198,15 +198,15 @@ export function Shelf({
           distanceFactor={16}
           style={{ pointerEvents: "none" }}
         >
-          <div className="whitespace-nowrap rounded-lg border border-teal-200 bg-white/95 px-2.5 py-1 text-xs shadow-md backdrop-blur">
-            <span className="font-mono font-bold text-teal-800">
+          <div className="whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-xs shadow-sm">
+            <span className="font-mono font-semibold text-primary">
               {shelf.code}
             </span>
-            <span className="ml-1.5 font-medium text-slate-800">
+            <span className="ml-1.5 font-medium text-foreground">
               {shelf.totalUnits} units
             </span>
             {shelf.lowStockCount > 0 && (
-              <span className="ml-1.5 text-amber-600 font-semibold">
+              <span className="ml-1.5 font-medium text-warning">
                 · {shelf.lowStockCount} low
               </span>
             )}

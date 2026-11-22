@@ -53,14 +53,11 @@ const SupermarketScene = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-[#f0faf9]">
-        <div className="rounded-2xl border border-teal-200 bg-white/90 px-6 py-4 text-center shadow-sm">
-          <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-          <p className="font-display text-sm font-semibold text-teal-950">
-            Loading 3D Digital Twin Engine…
-          </p>
-          <p className="mt-0.5 text-xs text-muted">
-            Streaming PBR GLB store models & PostgreSQL stock state
+      <div className="flex h-full w-full items-center justify-center bg-canvas">
+        <div className="rounded-lg border border-border bg-white px-6 py-4 text-center shadow-card">
+          <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm font-medium text-foreground">
+            Loading 3D store…
           </p>
         </div>
       </div>
@@ -525,8 +522,8 @@ export function DigitalTwinWorkspace({
       onSelectWarehousePosition={handleSelectWarehousePosition}
       reason={
         webglSupported
-          ? "Interactive 2D architectural floor plan synchronized with PostgreSQL."
-          : "WebGL is not available on this device. Showing synchronized 2D interactive floor plan."
+          ? "Interactive 2D store floor plan."
+          : "WebGL is not available on this device. Showing 2D floor plan."
       }
     />
   );
@@ -534,9 +531,9 @@ export function DigitalTwinWorkspace({
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col overflow-hidden bg-[#f2fbfa] ${
+      className={`flex flex-col overflow-hidden bg-canvas ${
         embedded
-          ? "h-[640px] rounded-2xl border border-teal-200/80 shadow-sm"
+          ? "h-[640px] rounded-lg border border-border shadow-card"
           : "h-full w-full"
       }`}
     >
@@ -566,11 +563,11 @@ export function DigitalTwinWorkspace({
         refreshing={refreshing}
       />
 
-      {/* Phase 14 Filter Strip (active when in Heatmap or Inventory mode) */}
+      {/* Heatmap / Inventory Filter Strip */}
       {viewMode !== "realistic" && snapshot?.initialized && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-teal-200/60 bg-teal-50/70 px-3 py-1.5 text-xs">
-          <span className="font-semibold text-teal-900">
-            {viewMode === "heatmap" ? "Heatmap Filters:" : "Inventory Filters:"}
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface-subtle px-3 py-1.5 text-xs">
+          <span className="font-medium text-foreground">
+            {viewMode === "heatmap" ? "Heatmap filters:" : "Inventory filters:"}
           </span>
           <Select
             value={deptFilter}
@@ -631,7 +628,7 @@ export function DigitalTwinWorkspace({
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Collapsible Left Navigation Tree */}
         {leftOpen && snapshot?.initialized && (
-          <aside className="z-10 hidden w-64 shrink-0 border-r border-teal-200/70 bg-white/95 backdrop-blur-md md:flex md:flex-col">
+          <aside className="z-10 hidden w-64 shrink-0 border-r border-border bg-white md:flex md:flex-col">
             <DepartmentNavigation
               departments={snapshot.departments}
               shelves={filteredShelves}
@@ -655,46 +652,41 @@ export function DigitalTwinWorkspace({
         <div className="relative min-w-0 flex-1 overflow-hidden">
           {loading && !snapshot ? (
             <div className="flex h-full items-center justify-center">
-              <div className="rounded-xl border border-teal-200 bg-white px-6 py-4 text-center shadow-sm">
-                <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-                <p className="text-sm font-medium text-teal-950">
-                  Loading live supermarket inventory…
+              <div className="rounded-lg border border-border bg-white px-6 py-4 text-center shadow-card">
+                <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm font-medium text-foreground">
+                  Loading store inventory…
                 </p>
               </div>
             </div>
           ) : error && !snapshot ? (
             <div className="flex h-full items-center justify-center p-6">
-              <div className="max-w-md rounded-2xl border border-danger/25 bg-white p-6 text-center shadow-sm">
-                <p className="font-display text-base font-bold text-foreground">
-                  3D Digital Twin Unavailable
+              <div className="max-w-md rounded-lg border border-danger/25 bg-white p-6 text-center shadow-card">
+                <p className="text-base font-semibold text-foreground">
+                  3D store unavailable
                 </p>
-                <p className="mt-2 text-xs text-muted">{error}</p>
+                <p className="mt-1.5 text-xs text-muted">{error}</p>
                 <Button
                   className="mt-4"
                   size="sm"
                   onClick={() => void loadSnapshot(false)}
                 >
-                  Retry Connection
+                  Retry
                 </Button>
               </div>
             </div>
           ) : snapshot && !snapshot.initialized ? (
             <div className="flex h-full items-center justify-center p-6">
-              <div className="max-w-lg rounded-2xl border border-teal-200 bg-white/95 p-6 text-center shadow-md">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-                  First-Time Store Twin Setup
-                </p>
-                <h2 className="mt-1 font-display text-xl font-bold text-foreground">
-                  Initialize 3D Supermarket Layout in PostgreSQL
+              <div className="max-w-md rounded-lg border border-border bg-white p-6 text-center shadow-card">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Set up 3D store layout
                 </h2>
-                <p className="mt-2 text-sm text-muted">
-                  This maps the 10 retail departments, 18 shelves, 8 warehouse
-                  racks (Zones A–D), and all 31 GLB models to your real product
-                  catalog using actual on-hand stock quantities (never mock or
-                  random data).
+                <p className="mt-1.5 text-sm text-muted">
+                  Map store departments, shelves, and warehouse racks to your
+                  live product catalog and stock balances.
                 </p>
                 {error && (
-                  <p className="mt-3 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  <p className="mt-3 rounded-md border border-danger/25 bg-danger-soft px-3 py-2 text-xs text-danger">
                     {error}
                   </p>
                 )}
@@ -704,11 +696,11 @@ export function DigitalTwinWorkspace({
                     isLoading={initializing}
                     onClick={() => void handleInitialize()}
                   >
-                    Initialize 3D Store & Sync Inventory
+                    Initialize 3D layout
                   </Button>
                 ) : (
-                  <p className="mt-4 text-xs font-medium text-amber-800">
-                    Ask a Manager or Administrator to initialize the 3D Store
+                  <p className="mt-4 text-xs font-medium text-warning">
+                    Ask a manager or administrator to set up the 3D store
                     layout.
                   </p>
                 )}
@@ -787,7 +779,7 @@ export function DigitalTwinWorkspace({
 
         {/* Collapsible Right Context Inspector */}
         {rightOpen && snapshot?.initialized && (
-          <aside className="z-10 w-80 shrink-0 overflow-y-auto border-l border-teal-200/70 bg-white/95 backdrop-blur-md">
+          <aside className="z-10 w-80 shrink-0 overflow-y-auto border-l border-border bg-white">
             <ObjectInformationPanel
               snapshot={snapshot}
               selection={selection}

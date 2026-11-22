@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { defaultHomeForRole, roleLabel } from "@/lib/auth/roles";
@@ -45,51 +44,43 @@ export function StorefrontHeader({
   const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white/88 shadow-[0_4px_24px_-12px_rgba(15,62,66,0.14)] backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-border bg-white">
+      <div className="mx-auto flex h-14 max-w-[1360px] items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="group flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-[0_6px_14px_-3px_rgba(13,148,136,0.45)] transition-transform group-hover:scale-[1.03]">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-semibold text-white">
               SZ
-            </div>
-            <div>
-              <span className="block font-display text-[15px] font-bold leading-tight text-foreground">
-                Supermarket Zanzibar
-              </span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-700">
-                Stone Town · Digital Storefront
-              </span>
-            </div>
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]">
+              Supermarket Zanzibar
+            </span>
           </Link>
 
-          <nav
-            className="hidden items-center gap-1 rounded-xl border border-border/70 bg-surface-subtle/70 p-1 md:flex"
-            aria-label="Storefront"
-          >
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Storefront">
             <Link
               href="/"
-              className={`rounded-lg px-3.5 py-1.5 font-display text-xs font-semibold transition-all ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 activePage === "shop"
-                  ? "bg-white text-teal-900 shadow-sm"
-                  : "text-muted hover:text-foreground"
+                  ? "bg-primary-soft text-primary font-semibold"
+                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
               }`}
             >
-              Shop Catalog
+              Shop
             </Link>
             <Link
               href="/store-3d"
-              className={`rounded-lg px-3.5 py-1.5 font-display text-xs font-semibold transition-all ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 activePage === "3d"
-                  ? "bg-white text-teal-900 shadow-sm"
-                  : "text-muted hover:text-foreground"
+                  ? "bg-primary-soft text-primary font-semibold"
+                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
               }`}
             >
-              3D Store Tour
+              3D Store
             </Link>
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-2">
           {onOpenCart && (
             <Button
               size="sm"
@@ -99,7 +90,7 @@ export function StorefrontHeader({
             >
               <span>Basket</span>
               {cartCount > 0 && (
-                <span className="rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
+                <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
                   {cartCount}
                 </span>
               )}
@@ -108,13 +99,13 @@ export function StorefrontHeader({
 
           {isAuthenticated && user ? (
             <Link href={portalUrl}>
-              <Button size="sm">{roleLabel(user.role)} Portal</Button>
+              <Button size="sm">{roleLabel(user.role)}</Button>
             </Link>
           ) : (
             <>
               <Link href="/login">
                 <Button size="sm" variant="secondary">
-                  Sign In
+                  Sign in
                 </Button>
               </Link>
               <Link href="/register" className="hidden sm:inline-flex">
@@ -218,115 +209,83 @@ export function GuestStorefront() {
   const cartSubtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <div className="flex min-h-dvh flex-col page-surface text-foreground">
+    <div className="flex min-h-dvh flex-col bg-canvas text-foreground">
       <StorefrontHeader
         cartCount={cartCount}
         onOpenCart={() => setCartOpen(true)}
         activePage="shop"
       />
 
-      {/* Editorial Coastal Hero */}
-      <section className="relative overflow-hidden border-b border-border/80 bg-gradient-to-br from-white via-[#eefaf8] to-[#dff5f1]">
-        <div className="mx-auto grid max-w-[1400px] items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.25fr_0.95fr] lg:py-14">
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-teal-200/90 bg-white/90 px-3.5 py-1 text-xs font-semibold text-teal-800 shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Live Shelf Stock · Stone Town, Zanzibar
-            </span>
-            <h1 className="font-display text-3xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl">
-              Fresh Zanzibar groceries, now explorable in{" "}
-              <span className="text-teal-700">real-time 3D</span>.
-            </h1>
-            <p className="max-w-xl text-sm leading-relaxed text-muted sm:text-base">
-              Shop directly from live supermarket inventory without creating an
-              account, build your basket, or walk through all 18 aisles in our
-              interactive 3D Digital Twin store.
+      {/* Compact Store Intro Strip */}
+      <section className="border-b border-border bg-white">
+        <div className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted">
+              Stone Town, Zanzibar
             </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Link href="/store-3d">
-                <Button size="lg">Explore 3D Supermarket</Button>
-              </Link>
-              <a href="#catalog">
-                <Button size="lg" variant="secondary">
-                  Browse Aisles
-                </Button>
-              </a>
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Fresh groceries &amp; everyday essentials
+            </h1>
+            <p className="max-w-xl text-sm text-muted">
+              Check live shelf availability, build your basket, or walk through
+              the store in 3D before you visit.
+            </p>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="glass-panel rounded-2xl p-5">
-              <p className="text-xs font-medium text-muted">Active Catalog</p>
-              <p className="mt-1.5 font-display text-3xl font-bold tabular-nums text-teal-900">
-                {catalog?.store.totalProducts ?? "—"}
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {catalog && (
+              <p className="text-xs text-muted tabular-nums">
+                <strong className="font-semibold text-foreground">
+                  {catalog.store.totalProducts}
+                </strong>{" "}
+                items ·{" "}
+                <strong className="font-semibold text-foreground">
+                  {catalog.categories.length}
+                </strong>{" "}
+                aisles
               </p>
-              <p className="mt-1 text-xs text-muted">
-                Live products synced to PostgreSQL
-              </p>
-            </div>
-            <div className="glass-panel rounded-2xl p-5">
-              <p className="text-xs font-medium text-muted">Store Departments</p>
-              <p className="mt-1.5 font-display text-3xl font-bold tabular-nums text-teal-900">
-                {catalog?.categories.length ?? "—"}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                Groceries, beverages, dairy &amp; more
-              </p>
-            </div>
-            <div className="glass-panel sm:col-span-2 rounded-2xl p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-display text-sm font-bold text-teal-950">
-                    Dedicated Role Workspaces
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    Admin (<code className="text-teal-800">/admin/*</code>) ·
-                    MarketMaster (<code className="text-teal-800">/dashboard</code>) ·
-                    Supplier (<code className="text-teal-800">/supplier/*</code>)
-                  </p>
-                </div>
-                <Link href="/login">
-                  <Button size="sm" variant="secondary">
-                    Staff Login
-                  </Button>
-                </Link>
-              </div>
-            </div>
+            )}
+            <Link href="/store-3d">
+              <Button size="sm" variant="secondary">
+                Explore 3D Store
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Live Catalog Workspace */}
+      {/* Catalog Workspace */}
       <main
         id="catalog"
-        className="mx-auto w-full max-w-[1400px] flex-1 space-y-6 px-4 py-8 sm:px-6"
+        className="mx-auto w-full max-w-[1360px] flex-1 space-y-5 px-4 py-6 sm:px-6"
       >
-        <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setSelectedCategory("")}
-              className={`rounded-full px-3.5 py-1.5 font-display text-xs font-semibold transition-all cursor-pointer ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                 selectedCategory === ""
-                  ? "bg-teal-600 text-white shadow-sm"
-                  : "border border-border bg-white text-muted hover:border-teal-400 hover:text-foreground"
+                  ? "bg-primary text-white"
+                  : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
               }`}
             >
-              All Aisles
+              All aisles
             </button>
             {(catalog?.categories ?? []).map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`rounded-full px-3.5 py-1.5 font-display text-xs font-semibold transition-all cursor-pointer ${
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                   selectedCategory === cat.id
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "border border-border bg-white text-muted hover:border-teal-400 hover:text-foreground"
+                    ? "bg-primary text-white"
+                    : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
                 }`}
               >
                 {cat.name}{" "}
-                <span className="opacity-75">({cat.productCount})</span>
+                <span className="opacity-70 tabular-nums">
+                  ({cat.productCount})
+                </span>
               </button>
             ))}
           </div>
@@ -335,14 +294,14 @@ export function GuestStorefront() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search groceries, drinks, dairy…"
+              placeholder="Search products…"
               aria-label="Search store products"
             />
           </div>
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-danger/25 bg-red-50 px-4 py-3 text-sm text-danger">
+          <div className="rounded-md border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
@@ -352,46 +311,44 @@ export function GuestStorefront() {
             {Array.from({ length: 8 }).map((_, idx) => (
               <div
                 key={idx}
-                className="h-64 animate-pulse rounded-2xl border border-border bg-white/80"
+                className="h-64 animate-pulse rounded-lg border border-border bg-white"
               />
             ))}
           </div>
         ) : (catalog?.products ?? []).length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <p className="font-display text-base font-semibold text-foreground">
-                No matching products found
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                Try another search term or switch aisle categories.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg border border-border bg-white p-12 text-center">
+            <p className="text-sm font-semibold text-foreground">
+              No matching products found
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Try a different search term or browse another aisle.
+            </p>
+          </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {(catalog?.products ?? []).map((product) => {
               const inBasket =
                 cart.find((i) => i.productId === product.id)?.quantity ?? 0;
               return (
-                <Card
+                <article
                   key={product.id}
-                  className="group flex flex-col justify-between overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-teal-400/60 hover:shadow-soft"
+                  className="flex flex-col justify-between overflow-hidden rounded-lg border border-border bg-white shadow-card transition-colors hover:border-border-hover"
                 >
                   <div>
-                    <div className="relative flex h-40 items-center justify-center bg-gradient-to-br from-[#f2fbfa] via-[#e9f7f5] to-[#ddf2ef] p-5">
+                    <div className="relative flex h-36 items-center justify-center border-b border-border bg-surface-subtle p-4">
                       {product.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={product.imageUrl}
                           alt={product.name}
-                          className="max-h-32 max-w-full rounded-xl object-contain transition-transform duration-200 group-hover:scale-105"
+                          className="max-h-28 max-w-full object-contain"
                         />
                       ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-200/80 bg-white/80 font-display text-xl font-bold text-teal-700 shadow-sm">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-white text-sm font-semibold text-muted">
                           {product.name.slice(0, 2).toUpperCase()}
                         </div>
                       )}
-                      <div className="absolute right-3 top-3">
+                      <div className="absolute right-2.5 top-2.5">
                         <Badge
                           variant={
                             product.stockStatus === "out_of_stock"
@@ -404,51 +361,51 @@ export function GuestStorefront() {
                           {product.stockStatus === "out_of_stock"
                             ? "Out of stock"
                             : product.stockStatus === "low_stock"
-                              ? "Limited"
+                              ? "Low stock"
                               : "In stock"}
                         </Badge>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 p-4">
+                    <div className="space-y-1 p-4">
                       {product.category && (
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-teal-700">
+                        <p className="text-[11px] font-medium text-muted">
                           {product.category.name}
                         </p>
                       )}
-                      <h2 className="line-clamp-2 font-display text-[15px] font-bold leading-snug text-foreground">
+                      <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                         {product.name}
                       </h2>
                       {product.description && (
-                        <p className="line-clamp-2 text-xs leading-relaxed text-muted">
+                        <p className="line-clamp-2 text-xs text-muted">
                           {product.description}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-surface-subtle/40 px-4 py-3">
-                    <span className="font-display text-base font-bold tabular-nums text-teal-950">
+                  <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+                    <span className="text-sm font-semibold tabular-nums text-foreground">
                       {formatMoney(product.price)}
                     </span>
 
                     {inBasket > 0 ? (
-                      <div className="flex items-center gap-1 rounded-xl border border-teal-300/70 bg-white p-0.5 shadow-sm">
+                      <div className="flex items-center gap-1 rounded-md border border-border bg-white p-0.5">
                         <button
                           type="button"
                           onClick={() => adjustBasket(product.id, -1)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-teal-900 hover:bg-surface-subtle cursor-pointer"
+                          className="flex h-6 w-6 items-center justify-center rounded text-xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
                           aria-label={`Remove one ${product.name}`}
                         >
                           −
                         </button>
-                        <span className="min-w-6 text-center font-mono text-xs font-bold text-teal-950">
+                        <span className="min-w-5 text-center font-mono text-xs font-semibold text-foreground">
                           {inBasket}
                         </span>
                         <button
                           type="button"
                           onClick={() => addToBasket(product)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-xs font-bold text-white hover:bg-teal-700 cursor-pointer"
+                          className="flex h-6 w-6 items-center justify-center rounded bg-primary text-xs font-semibold text-white hover:bg-primary-hover cursor-pointer"
                           aria-label={`Add one more ${product.name}`}
                         >
                           +
@@ -460,48 +417,46 @@ export function GuestStorefront() {
                         disabled={!product.inStock}
                         onClick={() => addToBasket(product)}
                       >
-                        + Add
+                        Add
                       </Button>
                     )}
                   </div>
-                </Card>
+                </article>
               );
             })}
           </div>
         )}
       </main>
 
-      {/* Clean Footer */}
-      <footer className="mt-10 border-t border-border bg-white/80">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-4 py-6 text-xs text-muted sm:px-6">
-          <p className="font-medium text-foreground">
-            Supermarket Zanzibar · Stone Town · Live 3D Digital Twin &amp; Inventory
-          </p>
+      {/* Footer */}
+      <footer className="mt-10 border-t border-border bg-white">
+        <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-4 px-4 py-5 text-xs text-muted sm:px-6">
+          <p>Supermarket Zanzibar · Stone Town</p>
           <div className="flex flex-wrap items-center gap-4">
-            <Link href="/store-3d" className="hover:text-teal-800 hover:underline">
-              3D Store Tour
+            <Link href="/store-3d" className="hover:text-foreground hover:underline">
+              3D Store
             </Link>
-            <Link href="/login" className="hover:text-teal-800 hover:underline">
-              Sign In
+            <Link href="/login" className="hover:text-foreground hover:underline">
+              Staff sign in
             </Link>
-            <Link href="/register" className="hover:text-teal-800 hover:underline">
+            <Link href="/register" className="hover:text-foreground hover:underline">
               Register
             </Link>
           </div>
         </div>
       </footer>
 
-      {/* Guest Shopping Basket Drawer */}
+      {/* Basket Drawer */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-teal-950/30 backdrop-blur-[2px]">
-          <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border bg-surface-subtle/70 px-5 py-4">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
+          <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-[var(--shadow-popover)]">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
-                <h2 className="font-display text-lg font-bold text-foreground">
-                  Shopping Basket ({cartCount})
+                <h2 className="text-base font-semibold text-foreground">
+                  Shopping basket ({cartCount})
                 </h2>
                 <p className="text-xs text-muted">
-                  Saved locally — sign in to finalize checkout
+                  Saved on this device until checkout
                 </p>
               </div>
               <Button
@@ -513,34 +468,34 @@ export function GuestStorefront() {
               </Button>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-5">
+            <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
               {cart.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <p className="font-display text-sm font-semibold text-foreground">
+                  <p className="text-sm font-medium text-foreground">
                     Your basket is empty
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    Add products from any aisle to start building your order.
+                    Add products from the catalog to start an order.
                   </p>
                 </div>
               ) : (
                 cart.map((item) => (
                   <div
                     key={item.productId}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-subtle/60 p-3.5"
+                    className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">
+                      <p className="truncate text-sm font-medium text-foreground">
                         {item.name}
                       </p>
-                      <p className="text-xs text-muted">
+                      <p className="text-xs text-muted tabular-nums">
                         {formatMoney(item.price)} × {item.quantity} ={" "}
-                        <strong className="text-teal-900">
+                        <strong className="text-foreground">
                           {formatMoney(item.price * item.quantity)}
                         </strong>
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -549,7 +504,7 @@ export function GuestStorefront() {
                       >
                         −
                       </Button>
-                      <span className="w-6 text-center font-mono text-xs font-bold">
+                      <span className="w-6 text-center font-mono text-xs font-semibold">
                         {item.quantity}
                       </span>
                       <Button
@@ -566,10 +521,10 @@ export function GuestStorefront() {
               )}
             </div>
 
-            <div className="space-y-3 border-t border-border bg-surface-subtle/50 p-5">
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span className="text-muted">Estimated Subtotal</span>
-                <span className="font-display text-xl font-bold text-teal-950 tabular-nums">
+            <div className="space-y-3 border-t border-border bg-surface-subtle p-5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted">Estimated subtotal</span>
+                <span className="text-base font-semibold text-foreground tabular-nums">
                   {formatMoney(cartSubtotal)}
                 </span>
               </div>
@@ -585,7 +540,7 @@ export function GuestStorefront() {
                 )}
                 <Link href="/login" className="flex-1">
                   <Button className="w-full" size="md">
-                    Sign In to Checkout
+                    Sign in to checkout
                   </Button>
                 </Link>
               </div>

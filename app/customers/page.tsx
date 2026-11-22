@@ -102,9 +102,8 @@ export default function CustomersPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Loyalty & CRM"
         title="Customers"
-        description="Loyalty profiles, contact records, and complete purchase history."
+        description="Loyalty profiles, contact records, and purchase history."
         actions={
           <>
             <Input

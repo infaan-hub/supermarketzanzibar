@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { portalHref } from "@/lib/auth/roles";
 import {
   formatCount,
   formatMoneyAdaptive,
@@ -21,6 +23,7 @@ export function AlertsMenu({
   pendingAmount: number;
   threshold: number;
 }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelId = useId();
@@ -45,7 +48,7 @@ export function AlertsMenu({
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-subtle sm:px-3 sm:text-sm"
+        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-border-hover hover:bg-surface-subtle cursor-pointer"
         aria-label={
           count > 0 ? `Notifications, ${count} alerts` : "Notifications"
         }
@@ -54,10 +57,10 @@ export function AlertsMenu({
         aria-haspopup="dialog"
         onClick={() => setOpen((value) => !value)}
       >
-        <BellIcon className="h-4 w-4 text-muted" />
+        <BellIcon className="h-3.5 w-3.5 text-muted" />
         <span className="hidden min-[380px]:inline">Alerts</span>
         {count > 0 ? (
-          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-none text-white">
+          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-danger px-1 text-[10px] font-semibold leading-none text-white tabular-nums">
             {count > 99 ? "99+" : count}
           </span>
         ) : null}
@@ -76,15 +79,15 @@ export function AlertsMenu({
             id={panelId}
             role="dialog"
             aria-label="Notifications"
-            className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background shadow-soft"
+            className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-white shadow-[var(--shadow-popover)]"
           >
-            <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
-              <h2 className="font-display text-sm font-semibold text-foreground">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-foreground">
                 Notifications
               </h2>
               <button
                 type="button"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-subtle hover:text-foreground"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-subtle hover:text-foreground cursor-pointer"
                 aria-label="Close notifications"
                 onClick={() => {
                   setOpen(false);
@@ -98,17 +101,17 @@ export function AlertsMenu({
             {count === 0 ? (
               <div className="px-4 py-6 text-center">
                 <p className="text-sm font-medium text-foreground">
-                  You&apos;re all caught up.
+                  No open alerts
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   No low-stock products or pending payments need attention.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-border/70">
+              <div className="divide-y divide-border">
                 {lowStock > 0 ? (
                   <Link
-                    href="/stock"
+                    href={portalHref(user?.role, "/stock")}
                     className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-subtle"
                     onClick={() => setOpen(false)}
                   >
@@ -136,7 +139,7 @@ export function AlertsMenu({
 
                 {pendingCount > 0 ? (
                   <Link
-                    href="/payments"
+                    href={portalHref(user?.role, "/payments")}
                     className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-subtle"
                     onClick={() => setOpen(false)}
                   >

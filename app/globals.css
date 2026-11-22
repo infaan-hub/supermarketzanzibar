@@ -1,55 +1,56 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
-  /* Supermarket Zanzibar — Coastal Aqua & Teal Enterprise Identity.
-     Clean white surfaces on light aqua canvas, crisp teal primary actions,
-     light glassmorphism, subtle shadows, and minimal visual clutter. */
+  /* Supermarket Zanzibar — Crisp Retail & Ledger Design System.
+     Pure white surfaces on a calm off-white canvas, hairline borders,
+     single deep teal brand accent, tabular numbers, zero decorative clutter. */
   --color-background: #ffffff;
-  --color-canvas: #f3faf9;
-  --color-foreground: #0f2a2e;
+  --color-canvas: #f8fafa;
+  --color-foreground: #102022;
 
-  --color-primary: #0d9488;
-  --color-primary-hover: #0f766e;
-  --color-primary-soft: rgba(13, 148, 136, 0.12);
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-soft: #e6f4f2;
 
-  --color-muted: #527074;
-  --color-muted-foreground: #628084;
+  --color-muted: #55686b;
+  --color-muted-foreground: #6b7f82;
 
-  --color-border: rgba(15, 118, 110, 0.14);
-  --color-border-hover: rgba(15, 118, 110, 0.34);
-  --color-ring: #0d9488;
+  --color-border: #dce6e6;
+  --color-border-hover: #b6caca;
+  --color-ring: #0f766e;
 
-  --color-accent: #14b8a6;
-  --color-accent-soft: rgba(20, 184, 166, 0.10);
+  --color-accent: #0f766e;
+  --color-accent-soft: #e6f4f2;
 
-  --color-success: #059669;
-  --color-success-soft: rgba(5, 150, 105, 0.11);
+  --color-success: #15803d;
+  --color-success-soft: #ecfdf5;
 
-  --color-danger: #dc2626;
-  --color-danger-soft: rgba(220, 38, 38, 0.10);
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fef2f2;
 
-  --color-warning: #d97706;
-  --color-warning-soft: rgba(217, 119, 6, 0.11);
+  --color-warning: #b45309;
+  --color-warning-soft: #fffbeb;
 
-  --color-surface-subtle: #effaf8;
-  --color-surface-muted: #e3f5f2;
-  --color-chart-grid: #d8ece9;
+  --color-surface-subtle: #f3f7f7;
+  --color-surface-muted: #e8efef;
+  --color-chart-grid: #e2ebeb;
 
-  --color-sidebar: rgba(250, 254, 253, 0.94);
-  --color-sidebar-border: rgba(15, 118, 110, 0.12);
+  --color-sidebar: #ffffff;
+  --color-sidebar-border: #dce6e6;
 
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-lg: 18px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 10px;
   --radius-full: 9999px;
 
-  --shadow-card: 0 10px 30px -12px rgba(15, 62, 66, 0.10), 0 2px 8px -2px rgba(15, 62, 66, 0.04);
-  --shadow-soft: 0 18px 42px -16px rgba(15, 62, 66, 0.14);
-  --shadow-sm: 0 2px 8px -2px rgba(15, 62, 66, 0.06);
+  --shadow-card: 0 1px 2px rgba(16, 32, 34, 0.04);
+  --shadow-sm: 0 1px 2px rgba(16, 32, 34, 0.04);
+  --shadow-popover: 0 8px 24px -6px rgba(16, 32, 34, 0.12), 0 2px 6px rgba(16, 32, 34, 0.04);
 
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
@@ -59,27 +60,6 @@
 
 .font-display {
   font-family: var(--font-display);
-}
-
-.glass-panel {
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  box-shadow: var(--shadow-card);
-}
-
-.page-surface {
-  background:
-    radial-gradient(ellipse 80% 45% at 100% 0%, rgba(20, 184, 166, 0.08), transparent 60%),
-    radial-gradient(ellipse 65% 40% at 0% 100%, rgba(13, 148, 136, 0.05), transparent 55%),
-    var(--color-canvas);
-}
-
-.page-banner {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(235, 250, 247, 0.92) 100%);
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  box-shadow: var(--shadow-card);
 }
 
 html {
@@ -94,10 +74,10 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Subtle coastal scrollbars */
+/* Subtle neutral scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -105,12 +85,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(15, 118, 110, 0.2);
+  background: #c8d6d6;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 118, 110, 0.36);
+  background: #9fb4b4;
 }
 
 .safe-main {
@@ -119,7 +99,7 @@ body {
 }
 
 .app-header {
-  height: calc(3.75rem + env(safe-area-inset-top));
+  height: calc(3.5rem + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
 }
 

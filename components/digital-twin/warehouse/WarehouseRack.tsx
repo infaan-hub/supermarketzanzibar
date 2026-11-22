@@ -148,11 +148,11 @@ export function WarehouseRack({
                 distanceFactor={15}
                 style={{ pointerEvents: "none" }}
               >
-                <div className="whitespace-nowrap rounded-lg border border-amber-200 bg-white/95 px-2.5 py-1 text-[11px] shadow-md backdrop-blur">
-                  <span className="font-mono font-bold text-amber-800">
+                <div className="whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-[11px] shadow-sm">
+                  <span className="font-mono font-semibold text-warning">
                     {pos.rackCode}/{pos.levelCode}/{pos.positionCode}
                   </span>
-                  <span className="ml-1.5 font-medium text-slate-900">
+                  <span className="ml-1.5 font-medium text-foreground">
                     {pos.product
                       ? `${pos.product.name} (${pos.quantityOnHand})`
                       : "Available slot"}

@@ -155,31 +155,31 @@ export function Sidebar({
       id="app-sidebar"
       aria-hidden={!isOpen}
       inert={!isOpen}
-      className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-[8px_0_32px_-12px_rgba(15,62,66,0.12)] backdrop-blur-xl transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+      className={`fixed inset-y-0 left-0 z-50 w-60 border-r border-border bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       aria-label="Main navigation"
     >
       <div className="flex h-full flex-col">
-        <div className="flex h-[3.75rem] shrink-0 items-center gap-3 border-b border-sidebar-border bg-white/75 px-4 backdrop-blur">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-[0_6px_14px_-3px_rgba(13,148,136,0.45)]">
+        <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-4">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold tracking-tight text-white">
             SZ
           </div>
           <div className="min-w-0">
-            <span className="block truncate font-display text-[15px] font-bold tracking-tight text-foreground">
+            <span className="block truncate text-sm font-semibold tracking-tight text-foreground">
               Supermarket
             </span>
-            <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-teal-700">
+            <span className="block truncate text-[11px] text-muted">
               {isAdmin
-                ? "Admin Portal"
+                ? "Administration"
                 : isSupplier
                   ? "Supplier Portal"
                   : user
-                    ? `${roleLabel(user.role)} Workspace`
+                    ? roleLabel(user.role)
                     : "Store Operations"}
             </span>
           </div>
           <button
             type="button"
-            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-subtle hover:text-foreground lg:hidden"
+            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-subtle hover:text-foreground lg:hidden"
             aria-label="Close navigation"
             onClick={onClose}
           >
@@ -187,10 +187,10 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
+        <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-3.5" aria-label="Main">
           {visibleSections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <p className="px-3 pb-0.5 font-display text-[10px] font-bold tracking-[0.14em] text-teal-900/50 uppercase">
+            <div key={section.title} className="space-y-0.5">
+              <p className="px-2.5 pb-1 text-[11px] font-medium text-muted-foreground">
                 {section.title}
               </p>
               {section.items.map((item) => {
@@ -201,10 +201,10 @@ export function Sidebar({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
+                      "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
                       active
-                        ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-[0_6px_16px_-4px_rgba(13,148,136,0.42)]"
-                        : "text-muted hover:bg-surface-subtle hover:text-teal-950",
+                        ? "bg-primary-soft text-primary font-semibold"
+                        : "text-muted hover:bg-surface-subtle hover:text-foreground",
                     )}
                     aria-current={active ? "page" : undefined}
                   >
@@ -212,8 +212,8 @@ export function Sidebar({
                       className={cn(
                         "h-4 w-4 shrink-0 transition-colors",
                         active
-                          ? "text-white"
-                          : "text-teal-700/70 group-hover:text-teal-700",
+                          ? "text-primary"
+                          : "text-muted-foreground group-hover:text-foreground",
                       )}
                     >
                       {item.icon}
@@ -222,10 +222,10 @@ export function Sidebar({
                     {item.badge === "cart" && cartCount > 0 && (
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
+                          "rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
                           active
-                            ? "bg-white/20 text-white"
-                            : "bg-teal-100 text-teal-800",
+                            ? "bg-primary text-white"
+                            : "bg-surface-muted text-foreground",
                         )}
                       >
                         {cartCount}
@@ -238,18 +238,18 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="shrink-0 space-y-1.5 border-t border-sidebar-border bg-white/60 p-3">
+        <div className="shrink-0 space-y-1 border-t border-border p-2.5">
           {user && (
             <Link
               href={profileHref}
               onClick={onNavigate}
-              className="flex items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 transition-all hover:border-border hover:bg-white"
+              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-surface-subtle"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface-muted font-display text-xs font-bold text-teal-800">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle text-[11px] font-semibold text-foreground">
                 {(user.full_name || user.username).slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-foreground">
+                <p className="truncate text-xs font-medium text-foreground">
                   {user.full_name || user.username}
                 </p>
                 <p className="truncate text-[11px] text-muted">
@@ -261,7 +261,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => void logout()}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-muted transition-colors hover:bg-red-50 hover:text-danger"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-danger-soft hover:text-danger"
           >
             <span className="h-4 w-4 shrink-0">
               <LogoutIcon />

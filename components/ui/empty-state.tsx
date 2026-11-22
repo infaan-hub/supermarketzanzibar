@@ -19,15 +19,15 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white/75 px-6 py-12 text-center",
+        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-white px-6 py-12 text-center",
         className,
       )}
       role="status"
       aria-label={title}
     >
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-200/70 bg-surface-subtle text-teal-700 shadow-sm">
+      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface-subtle text-muted">
         <svg
-          className="h-7 w-7"
+          className="h-5 w-5"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -42,13 +42,11 @@ export function EmptyState({
           />
         </svg>
       </div>
-      <h3 className="mt-4 font-display text-base font-semibold text-foreground">
-        {title}
-      </h3>
+      <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-muted">{description}</p>
+        <p className="mt-1 max-w-sm text-xs text-muted">{description}</p>
       )}
-      {action && <div className="mt-5">{action}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

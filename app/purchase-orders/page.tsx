@@ -123,7 +123,7 @@ export default function PurchaseOrdersPage() {
       setExpectedDate("");
       setNotes("");
       setLines([{ productId: "", orderedQuantity: "24", unitCost: "" }]);
-      setFeedback("Purchase order created and recorded in PostgreSQL.");
+      setFeedback("Purchase order created.");
       await load();
     } catch (err) {
       setError(
@@ -153,11 +153,10 @@ export default function PurchaseOrdersPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-6">
+    <div className="mx-auto w-full max-w-[1360px] space-y-6">
       <PageHeader
-        eyebrow="Procurement & Replenishment"
         title="Purchase Orders"
-        description="Order replenishment stock from suppliers and receive deliveries directly into 3D warehouse racks."
+        description="Order replenishment stock from suppliers and receive deliveries directly into warehouse racks."
         actions={
           <Link href={href("/goods-received")}>
             <Button size="sm">Receive Goods (GRN)</Button>

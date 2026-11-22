@@ -43,7 +43,6 @@ export default function ShoppingCartPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="POS Basket Review"
         title="Shopping Cart"
         description="Review line items, attach a loyalty customer if needed, and complete checkout."
         actions={

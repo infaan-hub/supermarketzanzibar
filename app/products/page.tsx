@@ -100,9 +100,8 @@ export default function ProductsPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Merchandise Catalog"
         title="Products"
-        description={`${filteredProducts.length} of ${allProducts.length} active products. Click any item to edit pricing, stock metadata, or carton/pack barcodes.`}
+        description={`${filteredProducts.length} of ${allProducts.length} active products. Select any item to edit pricing, stock metadata, or carton/pack barcodes.`}
         actions={
           <>
             <Link href="/barcodes">
@@ -117,7 +116,7 @@ export default function ProductsPage() {
         }
       />
 
-      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row">
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <Input
           placeholder="Search by name, barcode, category, or supplier…"
           value={search}

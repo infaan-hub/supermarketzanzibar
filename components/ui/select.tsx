@@ -12,16 +12,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            "flex h-11 w-full min-w-0 appearance-none select-none rounded-xl border border-border bg-white py-2 pl-3.5 pr-9 text-base text-foreground shadow-sm transition-all duration-150 hover:border-border-hover focus-visible:border-teal-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-500/15 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60 sm:h-10 sm:text-sm",
+            "flex h-10 w-full min-w-0 appearance-none select-none rounded-md border border-border bg-white py-1.5 pl-3 pr-8 text-sm text-foreground transition-colors hover:border-border-hover focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60 sm:h-9",
             className,
           )}
           {...props}
         >
           {children}
         </select>
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
           <svg
-            className="h-4 w-4 text-teal-700/70"
+            className="h-4 w-4 text-muted"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -31,7 +31,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.75}
               d="M19 9l-7 7-7-7"
             />
           </svg>

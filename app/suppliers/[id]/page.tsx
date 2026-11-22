@@ -126,16 +126,16 @@ export default function SupplierDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="page-banner flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
             href="/suppliers"
-            className="text-xs font-semibold text-teal-700 hover:underline"
+            className="text-xs font-medium text-muted hover:text-foreground hover:underline"
           >
-            ← All Suppliers
+            ← All suppliers
           </Link>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-            <h1 className="font-display text-2xl font-bold text-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {supplier.companyName}
             </h1>
             <Badge

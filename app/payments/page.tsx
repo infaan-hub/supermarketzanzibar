@@ -104,7 +104,6 @@ export default function PaymentsPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Financial Reconciliation"
         title="Payments & Reconciliation"
         description="Monitor control numbers, confirm pending mobile money or bank transfers, and reconcile receipts."
       />

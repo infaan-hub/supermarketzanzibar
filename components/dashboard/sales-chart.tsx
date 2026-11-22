@@ -15,7 +15,7 @@ import { useElementWidth } from "@/hooks/useElementWidth";
 import { Panel, PanelEmpty, PanelHeader, PanelLink } from "./panel";
 
 const CHART_HEIGHT = 244;
-const SERIES_COLOR = "#0d9488";
+const SERIES_COLOR = "#0f766e";
 
 function niceTicks(max: number): number[] {
   if (!(max > 0)) return [0];
@@ -296,7 +296,7 @@ function ChartPlot({
 
       {active ? (
         <div
-          className="pointer-events-none absolute top-0 z-10 w-[190px] -translate-x-1/2 rounded-lg border border-border bg-background px-3 py-2 shadow-soft"
+          className="pointer-events-none absolute top-0 z-10 w-[190px] -translate-x-1/2 rounded-md border border-border bg-white px-3 py-2 shadow-[var(--shadow-popover)]"
           style={{ left: tooltipLeft }}
           aria-hidden="true"
         >

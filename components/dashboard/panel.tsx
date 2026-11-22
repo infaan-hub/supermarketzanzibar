@@ -15,7 +15,7 @@ export function Panel({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-2xl border border-border bg-white/95 shadow-card backdrop-blur-sm",
+        "overflow-hidden rounded-lg border border-border bg-white shadow-card",
         className,
       )}
       {...props}
@@ -41,14 +41,14 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "flex items-start justify-between gap-3 border-b border-border/70 bg-surface-subtle/50 px-5 py-4",
+        "flex items-start justify-between gap-3 border-b border-border px-5 py-3.5",
         className,
       )}
     >
       <div className="min-w-0">
         <h2
           id={titleId}
-          className="font-display text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
+          className="text-sm font-semibold tracking-tight text-foreground"
         >
           {title}
         </h2>
@@ -56,7 +56,7 @@ export function PanelHeader({
           <p className="mt-0.5 text-xs text-muted">{description}</p>
         ) : null}
       </div>
-      {action ? <div className="shrink-0 pt-0.5">{action}</div> : null}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -72,7 +72,7 @@ export function PanelLink({
   return (
     <Link
       href={portalHref(user?.role, href)}
-      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-50 hover:text-teal-900"
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary-soft"
     >
       {children}
       <ArrowRightIcon className="h-3.5 w-3.5" />

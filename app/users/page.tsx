@@ -150,9 +150,8 @@ export default function UsersPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
-        eyebrow="Access Control · RBAC"
-        title="Users & Roles"
-        description="Create staff, MarketMaster, and supplier accounts, assign portal roles, and activate or suspend access."
+        title="Users & Permissions"
+        description="Create staff, MarketMaster, and supplier accounts, assign roles, and manage access."
         actions={
           <Button size="sm" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Cancel" : "+ Create User"}

@@ -134,9 +134,8 @@ function ShelvesPageInner() {
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
       <PageHeader
-        eyebrow="Planogram & Shelf-Slot Operations"
         title="Shelves & Product Positions"
-        description="Assign products to physical shelf slots, manage capacities, and trigger live warehouse restocks reflected immediately in 3D."
+        description="Assign products to shelf slots, manage capacities, and trigger warehouse restocks."
         actions={
           <>
             <Select
