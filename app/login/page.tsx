@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { fetchBootstrap, loginRequest } from "@/lib/api";
-import { canAccessPath } from "@/lib/auth/roles";
+import {
+  canAccessPath,
+  defaultHomeForRole,
+  portalHref,
+} from "@/lib/auth/roles";
 
 function LoginForm() {
   const router = useRouter();
@@ -27,14 +31,24 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [needsAdmin, setNeedsAdmin] = useState(false);
 
-  const rawNext = searchParams.get("next") || "/";
+  const rawNext = searchParams.get("next") || "";
   const safeNext =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
+
+  function resolveLanding(role: string): string {
+    if (safeNext) {
+      const rolePath = portalHref(role, safeNext);
+      if (canAccessPath(role, rolePath)) return rolePath;
+      if (canAccessPath(role, safeNext)) return safeNext;
+    }
+    return defaultHomeForRole(role);
+  }
 
   useEffect(() => {
     if (user) {
-      router.replace(canAccessPath(user.role, safeNext) ? safeNext : "/profile");
+      router.replace(resolveLanding(user.role));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, safeNext, user]);
 
   useEffect(() => {
@@ -55,12 +69,7 @@ function LoginForm() {
     try {
       const data = await loginRequest(username.trim(), password);
       setSession(data.access, data.user);
-      const target = canAccessPath(data.user.role, safeNext)
-        ? safeNext
-        : canAccessPath(data.user.role, "/")
-          ? "/"
-          : "/unauthorized";
-      router.replace(target);
+      router.replace(resolveLanding(data.user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid credentials.");
     } finally {
@@ -156,6 +165,13 @@ function LoginForm() {
                 className="font-medium text-primary hover:underline"
               >
                 Register
+              </Link>
+              {" · "}
+              <Link
+                href="/"
+                className="font-medium text-teal-700 hover:underline"
+              >
+                Browse Storefront
               </Link>
             </p>
           </form>

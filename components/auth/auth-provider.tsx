@@ -9,7 +9,12 @@ import {
   getAccessToken,
   setAccessToken,
 } from "@/lib/auth/client";
-import { canAccessPath, isPublicPath } from "@/lib/auth/roles";
+import {
+  adminCanonicalRedirect,
+  canAccessPath,
+  isAdminRole,
+  isPublicPath,
+} from "@/lib/auth/roles";
 import {
   fetchMe,
   logoutRequest,
@@ -89,6 +94,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Keep all Admin pages strictly under `/admin/*` (preserving query params).
+    if (isAdminRole(user.role)) {
+      const adminTarget = adminCanonicalRedirect(pathname);
+      if (adminTarget) {
+        const search =
+          typeof window !== "undefined" ? window.location.search : "";
+        router.replace(`${adminTarget}${search}`);
+        return;
+      }
+    }
+
     if (!canAccessPath(user.role, pathname)) {
       router.replace("/unauthorized");
     }
@@ -131,7 +147,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevent flashing protected UI while checking auth or redirecting.
   const waitingForGuard =
     !isPublicPath(pathname) &&
-    (loading || !user || !canAccessPath(user.role, pathname));
+    (loading ||
+      !user ||
+      !canAccessPath(user.role, pathname) ||
+      (isAdminRole(user.role) && adminCanonicalRedirect(pathname) !== null));
 
   return (
     <AuthContext.Provider value={value}>

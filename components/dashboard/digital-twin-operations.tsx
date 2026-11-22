@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/components/auth/auth-provider";
+import { portalHref } from "@/lib/auth/roles";
 import type { DashboardOverview } from "@/types/api";
 
 export function DigitalTwinOperations({
@@ -11,6 +13,9 @@ export function DigitalTwinOperations({
 }: {
   operations?: DashboardOverview["operations"];
 }) {
+  const { user } = useAuth();
+  const href = (path: string) => portalHref(user?.role, path);
+
   const expiringSoon = operations?.expiringSoonCount ?? 0;
   const expired = operations?.expiredCount ?? 0;
   const pendingPOs = operations?.pendingPurchaseOrdersCount ?? 0;
@@ -34,15 +39,15 @@ export function DigitalTwinOperations({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/digital-twin">
+          <Link href={href("/digital-twin")}>
             <Button size="sm">Launch 3D Supermarket</Button>
           </Link>
-          <Link href="/warehouse">
+          <Link href={href("/warehouse")}>
             <Button size="sm" variant="secondary">
               3D Warehouse
             </Button>
           </Link>
-          <Link href="/purchase-orders">
+          <Link href={href("/purchase-orders")}>
             <Button size="sm" variant="secondary">
               Purchase Orders
             </Button>
@@ -59,7 +64,7 @@ export function DigitalTwinOperations({
                 {expiringSoon}
               </p>
               <Link
-                href="/stock"
+                href={href("/stock")}
                 className="text-xs font-medium text-teal-700 hover:underline"
               >
                 Review batches
@@ -94,7 +99,7 @@ export function DigitalTwinOperations({
                 {pendingPOs}
               </p>
               <Link
-                href="/goods-received"
+                href={href("/goods-received")}
                 className="text-xs font-medium text-teal-700 hover:underline"
               >
                 Receive stock
@@ -111,7 +116,7 @@ export function DigitalTwinOperations({
                 {whUnits.toLocaleString()}
               </p>
               <Link
-                href="/warehouse"
+                href={href("/warehouse")}
                 className="text-xs font-medium text-teal-700 hover:underline"
               >
                 Inspect racks
@@ -128,7 +133,7 @@ export function DigitalTwinOperations({
               Department Stock Performance
             </CardTitle>
             <Link
-              href="/departments"
+              href={href("/departments")}
               className="text-xs font-medium text-teal-700 hover:underline"
             >
               View all departments
@@ -139,7 +144,7 @@ export function DigitalTwinOperations({
               {departments.map((dept) => (
                 <Link
                   key={dept.id}
-                  href={`/digital-twin?dept=${encodeURIComponent(dept.code)}`}
+                  href={href(`/digital-twin?dept=${encodeURIComponent(dept.code)}`)}
                   className="group rounded-xl border border-border bg-surface-subtle/60 p-3 transition-colors hover:border-teal-500 hover:bg-teal-50/50"
                 >
                   <div className="flex items-center justify-between">

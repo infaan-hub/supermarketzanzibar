@@ -352,7 +352,7 @@ export async function adminCreateUser(input: RegisterInput, requestedRole: strin
       address: input.address || "",
       role,
       isActive: true,
-      isStaff: role === "admin" || role === "manager",
+      isStaff: role === "admin" || role === "manager" || role === "marketmaster",
       isSuperuser: role === "admin",
       password: hashPassword(input.password),
       ...(role === "supplier"

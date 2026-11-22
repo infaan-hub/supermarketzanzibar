@@ -41,7 +41,16 @@ All protected API routes require a valid JWT access token (`Authorization: Beare
 | `POST /api/batches` | `INVENTORY_ROLES` | Logs a new product batch with expiry date & optional warehouse location. |
 | `POST /api/stock/adjustments` | `INVENTORY_ROLES` | Transactional `DAMAGED`, `LOST`, `EXPIRED`, `COUNT`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT` with non-negative enforcement & 3D sync. |
 
-## 4. Core Preserved Endpoints
+## 4. Public Guest Storefront & Supplier Portal
+
+| Method & Endpoint | Roles | Purpose |
+|---|---|---|
+| `GET /api/public/catalog` | Public (no auth) | Customer-safe active products, categories, TZS prices, and stock availability badges for `/` (omits `costPrice`, suppliers, and internal reserves). |
+| `GET /api/public/products/[id]/image` | Public (no auth) | Serves product images for active storefront items. |
+| `GET /api/public/digital-twin` | Public (no auth) | Read-only sanitized 3D retail floor state for `/store-3d` (strips warehouse & cost data). |
+| `GET /api/supplier/portal` | `SUPPLIER_PORTAL_ROLES` (`supplier`, `admin`, `marketmaster`, `manager`) | Scoped supplier dashboard returning the logged-in supplier's profile, products, low-stock alerts, purchase orders, and confirmed goods receipts. |
+
+## 5. Core Preserved Endpoints
 
 All existing routes remain intact and operational:
 - Auth: `/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh`, `/api/auth/register`, `/api/auth/me`, `/api/auth/change-password`

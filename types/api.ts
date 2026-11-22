@@ -782,6 +782,99 @@ export interface InventoryBatchRecord {
   warehouseLocation: string | null;
 }
 
+// ---- Public Guest Storefront & Supplier Portal ----------------------------
+
+export interface PublicCatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  inStock: boolean;
+  stockStatus: "in_stock" | "low_stock" | "out_of_stock";
+  availableQuantity: number;
+  description: string;
+  imageAvailable: boolean;
+  imageUrl: string | null;
+  category: { id: string; name: string } | null;
+}
+
+export interface PublicCatalogResponse {
+  store: {
+    name: string;
+    location: string;
+    currency: string;
+    totalProducts: number;
+  };
+  categories: Array<{
+    id: string;
+    name: string;
+    description: string;
+    productCount: number;
+  }>;
+  products: PublicCatalogProduct[];
+}
+
+export interface SupplierPortalResponse {
+  supplier: {
+    id: string;
+    companyName: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    address: string;
+  } | null;
+  availableSuppliers: Array<{ id: string; companyName: string }>;
+  summary: {
+    productsCount: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    openOrdersCount: number;
+    deliveriesCount: number;
+  };
+  products: Array<{
+    id: string;
+    name: string;
+    sku: string;
+    barcode: string;
+    categoryName: string | null;
+    price: number;
+    costPrice: number;
+    quantity: number;
+    isActive: boolean;
+    needsRestock: boolean;
+  }>;
+  purchaseOrders: Array<{
+    id: string;
+    orderNumber: string;
+    status: string;
+    totalAmount: number;
+    expectedDate: string | null;
+    notes: string;
+    createdAt: string;
+    items: Array<{
+      id: string;
+      productId: string;
+      productName: string;
+      barcode: string;
+      orderedQuantity: number;
+      receivedQuantity: number;
+      remainingQuantity: number;
+      unitCost: number;
+      lineTotal: number;
+    }>;
+  }>;
+  deliveries: Array<{
+    id: string;
+    receiptNumber: string;
+    orderNumber: string | null;
+    totalUnits: number;
+    warehouseLocation: string;
+    receivedBy: string;
+    notes: string;
+    receivedAt: string;
+  }>;
+}
+
 // ---- Request options -------------------------------------------------------
 
 export interface ListOptions {

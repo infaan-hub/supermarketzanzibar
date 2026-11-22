@@ -869,3 +869,43 @@ export async function submitStockAdjustment(input: {
     body: JSON.stringify(input),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Public Guest Storefront & Supplier Portal                          */
+/* ------------------------------------------------------------------ */
+
+export async function fetchPublicCatalog(options?: {
+  search?: string;
+  categoryId?: string;
+  take?: number;
+}): Promise<import("@/types/api").PublicCatalogResponse> {
+  const qs = new URLSearchParams();
+  if (options?.search) qs.set("search", options.search);
+  if (options?.categoryId) qs.set("categoryId", options.categoryId);
+  if (options?.take) qs.set("take", String(options.take));
+  const tail = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await fetch(`/api/public/catalog${tail}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Unable to load storefront products.");
+  }
+  return (await res.json()) as import("@/types/api").PublicCatalogResponse;
+}
+
+export async function fetchPublicDigitalTwin(): Promise<
+  import("@/types/digital-twin").DigitalTwinSnapshot
+> {
+  const res = await fetch("/api/public/digital-twin", { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Unable to load public 3D store view.");
+  }
+  return (await res.json()) as import("@/types/digital-twin").DigitalTwinSnapshot;
+}
+
+export async function fetchSupplierPortal(
+  supplierId?: string,
+): Promise<import("@/types/api").SupplierPortalResponse> {
+  const qs = supplierId ? `?supplierId=${encodeURIComponent(supplierId)}` : "";
+  return request<import("@/types/api").SupplierPortalResponse>(
+    `/api/supplier/portal${qs}`,
+  );
+}

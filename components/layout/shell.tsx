@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { isPublicPath } from "@/lib/auth/roles";
+import {
+  isAuthUtilityPath,
+  isPublicPath,
+  isStorefrontPath,
+} from "@/lib/auth/roles";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 
@@ -16,8 +20,11 @@ export function Shell({ title, children }: ShellProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [isDesktop, setIsDesktop] = React.useState(false);
 
+  const storefront = isStorefrontPath(pathname);
+  const authUtility = isAuthUtilityPath(pathname);
   const hideChrome = isPublicPath(pathname);
-  const isFullViewportCanvas = pathname === "/digital-twin";
+  const isFullViewportCanvas =
+    pathname === "/digital-twin" || pathname === "/admin/digital-twin";
 
   React.useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
@@ -47,7 +54,11 @@ export function Shell({ title, children }: ShellProps) {
     };
   }, [sidebarOpen, isDesktop, hideChrome]);
 
-  if (hideChrome) {
+  if (storefront) {
+    return <div className="min-h-dvh bg-background">{children}</div>;
+  }
+
+  if (authUtility || hideChrome) {
     return (
       <div className="min-h-dvh bg-background">
         <main className="mx-auto w-full max-w-[1400px] px-4 py-6">{children}</main>

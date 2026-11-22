@@ -32,14 +32,15 @@ npm run dev
 
 - **JWT Access Tokens** (30m) sent via `Authorization: Bearer <token>`.
 - **Rotating Refresh Tokens** (7d) stored in an `HttpOnly`, `SameSite=Lax` cookie (`refresh_token`) with single-flight automatic refresh in `lib/api.ts`.
-- **Roles:**
-  - `admin` — full system control (`/users`, `/settings`, product archive, plus all manager & staff capabilities).
-  - `manager` — 3D store layout initialization, departments/shelves creation, purchase orders (`/purchase-orders`), reports & Z-Reports (`/reports`), payment confirmation, and sale cancellation & restock.
-  - `inventory_staff` — 3D Digital Twin & Warehouse inspection, shelf slot assignment (`/shelves`), warehouse-to-shelf restock transfers, goods received (`/goods-received`), expiry batches, and stock counts/adjustments.
-  - `cashier` — POS terminal (`/pos`), idempotent checkout synced atomically with 3D shelves, receipts, and store exploration.
-  - `viewer` — read-only exploration of Overview (`/`), 3D Digital Twin (`/digital-twin`), 3D Warehouse (`/warehouse`), Departments, Products, and Categories.
-  - `supplier` — inventory & delivery visibility.
-  - Any signed-in user — `/profile`.
+- **Roles & Multi-Portal Routing:**
+  - **Guest (no login)** — Public Supermarket Storefront (`/`) with live catalog & basket, plus read-only 3D Store Tour (`/store-3d`).
+  - `admin` — **All Admin pages start with `/admin/`** (`/admin`, `/admin/digital-twin`, `/admin/pos`, `/admin/products`, `/admin/users`, `/admin/settings`, etc.).
+  - `marketmaster` / `manager` — Root operational workspace (`/dashboard`, `/digital-twin`, `/pos`, `/products`, `/departments`, `/shelves`, `/warehouse`, `/purchase-orders`, `/goods-received`, `/reports`, `/suppliers`, etc.).
+  - `inventory_staff` — Root workspace for 3D Digital Twin & Warehouse inspection, shelf slot assignment (`/shelves`), warehouse-to-shelf restock transfers, goods received (`/goods-received`), expiry batches, and stock counts/adjustments.
+  - `cashier` — Root workspace for POS terminal (`/pos`), idempotent checkout synced atomically with 3D shelves, receipts, and store exploration.
+  - `supplier` — Dedicated **Supplier Portal (`/supplier/*`)**: `/supplier` (overview), `/supplier/products`, `/supplier/orders`, `/supplier/deliveries`, `/supplier/profile`.
+  - `viewer` — read-only exploration of Dashboard (`/dashboard`), 3D Digital Twin (`/digital-twin`), 3D Warehouse (`/warehouse`), Departments, Products, and Categories.
+  - `customer` / `driver` — Public storefront (`/`, `/store-3d`) & `/profile`.
 
 ## Pages
 

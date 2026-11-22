@@ -9,6 +9,8 @@ import { Select } from "@/components/ui/select";
 import { findAreaByCode } from "@/lib/digital-twin/spatial-plan";
 import { INVENTORY_STATE_STYLES } from "@/lib/digital-twin/inventory-state";
 import { ProductInspection } from "@/components/digital-twin/products/ProductInspection";
+import { useAuth } from "@/components/auth/auth-provider";
+import { portalHref } from "@/lib/auth/roles";
 import type {
   DigitalTwinSnapshot,
   TwinSelection,
@@ -39,6 +41,8 @@ export function ObjectInformationPanel({
   ) => Promise<void>;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
+  const href = (path: string) => portalHref(user?.role, path);
   const [busy, setBusy] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [transferQty, setTransferQty] = React.useState("10");
@@ -110,25 +114,25 @@ export function ObjectInformationPanel({
           <p className="text-xs font-semibold text-foreground">Quick Links</p>
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/pos"
+              href={href("/pos")}
               className="inline-flex h-9 items-center justify-center rounded bg-primary-hover px-3 text-xs font-medium text-white"
             >
               Open POS
             </Link>
             <Link
-              href="/warehouse"
+              href={href("/warehouse")}
               className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
             >
               Warehouse Ops
             </Link>
             <Link
-              href="/shelves"
+              href={href("/shelves")}
               className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
             >
               Shelves Setup
             </Link>
             <Link
-              href="/purchase-orders"
+              href={href("/purchase-orders")}
               className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
             >
               Purchase Orders

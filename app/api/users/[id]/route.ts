@@ -39,7 +39,10 @@ export async function PATCH(
       return badRequest("You cannot remove your own administrator role.");
     }
     data.role = nextRole;
-    data.isStaff = nextRole === "admin" || nextRole === "manager";
+    data.isStaff =
+      nextRole === "admin" ||
+      nextRole === "manager" ||
+      nextRole === "marketmaster";
     data.isSuperuser = nextRole === "admin";
   }
 

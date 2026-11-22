@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
-import { canAccessPath, roleLabel } from "@/lib/auth/roles";
+import {
+  canAccessPath,
+  isAdminRole,
+  isSupplierRole,
+  portalHref,
+  roleLabel,
+} from "@/lib/auth/roles";
 import { CART_CHANGE_EVENT, readCartItemCount } from "@/hooks/usePosCart";
 
 type NavItem = {
@@ -25,7 +31,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Overview",
     items: [
-      { href: "/", label: "Overview", icon: <LayoutIcon />, exact: true },
+      { href: "/dashboard", label: "Overview", icon: <LayoutIcon />, exact: true },
       { href: "/digital-twin", label: "3D Digital Twin", icon: <CubeIcon /> },
       { href: "/reports", label: "Reports & Z-Report", icon: <ChartIcon /> },
     ],
@@ -75,8 +81,29 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+const SUPPLIER_SECTIONS: NavSection[] = [
+  {
+    title: "Supplier Portal",
+    items: [
+      { href: "/supplier", label: "Portal Overview", icon: <LayoutIcon />, exact: true },
+      { href: "/supplier/products", label: "My Products", icon: <BoxIcon /> },
+      { href: "/supplier/orders", label: "Purchase Orders", icon: <ClipboardIcon /> },
+      { href: "/supplier/deliveries", label: "Deliveries & GRN", icon: <ReceiveIcon /> },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/supplier/profile", label: "My Profile", icon: <ProfileIcon /> },
+      { href: "/", label: "Public Storefront", icon: <CubeIcon />, exact: true },
+    ],
+  },
+];
+
 function isActive(item: NavItem, pathname: string) {
-  if (item.exact || item.href === "/") return pathname === item.href;
+  if (item.exact || item.href === "/" || item.href === "/admin") {
+    return pathname === item.href;
+  }
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
@@ -104,12 +131,24 @@ export function Sidebar({
     };
   }, []);
 
-  const visibleSections = NAV_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) =>
-      canAccessPath(user?.role, item.href),
-    ),
-  })).filter((section) => section.items.length > 0);
+  const isSupplier = isSupplierRole(user?.role);
+  const isAdmin = isAdminRole(user?.role);
+
+  const visibleSections = isSupplier
+    ? SUPPLIER_SECTIONS
+    : NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items
+          .filter((item) => canAccessPath(user?.role, item.href))
+          .map((item) => ({
+            ...item,
+            href: portalHref(user?.role, item.href),
+          })),
+      })).filter((section) => section.items.length > 0);
+
+  const profileHref = isSupplier
+    ? "/supplier/profile"
+    : portalHref(user?.role, "/profile");
 
   return (
     <aside
@@ -124,9 +163,20 @@ export function Sidebar({
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-hover font-display text-sm font-bold text-white shadow-[0_0_12px_rgba(21,114,45,0.30)]">
             SZ
           </div>
-          <span className="truncate font-display text-lg font-bold tracking-tight text-foreground">
-            Supermarket
-          </span>
+          <div className="min-w-0">
+            <span className="block truncate font-display text-base font-bold tracking-tight text-foreground">
+              Supermarket
+            </span>
+            <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-teal-700">
+              {isAdmin
+                ? "Admin Portal (/admin)"
+                : isSupplier
+                  ? "Supplier Portal"
+                  : user
+                    ? `${roleLabel(user.role)} Workspace`
+                    : "Store Operations"}
+            </span>
+          </div>
           <button
             type="button"
             className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-accent/10 hover:text-foreground lg:hidden"
@@ -182,7 +232,7 @@ export function Sidebar({
         <div className="shrink-0 border-t border-border px-3 py-3 space-y-2">
           {user && (
             <Link
-              href="/profile"
+              href={profileHref}
               onClick={onNavigate}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors hover:bg-accent/5"
             >

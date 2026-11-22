@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminCanonicalRedirect,
   canAccessPath,
+  defaultHomeForRole,
   isAdminRole,
   isExplorerRole,
   isInventoryRole,
   isManagerRole,
+  isMarketMasterRole,
   isPosRole,
   isPublicPath,
   isStaffRole,
+  portalHref,
+  roleLabel,
 } from "../lib/auth/roles";
 import {
   DEFAULT_STORE_SETTINGS,
@@ -16,34 +21,85 @@ import {
 import { generateReceipt } from "../lib/receipt";
 
 describe("RBAC path and role guards", () => {
-  it("allows public paths without any role", () => {
+  it("allows guest public storefront and auth paths without any role", () => {
+    expect(isPublicPath("/")).toBe(true);
+    expect(isPublicPath("/store-3d")).toBe(true);
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/register")).toBe(true);
     expect(isPublicPath("/unauthorized")).toBe(true);
+    expect(isPublicPath("/dashboard")).toBe(false);
+    expect(isPublicPath("/admin")).toBe(false);
+    expect(canAccessPath(null, "/")).toBe(true);
+    expect(canAccessPath(null, "/store-3d")).toBe(true);
     expect(canAccessPath(null, "/login")).toBe(true);
+    expect(canAccessPath(null, "/dashboard")).toBe(false);
   });
 
-  it("restricts /users and /settings strictly to admin", () => {
+  it("restricts /admin/*, /users, and /settings strictly to admin", () => {
+    expect(canAccessPath("admin", "/admin")).toBe(true);
+    expect(canAccessPath("admin", "/admin/users")).toBe(true);
+    expect(canAccessPath("admin", "/admin/digital-twin")).toBe(true);
     expect(canAccessPath("admin", "/users")).toBe(true);
     expect(canAccessPath("admin", "/settings")).toBe(true);
+
+    expect(canAccessPath("marketmaster", "/admin")).toBe(false);
+    expect(canAccessPath("marketmaster", "/admin/pos")).toBe(false);
+    expect(canAccessPath("manager", "/admin/users")).toBe(false);
     expect(canAccessPath("manager", "/users")).toBe(false);
     expect(canAccessPath("cashier", "/settings")).toBe(false);
+    expect(canAccessPath("supplier", "/admin")).toBe(false);
   });
 
-  it("allows admin and manager on /reports but blocks cashiers and customers", () => {
+  it("allows admin, marketmaster, and manager on /reports but blocks cashiers and customers", () => {
     expect(canAccessPath("admin", "/reports")).toBe(true);
+    expect(canAccessPath("marketmaster", "/reports")).toBe(true);
     expect(canAccessPath("manager", "/reports")).toBe(true);
     expect(canAccessPath("cashier", "/reports")).toBe(false);
     expect(canAccessPath("customer", "/reports")).toBe(false);
   });
 
-  it("allows staff roles on POS, inventory, and dashboard while blocking customers", () => {
-    expect(canAccessPath("cashier", "/")).toBe(true);
+  it("allows staff roles on /dashboard, POS, and inventory while blocking customers from staff screens", () => {
+    expect(canAccessPath("marketmaster", "/dashboard")).toBe(true);
+    expect(canAccessPath("marketmaster", "/pos")).toBe(true);
+    expect(canAccessPath("marketmaster", "/purchase-orders")).toBe(true);
+    expect(canAccessPath("cashier", "/dashboard")).toBe(true);
     expect(canAccessPath("cashier", "/pos")).toBe(true);
     expect(canAccessPath("cashier", "/products/12")).toBe(true);
+    expect(canAccessPath("supplier", "/supplier")).toBe(true);
+    expect(canAccessPath("supplier", "/supplier/orders")).toBe(true);
     expect(canAccessPath("supplier", "/stock/movements")).toBe(true);
-    expect(canAccessPath("customer", "/")).toBe(false);
+    expect(canAccessPath("customer", "/dashboard")).toBe(false);
     expect(canAccessPath("customer", "/pos")).toBe(false);
+    expect(canAccessPath("customer", "/supplier")).toBe(false);
+    // Customers can browse the public storefront `/` and `/store-3d`.
+    expect(canAccessPath("customer", "/")).toBe(true);
+    expect(canAccessPath("customer", "/store-3d")).toBe(true);
+  });
+
+  it("routes each role to its proper portal namespace and default landing page", () => {
+    expect(defaultHomeForRole("admin")).toBe("/admin");
+    expect(defaultHomeForRole("marketmaster")).toBe("/dashboard");
+    expect(defaultHomeForRole("manager")).toBe("/dashboard");
+    expect(defaultHomeForRole("cashier")).toBe("/dashboard");
+    expect(defaultHomeForRole("supplier")).toBe("/supplier");
+    expect(defaultHomeForRole("customer")).toBe("/");
+
+    expect(portalHref("admin", "/dashboard")).toBe("/admin");
+    expect(portalHref("admin", "/products")).toBe("/admin/products");
+    expect(portalHref("admin", "/digital-twin?dept=BEV")).toBe(
+      "/admin/digital-twin?dept=BEV",
+    );
+    expect(portalHref("admin", "/")).toBe("/");
+
+    expect(portalHref("marketmaster", "/dashboard")).toBe("/dashboard");
+    expect(portalHref("marketmaster", "/products")).toBe("/products");
+
+    expect(adminCanonicalRedirect("/dashboard")).toBe("/admin");
+    expect(adminCanonicalRedirect("/users")).toBe("/admin/users");
+    expect(adminCanonicalRedirect("/pos")).toBe("/admin/pos");
+    expect(adminCanonicalRedirect("/admin/users")).toBe(null);
+    expect(adminCanonicalRedirect("/")).toBe(null);
+    expect(adminCanonicalRedirect("/store-3d")).toBe(null);
   });
 
   it("allows any authenticated user to access /profile", () => {
@@ -54,6 +110,9 @@ describe("RBAC path and role guards", () => {
 
   it("normalizes role helpers case-insensitively", () => {
     expect(isAdminRole("ADMIN")).toBe(true);
+    expect(isMarketMasterRole("MarketMaster")).toBe(true);
+    expect(roleLabel("marketmaster")).toBe("MarketMaster");
+    expect(isManagerRole("marketmaster")).toBe(true);
     expect(isManagerRole("Manager")).toBe(true);
     expect(isStaffRole("Cashier")).toBe(true);
     expect(isInventoryRole("inventory_staff")).toBe(true);
