@@ -10,6 +10,7 @@ import {
   heatmapColorForState,
 } from "@/lib/digital-twin/inventory-state";
 import { getAssetEntry } from "@/lib/digital-twin/asset-manifest";
+import { formatMoney } from "@/lib/format";
 import type {
   TwinShelfPositionNode,
   TwinViewMode,
@@ -69,6 +70,8 @@ export function ProductModel({
   isSelected,
   isRecentlyRestocked,
   onSelect,
+  shopperMode = false,
+  basketQuantity = 0,
 }: {
   positionNode: TwinShelfPositionNode;
   localPosition: [number, number, number];
@@ -76,6 +79,8 @@ export function ProductModel({
   isSelected: boolean;
   isRecentlyRestocked: boolean;
   onSelect: (pos: TwinShelfPositionNode) => void;
+  shopperMode?: boolean;
+  basketQuantity?: number;
 }) {
   const groupRef = React.useRef<THREE.Group>(null);
   const [hovered, setHovered] = React.useState(false);
@@ -188,8 +193,13 @@ export function ProductModel({
       )}
 
       <ProductHighlight
-        color={activeColor}
-        active={isSelected || hovered || isRecentlyRestocked}
+        color={basketQuantity > 0 && shopperMode ? "#0f766e" : activeColor}
+        active={
+          isSelected ||
+          hovered ||
+          isRecentlyRestocked ||
+          (shopperMode && basketQuantity > 0)
+        }
       />
 
       {(hovered || isSelected) && product && (
@@ -201,9 +211,25 @@ export function ProductModel({
         >
           <div className="whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm">
             <span className="font-semibold">{product.name}</span>
-            <span className="ml-1.5 font-mono text-primary">
-              {positionNode.quantity} on shelf
-            </span>
+            {shopperMode ? (
+              <>
+                <span className="ml-1.5 font-semibold text-primary tabular-nums">
+                  {formatMoney(product.price)}
+                </span>
+                <span className="ml-1.5 text-muted">
+                  · {positionNode.quantity > 0 ? `${positionNode.quantity} left` : "Out"}
+                </span>
+                {basketQuantity > 0 && (
+                  <span className="ml-1.5 rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    In basket: {basketQuantity}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="ml-1.5 font-mono text-primary">
+                {positionNode.quantity} on shelf
+              </span>
+            )}
           </div>
         </Html>
       )}

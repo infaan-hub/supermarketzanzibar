@@ -6,30 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useGuestBasket, type GuestCartItem } from "@/hooks/useGuestBasket";
 import { defaultHomeForRole, roleLabel } from "@/lib/auth/roles";
-import { fetchPublicCatalog } from "@/lib/api";
+import { fetchPublicCatalog, fetchPublicDigitalTwin } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { Interactive3DStorefront } from "@/components/storefront/interactive-3d-storefront";
 import type { PublicCatalogProduct, PublicCatalogResponse } from "@/types/api";
-
-interface GuestCartItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  categoryName: string | null;
-}
-
-const GUEST_CART_KEY = "sz_guest_basket";
-
-function loadGuestCart(): GuestCartItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(GUEST_CART_KEY);
-    return raw ? (JSON.parse(raw) as GuestCartItem[]) : [];
-  } catch {
-    return [];
-  }
-}
+import type { DigitalTwinSnapshot } from "@/types/digital-twin";
 
 export function StorefrontHeader({
   cartCount = 0,
@@ -119,7 +102,123 @@ export function StorefrontHeader({
   );
 }
 
+export function GuestBasketDrawer({
+  open,
+  onClose,
+  cart,
+  count,
+  subtotal,
+  onAdjustItem,
+  onClear,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cart: GuestCartItem[];
+  count: number;
+  subtotal: number;
+  onAdjustItem: (productId: string, delta: number) => void;
+  onClear: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
+      <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-[var(--shadow-popover)]">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Shopping basket ({count})
+            </h2>
+            <p className="text-xs text-muted">
+              Saved on this device until checkout
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+
+        <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
+          {cart.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <p className="text-sm font-medium text-foreground">
+                Your basket is empty
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Pick items directly off any 3D shelf or from the catalog below.
+              </p>
+            </div>
+          ) : (
+            cart.map((item) => (
+              <div
+                key={item.productId}
+                className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {item.name}
+                  </p>
+                  <p className="text-xs text-muted tabular-nums">
+                    {formatMoney(item.price)} × {item.quantity} ={" "}
+                    <strong className="text-foreground">
+                      {formatMoney(item.price * item.quantity)}
+                    </strong>
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 w-7 p-0"
+                    onClick={() => onAdjustItem(item.productId, -1)}
+                  >
+                    −
+                  </Button>
+                  <span className="w-6 text-center font-mono text-xs font-semibold">
+                    {item.quantity}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 w-7 p-0"
+                    onClick={() => onAdjustItem(item.productId, 1)}
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="space-y-3 border-t border-border bg-surface-subtle p-5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted">Estimated subtotal</span>
+            <span className="text-base font-semibold text-foreground tabular-nums">
+              {formatMoney(subtotal)}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            {cart.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={onClear}>
+                Clear
+              </Button>
+            )}
+            <Link href="/login" className="flex-1">
+              <Button className="w-full" size="md">
+                Sign in to checkout
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GuestStorefront() {
+  const store3DSectionRef = React.useRef<HTMLDivElement>(null);
+
   const [catalog, setCatalog] = React.useState<PublicCatalogResponse | null>(
     null,
   );
@@ -128,20 +227,19 @@ export function GuestStorefront() {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
 
-  const [cart, setCart] = React.useState<GuestCartItem[]>([]);
+  const [twinSnapshot, setTwinSnapshot] =
+    React.useState<DigitalTwinSnapshot | null>(null);
+  const [twinLoading, setTwinLoading] = React.useState(true);
+  const [twinRefreshing, setTwinRefreshing] = React.useState(false);
+  const [twinError, setTwinError] = React.useState<string | null>(null);
+  const [show3D, setShow3D] = React.useState(true);
+  const [focusProductRequest, setFocusProductRequest] = React.useState<{
+    productId: string;
+    nonce: number;
+  } | null>(null);
+
+  const basket = useGuestBasket();
   const [cartOpen, setCartOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    setCart(loadGuestCart());
-  }, []);
-
-  React.useEffect(() => {
-    try {
-      window.localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cart));
-    } catch {
-      // ignore storage errors
-    }
-  }, [cart]);
 
   const loadCatalog = React.useCallback(async () => {
     setLoading(true);
@@ -162,6 +260,23 @@ export function GuestStorefront() {
     }
   }, [search, selectedCategory]);
 
+  const loadTwin = React.useCallback(async (silent = false) => {
+    if (silent) setTwinRefreshing(true);
+    else setTwinLoading(true);
+    setTwinError(null);
+    try {
+      const data = await fetchPublicDigitalTwin();
+      setTwinSnapshot(data);
+    } catch (err) {
+      setTwinError(
+        err instanceof Error ? err.message : "Unable to load 3D shelves.",
+      );
+    } finally {
+      setTwinLoading(false);
+      setTwinRefreshing(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadCatalog();
@@ -169,69 +284,66 @@ export function GuestStorefront() {
     return () => window.clearTimeout(timer);
   }, [loadCatalog]);
 
-  const addToBasket = (product: PublicCatalogProduct) => {
-    if (!product.inStock) return;
-    setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.productId === product.id
-            ? { ...i, quantity: Math.min(product.availableQuantity, i.quantity + 1) }
-            : i,
-        );
+  React.useEffect(() => {
+    void loadTwin(false);
+    // Keep live shelf availability fresh every 30s without moving the camera.
+    const interval = window.setInterval(() => {
+      void loadTwin(true);
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadTwin]);
+
+  const catalogById = React.useMemo(() => {
+    const map = new Map<string, PublicCatalogProduct>();
+    for (const p of catalog?.products ?? []) {
+      map.set(p.id, p);
+    }
+    return map;
+  }, [catalog]);
+
+  const placedProductIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const shelf of twinSnapshot?.shelves ?? []) {
+      for (const pos of shelf.positions) {
+        if (pos.product) set.add(pos.product.id);
       }
-      return [
-        ...prev,
-        {
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          quantity: 1,
-          categoryName: product.category?.name ?? null,
-        },
-      ];
+    }
+    return set;
+  }, [twinSnapshot]);
+
+  const handleViewOnShelf = (productId: string) => {
+    setShow3D(true);
+    setFocusProductRequest({ productId, nonce: Date.now() });
+    store3DSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
     });
   };
-
-  const adjustBasket = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((i) =>
-          i.productId === productId
-            ? { ...i, quantity: Math.max(0, i.quantity + delta) }
-            : i,
-        )
-        .filter((i) => i.quantity > 0),
-    );
-  };
-
-  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-  const cartSubtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
     <div className="flex min-h-dvh flex-col bg-canvas text-foreground">
       <StorefrontHeader
-        cartCount={cartCount}
+        cartCount={basket.count}
         onOpenCart={() => setCartOpen(true)}
         activePage="shop"
       />
 
-      {/* Compact Store Intro Strip */}
+      {/* Compact Store Intro Header */}
       <section className="border-b border-border bg-white">
-        <div className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+        <div className="mx-auto flex max-w-[1360px] flex-col gap-3 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted">
               Stone Town, Zanzibar
             </p>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Fresh groceries &amp; everyday essentials
+            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Walk the aisles &amp; pick live from the shelves
             </h1>
-            <p className="max-w-xl text-sm text-muted">
-              Check live shelf availability, build your basket, or walk through
-              the store in 3D before you visit.
+            <p className="max-w-2xl text-sm text-muted">
+              Move through our interactive 3D store, inspect real-time shelf
+              stock, and add products straight to your basket.
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
             {catalog && (
               <p className="text-xs text-muted tabular-nums">
                 <strong className="font-semibold text-foreground">
@@ -244,52 +356,60 @@ export function GuestStorefront() {
                 aisles
               </p>
             )}
-            <Link href="/store-3d">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShow3D((v) => !v)}
+            >
+              {show3D ? "Hide 3D store" : "Show 3D store"}
+            </Button>
+            <a href="#catalog">
               <Button size="sm" variant="secondary">
-                Explore 3D Store
+                Browse list
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Catalog Workspace */}
+      {/* Movable 3D Storefront Section */}
+      {show3D && (
+        <div
+          ref={store3DSectionRef}
+          className="mx-auto w-full max-w-[1360px] px-4 pt-5 sm:px-6"
+        >
+          <Interactive3DStorefront
+            snapshot={twinSnapshot}
+            loading={twinLoading}
+            error={twinError}
+            onRefresh={() => void loadTwin(true)}
+            refreshing={twinRefreshing}
+            catalogById={catalogById}
+            basketQuantities={basket.basketQuantities}
+            basketCount={basket.count}
+            onAddItem={basket.addItem}
+            onAdjustItem={basket.adjustItem}
+            onOpenBasket={() => setCartOpen(true)}
+            focusProductRequest={focusProductRequest}
+          />
+        </div>
+      )}
+
+      {/* Live Catalog Workspace */}
       <main
         id="catalog"
         className="mx-auto w-full max-w-[1360px] flex-1 space-y-5 px-4 py-6 sm:px-6"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory("")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                selectedCategory === ""
-                  ? "bg-primary text-white"
-                  : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
-              }`}
-            >
-              All aisles
-            </button>
-            {(catalog?.categories ?? []).map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                  selectedCategory === cat.id
-                    ? "bg-primary text-white"
-                    : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
-                }`}
-              >
-                {cat.name}{" "}
-                <span className="opacity-70 tabular-nums">
-                  ({cat.productCount})
-                </span>
-              </button>
-            ))}
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Store catalog
+            </h2>
+            <p className="text-xs text-muted">
+              Filter by aisle or jump straight to any product&apos;s 3D shelf
+              position.
+            </p>
           </div>
-
           <div className="w-full shrink-0 sm:w-72">
             <Input
               value={search}
@@ -298,6 +418,37 @@ export function GuestStorefront() {
               aria-label="Search store products"
             />
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("")}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+              selectedCategory === ""
+                ? "bg-primary text-white"
+                : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
+            }`}
+          >
+            All aisles
+          </button>
+          {(catalog?.categories ?? []).map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                selectedCategory === cat.id
+                  ? "bg-primary text-white"
+                  : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
+              }`}
+            >
+              {cat.name}{" "}
+              <span className="opacity-70 tabular-nums">
+                ({cat.productCount})
+              </span>
+            </button>
+          ))}
         </div>
 
         {error && (
@@ -327,8 +478,8 @@ export function GuestStorefront() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {(catalog?.products ?? []).map((product) => {
-              const inBasket =
-                cart.find((i) => i.productId === product.id)?.quantity ?? 0;
+              const inBasket = basket.basketQuantities[product.id] ?? 0;
+              const onShelfIn3D = placedProductIds.has(product.id);
               return (
                 <article
                   key={product.id}
@@ -368,14 +519,27 @@ export function GuestStorefront() {
                     </div>
 
                     <div className="space-y-1 p-4">
-                      {product.category && (
-                        <p className="text-[11px] font-medium text-muted">
-                          {product.category.name}
-                        </p>
-                      )}
-                      <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        {product.category ? (
+                          <p className="truncate text-[11px] font-medium text-muted">
+                            {product.category.name}
+                          </p>
+                        ) : (
+                          <span />
+                        )}
+                        {onShelfIn3D && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewOnShelf(product.id)}
+                            className="shrink-0 text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                          >
+                            Show on shelf
+                          </button>
+                        )}
+                      </div>
+                      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                         {product.name}
-                      </h2>
+                      </h3>
                       {product.description && (
                         <p className="line-clamp-2 text-xs text-muted">
                           {product.description}
@@ -393,7 +557,13 @@ export function GuestStorefront() {
                       <div className="flex items-center gap-1 rounded-md border border-border bg-white p-0.5">
                         <button
                           type="button"
-                          onClick={() => adjustBasket(product.id, -1)}
+                          onClick={() =>
+                            basket.adjustItem(
+                              product.id,
+                              -1,
+                              product.availableQuantity,
+                            )
+                          }
                           className="flex h-6 w-6 items-center justify-center rounded text-xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
                           aria-label={`Remove one ${product.name}`}
                         >
@@ -404,7 +574,15 @@ export function GuestStorefront() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => addToBasket(product)}
+                          onClick={() =>
+                            basket.addItem({
+                              productId: product.id,
+                              name: product.name,
+                              price: product.price,
+                              maxQuantity: product.availableQuantity,
+                              categoryName: product.category?.name ?? null,
+                            })
+                          }
                           className="flex h-6 w-6 items-center justify-center rounded bg-primary text-xs font-semibold text-white hover:bg-primary-hover cursor-pointer"
                           aria-label={`Add one more ${product.name}`}
                         >
@@ -415,7 +593,15 @@ export function GuestStorefront() {
                       <Button
                         size="sm"
                         disabled={!product.inStock}
-                        onClick={() => addToBasket(product)}
+                        onClick={() =>
+                          basket.addItem({
+                            productId: product.id,
+                            name: product.name,
+                            price: product.price,
+                            maxQuantity: product.availableQuantity,
+                            categoryName: product.category?.name ?? null,
+                          })
+                        }
                       >
                         Add
                       </Button>
@@ -446,108 +632,15 @@ export function GuestStorefront() {
         </div>
       </footer>
 
-      {/* Basket Drawer */}
-      {cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
-          <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-[var(--shadow-popover)]">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">
-                  Shopping basket ({cartCount})
-                </h2>
-                <p className="text-xs text-muted">
-                  Saved on this device until checkout
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setCartOpen(false)}
-              >
-                Close
-              </Button>
-            </div>
-
-            <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
-              {cart.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    Your basket is empty
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    Add products from the catalog to start an order.
-                  </p>
-                </div>
-              ) : (
-                cart.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-muted tabular-nums">
-                        {formatMoney(item.price)} × {item.quantity} ={" "}
-                        <strong className="text-foreground">
-                          {formatMoney(item.price * item.quantity)}
-                        </strong>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-7 w-7 p-0"
-                        onClick={() => adjustBasket(item.productId, -1)}
-                      >
-                        −
-                      </Button>
-                      <span className="w-6 text-center font-mono text-xs font-semibold">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-7 w-7 p-0"
-                        onClick={() => adjustBasket(item.productId, 1)}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="space-y-3 border-t border-border bg-surface-subtle p-5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted">Estimated subtotal</span>
-                <span className="text-base font-semibold text-foreground tabular-nums">
-                  {formatMoney(cartSubtotal)}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                {cart.length > 0 && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setCart([])}
-                  >
-                    Clear
-                  </Button>
-                )}
-                <Link href="/login" className="flex-1">
-                  <Button className="w-full" size="md">
-                    Sign in to checkout
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <GuestBasketDrawer
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        cart={basket.cart}
+        count={basket.count}
+        subtotal={basket.subtotal}
+        onAdjustItem={(productId, delta) => basket.adjustItem(productId, delta)}
+        onClear={basket.clearBasket}
+      />
     </div>
   );
 }

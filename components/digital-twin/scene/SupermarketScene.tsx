@@ -6,6 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import {
   CAMERA_PRESETS,
   PHYSICAL_AREAS,
+  type Bounds2D,
 } from "@/lib/digital-twin/spatial-plan";
 import type {
   GraphicsQuality,
@@ -20,7 +21,10 @@ import type {
 import { StoreEnvironment } from "./StoreEnvironment";
 import { LightingSystem } from "./LightingSystem";
 import { CameraSystem } from "./CameraSystem";
-import type { CameraGoal } from "@/components/digital-twin/controls/CameraControls";
+import type {
+  CameraGoal,
+  CameraMovementInput,
+} from "@/components/digital-twin/controls/CameraControls";
 import { StoreBuilding } from "@/components/digital-twin/building/StoreBuilding";
 import { Department } from "@/components/digital-twin/departments/Department";
 import { Shelf } from "@/components/digital-twin/shelves/Shelf";
@@ -42,6 +46,10 @@ export interface SupermarketSceneProps {
   onSelectWarehousePosition: (pos: TwinWarehousePositionNode) => void;
   onClearSelection: () => void;
   onControlsReady?: (controls: OrbitControlsImpl | null) => void;
+  movementRef?: React.RefObject<CameraMovementInput>;
+  movementBounds?: Bounds2D;
+  shopperMode?: boolean;
+  basketQuantities?: Readonly<Record<string, number>>;
 }
 
 export function SupermarketScene({
@@ -60,6 +68,10 @@ export function SupermarketScene({
   onSelectWarehousePosition,
   onClearSelection,
   onControlsReady,
+  movementRef,
+  movementBounds,
+  shopperMode = false,
+  basketQuantities,
 }: SupermarketSceneProps) {
   const highlightedDepartmentCode =
     selection?.type === "department" ? selection.departmentCode : null;
@@ -104,7 +116,12 @@ export function SupermarketScene({
     >
       <StoreEnvironment quality={quality} />
       <LightingSystem quality={quality} />
-      <CameraSystem goal={cameraGoal} onControlsReady={onControlsReady} />
+      <CameraSystem
+        goal={cameraGoal}
+        onControlsReady={onControlsReady}
+        movementRef={movementRef}
+        movementBounds={movementBounds}
+      />
 
       <StoreBuilding
         showCeiling={showCeiling}
@@ -144,6 +161,8 @@ export function SupermarketScene({
             recentlyRestockedPositionIds={recentlyRestockedPositionIds}
             onSelectShelf={onSelectShelf}
             onSelectProduct={onSelectProduct}
+            shopperMode={shopperMode}
+            basketQuantities={basketQuantities}
           />
         ))}
 

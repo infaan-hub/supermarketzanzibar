@@ -14,12 +14,16 @@ export function ShelfProducts({
   selectedPositionId,
   recentlyRestockedPositionIds,
   onSelectProduct,
+  shopperMode = false,
+  basketQuantities,
 }: {
   shelf: TwinShelfNode;
   viewMode: TwinViewMode;
   selectedPositionId: string | null;
   recentlyRestockedPositionIds: ReadonlySet<string>;
   onSelectProduct: (pos: TwinShelfPositionNode) => void;
+  shopperMode?: boolean;
+  basketQuantities?: Readonly<Record<string, number>>;
 }) {
   const [w, h, d] = shelf.size;
   const isZLong = d >= w;
@@ -54,6 +58,12 @@ export function ShelfProducts({
             isSelected={selectedPositionId === pos.id}
             isRecentlyRestocked={recentlyRestockedPositionIds.has(pos.id)}
             onSelect={onSelectProduct}
+            shopperMode={shopperMode}
+            basketQuantity={
+              pos.product && basketQuantities
+                ? (basketQuantities[pos.product.id] ?? 0)
+                : 0
+            }
           />
         );
       })}

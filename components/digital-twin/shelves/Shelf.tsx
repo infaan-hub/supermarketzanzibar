@@ -24,6 +24,8 @@ export function Shelf({
   recentlyRestockedPositionIds,
   onSelectShelf,
   onSelectProduct,
+  shopperMode = false,
+  basketQuantities,
 }: {
   shelf: TwinShelfNode;
   viewMode: TwinViewMode;
@@ -33,6 +35,8 @@ export function Shelf({
   recentlyRestockedPositionIds: ReadonlySet<string>;
   onSelectShelf: (shelf: TwinShelfNode) => void;
   onSelectProduct: (pos: TwinShelfPositionNode) => void;
+  shopperMode?: boolean;
+  basketQuantities?: Readonly<Record<string, number>>;
 }) {
   const [hovered, setHovered] = React.useState(false);
   const [w, h, d] = shelf.size;
@@ -189,6 +193,8 @@ export function Shelf({
         selectedPositionId={selectedPositionId}
         recentlyRestockedPositionIds={recentlyRestockedPositionIds}
         onSelectProduct={onSelectProduct}
+        shopperMode={shopperMode}
+        basketQuantities={basketQuantities}
       />
 
       {(hovered || isSelected) && (
@@ -199,16 +205,29 @@ export function Shelf({
           style={{ pointerEvents: "none" }}
         >
           <div className="whitespace-nowrap rounded-md border border-border bg-white px-2.5 py-1 text-xs shadow-sm">
-            <span className="font-mono font-semibold text-primary">
-              {shelf.code}
-            </span>
-            <span className="ml-1.5 font-medium text-foreground">
-              {shelf.totalUnits} units
-            </span>
-            {shelf.lowStockCount > 0 && (
-              <span className="ml-1.5 font-medium text-warning">
-                · {shelf.lowStockCount} low
-              </span>
+            {shopperMode ? (
+              <>
+                <span className="font-semibold text-foreground">
+                  {shelf.name}
+                </span>
+                <span className="ml-1.5 text-muted">
+                  · {shelf.productCount} items
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-mono font-semibold text-primary">
+                  {shelf.code}
+                </span>
+                <span className="ml-1.5 font-medium text-foreground">
+                  {shelf.totalUnits} units
+                </span>
+                {shelf.lowStockCount > 0 && (
+                  <span className="ml-1.5 font-medium text-warning">
+                    · {shelf.lowStockCount} low
+                  </span>
+                )}
+              </>
             )}
           </div>
         </Html>
