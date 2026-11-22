@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import { useAuth } from "@/components/auth/auth-provider";
+import { portalHref } from "@/lib/auth/roles";
 import {
   Table,
   TableBody,
@@ -40,6 +43,8 @@ interface ReceiveLine {
 function GoodsReceivedInner() {
   const params = useSearchParams();
   const initialPoId = params.get("po") ?? "";
+  const { user } = useAuth();
+  const href = (path: string) => portalHref(user?.role, path);
 
   const [receipts, setReceipts] = React.useState<GoodsReceiptRecord[]>([]);
   const [orders, setOrders] = React.useState<PurchaseOrderRecord[]>([]);
@@ -155,30 +160,23 @@ function GoodsReceivedInner() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Receiving Dock & Batch Intake
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Goods Received (GRN)
-          </h1>
-          <p className="text-sm text-muted">
-            Receive supplier shipments against purchase orders, assign warehouse
-            rack locations, and log expiry batches atomically.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/purchase-orders">
-            <Button size="sm" variant="secondary">
-              Purchase Orders
-            </Button>
-          </Link>
-          <Link href="/warehouse">
-            <Button size="sm">3D Warehouse</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Receiving Dock & Batch Intake"
+        title="Goods Received (GRN)"
+        description="Receive supplier shipments against purchase orders, assign warehouse rack locations, and log expiry batches atomically."
+        actions={
+          <>
+            <Link href={href("/purchase-orders")}>
+              <Button size="sm" variant="secondary">
+                Purchase Orders
+              </Button>
+            </Link>
+            <Link href={href("/warehouse")}>
+              <Button size="sm">3D Warehouse</Button>
+            </Link>
+          </>
+        }
+      />
 
       {error && (
         <div className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">

@@ -213,15 +213,15 @@ export default function ProductDetailPage({
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="page-banner flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <Link
             href="/products"
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-semibold text-teal-700 hover:underline"
           >
             ← All Products
           </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
             <h1 className="font-display text-2xl font-bold text-foreground">
               {product.name}
             </h1>
@@ -240,7 +240,7 @@ export default function ProductDetailPage({
               {product.quantity} in stock
             </Badge>
           </div>
-          <p className="font-mono text-xs text-muted">
+          <p className="mt-1 font-mono text-xs text-muted">
             Primary Barcode: {product.barcode ?? "—"}
           </p>
         </div>
@@ -251,9 +251,10 @@ export default function ProductDetailPage({
               href={`/api/barcodes/label?value=${encodeURIComponent(product.barcode)}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-10 items-center justify-center rounded border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent/5"
             >
-              Print Shelf Label
+              <Button size="sm" variant="secondary">
+                Print Shelf Label
+              </Button>
             </a>
           )}
           <Link

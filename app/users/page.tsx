@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -148,19 +149,16 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Users &amp; Roles
-          </h1>
-          <p className="text-sm text-muted">
-            Create staff accounts, assign roles, and activate or suspend access.
-          </p>
-        </div>
-        <Button onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Cancel" : "+ Create User"}
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Access Control · RBAC"
+        title="Users & Roles"
+        description="Create staff, MarketMaster, and supplier accounts, assign portal roles, and activate or suspend access."
+        actions={
+          <Button size="sm" onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Cancel" : "+ Create User"}
+          </Button>
+        }
+      />
 
       {notice && (
         <div className="rounded-lg border border-success/25 bg-success/10 px-4 py-2.5 text-sm text-success">

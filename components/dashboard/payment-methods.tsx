@@ -10,11 +10,11 @@ import {
 import { Panel, PanelEmpty, PanelHeader, PanelLink } from "./panel";
 
 const METHOD_COLORS = [
-  "#15722d",
-  "#1f8f3a",
-  "#4eae66",
-  "#86c596",
-  "#b9dcc2",
+  "#0f766e",
+  "#0d9488",
+  "#14b8a6",
+  "#5eead4",
+  "#99f6e4",
 ];
 
 interface DisplayMethod {

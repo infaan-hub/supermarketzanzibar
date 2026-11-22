@@ -12,48 +12,73 @@ export interface ButtonProps
 
 function baseStyles() {
   return cn(
-    "inline-flex items-center justify-center gap-2 font-display font-medium rounded shadow-sm transition-all",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+    "inline-flex items-center justify-center gap-2 rounded-xl font-display font-semibold tracking-tight transition-all duration-150 cursor-pointer",
+    "active:scale-[0.98]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2",
     "disabled:opacity-50 disabled:pointer-events-none",
   );
 }
 
 function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default") {
-  return cn({
-    default:
-      "bg-primary-hover text-white shadow-sm hover:bg-[#0f5c23] hover:shadow-[0_0_12px_rgba(21,114,45,0.28)]",
-    secondary:
-      "bg-background border border-border text-foreground hover:bg-accent/5 hover:border-accent",
-    ghost:
-      "bg-background text-foreground hover:bg-accent/5 hover:text-primary",
-    danger:
-      "bg-danger text-white hover:bg-danger/90 shadow-sm",
-    success:
-      "bg-success text-white hover:bg-success/90 shadow-sm",
-  }[variant]);
+  return cn(
+    {
+      default:
+        "bg-gradient-to-b from-teal-600 to-teal-700 text-white shadow-[0_6px_16px_-4px_rgba(13,148,136,0.42)] hover:from-teal-500 hover:to-teal-700 hover:shadow-[0_10px_20px_-6px_rgba(13,148,136,0.52)]",
+      secondary:
+        "border border-border bg-white/95 text-foreground shadow-sm hover:border-teal-400/70 hover:bg-surface-subtle hover:text-teal-950",
+      ghost:
+        "bg-transparent text-muted hover:bg-surface-subtle hover:text-teal-900",
+      danger:
+        "bg-gradient-to-b from-red-600 to-red-700 text-white shadow-[0_6px_16px_-4px_rgba(220,38,38,0.38)] hover:from-red-500 hover:to-red-700",
+      success:
+        "bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-[0_6px_16px_-4px_rgba(5,150,105,0.38)] hover:from-emerald-500 hover:to-emerald-700",
+    }[variant],
+  );
 }
 
 function sizeStyles(size: NonNullable<ButtonProps["size"]> = "md") {
-  return cn({
-    sm: "h-8 px-3 text-xs",
-    md: "h-10 px-4 text-sm",
-    lg: "h-11 px-6 text-base",
-  }[size]);
+  return cn(
+    {
+      sm: "h-8.5 px-3 text-xs",
+      md: "h-10 px-4 text-sm",
+      lg: "h-11 px-6 text-base",
+    }[size],
+  );
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  function Button({ className, variant = "default", size = "md", isLoading, children, ...props }, ref) {
+  function Button(
+    { className, variant = "default", size = "md", isLoading, children, ...props },
+    ref,
+  ) {
     return (
       <button
         {...props}
         ref={ref}
-        className={cn(baseStyles(), variantStyles(variant), sizeStyles(size), className)}
+        className={cn(
+          baseStyles(),
+          variantStyles(variant),
+          sizeStyles(size),
+          className,
+        )}
         disabled={props.disabled || isLoading}
       >
         {isLoading ? (
           <>
-            <span className="relative flex h-3 w-3" style={{ animation: "spin 1s linear infinite" }}>
-              <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <span
+              className="relative flex h-3.5 w-3.5"
+              style={{ animation: "spin 1s linear infinite" }}
+            >
+              <svg
+                className="h-full w-full"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M21 12a9 9 0 1 1-6.219 8.56" />
               </svg>
             </span>

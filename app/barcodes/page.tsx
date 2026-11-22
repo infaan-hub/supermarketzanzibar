@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { fetchAllBarcodes } from "@/lib/api";
@@ -113,34 +114,31 @@ export default function BarcodesStudioPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Bulk Barcode Label Studio
-          </h1>
-          <p className="text-sm text-muted">
-            Select products and pack labels, set copy counts, and print an A4 or
-            thermal label sheet.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={layout}
-            onChange={(e) => setLayout(e.target.value as "compact" | "shelf")}
-            className="w-44"
-          >
-            <option value="compact">Compact Stickers (3-col)</option>
-            <option value="shelf">Shelf Price Cards (2-col)</option>
-          </Select>
-          <Button
-            variant="default"
-            disabled={printQueue.length === 0}
-            onClick={() => window.print()}
-          >
-            Print Sheet ({printQueue.length})
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Code 128 Print Studio"
+        title="Bulk Barcode Label Studio"
+        description="Select products and carton/pack labels, set copy counts, and print an A4 or thermal label sheet."
+        className="print:hidden"
+        actions={
+          <>
+            <Select
+              value={layout}
+              onChange={(e) => setLayout(e.target.value as "compact" | "shelf")}
+              className="w-48"
+            >
+              <option value="compact">Compact Stickers (3-col)</option>
+              <option value="shelf">Shelf Price Cards (2-col)</option>
+            </Select>
+            <Button
+              variant="default"
+              disabled={printQueue.length === 0}
+              onClick={() => window.print()}
+            >
+              Print Sheet ({printQueue.length})
+            </Button>
+          </>
+        }
+      />
 
       {/* Selector panel — hidden when printing */}
       <Card className="print:hidden">

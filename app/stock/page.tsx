@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonText } from "@/components/ui/skeleton";
 import {
   Table,
@@ -229,33 +230,27 @@ export default function StockPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Inventory &amp; Stock
-          </h1>
-          <p className="text-muted">
-            Enter the product name, let the camera detect each item as you place
-            it in view, then finalize. The system assigns each product its own
-            unique barcode. Use IN / OUT to adjust existing stock.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/stock/movements"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Stock history →
-          </Link>
-          <Badge variant={criticalCount ? "danger" : "success"}>
-            {criticalCount} critical
-          </Badge>
-          <Badge variant={lowCount ? "warning" : "success"}>
-            {lowCount} low stock
-          </Badge>
-        </div>
-      </div>
+    <div className="mx-auto max-w-[1440px] space-y-6">
+      <PageHeader
+        eyebrow="Visual Camera Counter · Barcode IN/OUT · Expiry Batches"
+        title="Inventory & Stock"
+        description="Register new products with visual camera counting, scan Code 128 IN/OUT adjustments, or reconcile expiry batches and write-offs."
+        actions={
+          <>
+            <Badge variant={criticalCount ? "danger" : "success"}>
+              {criticalCount} critical
+            </Badge>
+            <Badge variant={lowCount ? "warning" : "success"}>
+              {lowCount} low stock
+            </Badge>
+            <Link href="/stock/movements">
+              <Button size="sm" variant="secondary">
+                Stock History →
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>

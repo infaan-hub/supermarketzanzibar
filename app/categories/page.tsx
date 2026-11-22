@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCategories } from "@/hooks/useCategories";
@@ -139,22 +140,19 @@ export default function CategoriesPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Categories
-          </h1>
-          <p className="text-sm text-muted">
-            Organize products for faster POS filtering and reporting.
-          </p>
-        </div>
-        <Input
-          placeholder="Search categories…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-72"
-        />
-      </div>
+      <PageHeader
+        eyebrow="Catalog Taxonomy"
+        title="Categories"
+        description="Organize supermarket products for faster POS filtering, storefront browsing, and reporting."
+        actions={
+          <Input
+            placeholder="Search categories…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-72"
+          />
+        }
+      />
 
       {canManage && (
         <Card>

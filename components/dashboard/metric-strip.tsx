@@ -78,19 +78,24 @@ function MetricCell({
   label,
   value,
   title,
+  accent = "bg-teal-500",
   children,
 }: {
   label: string;
   value: React.ReactNode;
   title?: string;
+  accent?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0 bg-background p-3.5 sm:p-4 xl:p-5">
-      <dt className="text-xs font-medium text-muted">{label}</dt>
-      <dd className="mt-2 min-w-0">
+    <div className="relative min-w-0 overflow-hidden rounded-2xl border border-border bg-white/95 p-4 shadow-card transition-shadow hover:shadow-soft xl:p-5">
+      <div className={cn("absolute inset-x-0 top-0 h-1", accent)} aria-hidden="true" />
+      <dt className="font-display text-xs font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </dt>
+      <dd className="mt-2.5 min-w-0">
         <span
-          className="block whitespace-nowrap font-display text-[22px] font-semibold leading-none tracking-tight tabular-nums text-foreground sm:text-2xl"
+          className="block whitespace-nowrap font-display text-[22px] font-bold leading-none tracking-tight tabular-nums text-foreground sm:text-2xl"
           title={title}
         >
           {value}
@@ -106,9 +111,10 @@ export function MetricStrip({ data }: { data: DashboardOverview }) {
 
   return (
     <section aria-label="Key metrics">
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border shadow-card md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-6">
         <MetricCell
           label="Net sales"
+          accent="bg-gradient-to-r from-teal-500 to-emerald-500"
           value={
             <>
               {formatMoneyAdaptive(metrics.revenue.current)}
@@ -160,6 +166,7 @@ export function MetricStrip({ data }: { data: DashboardOverview }) {
 
         <MetricCell
           label="Low stock"
+          accent="bg-gradient-to-r from-amber-400 to-orange-500"
           value={formatCount(inventory.lowStockCount)}
         >
           <FactLine>
@@ -175,6 +182,7 @@ export function MetricStrip({ data }: { data: DashboardOverview }) {
 
         <MetricCell
           label="Pending payments"
+          accent="bg-gradient-to-r from-cyan-500 to-teal-600"
           value={formatCount(pendingPayments.count)}
         >
           <FactLine>

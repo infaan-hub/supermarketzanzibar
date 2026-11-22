@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import { useAuth } from "@/components/auth/auth-provider";
+import { portalHref } from "@/lib/auth/roles";
 import {
   Table,
   TableBody,
@@ -32,6 +35,8 @@ interface DraftLine {
 }
 
 export default function PurchaseOrdersPage() {
+  const { user } = useAuth();
+  const href = (path: string) => portalHref(user?.role, path);
   const [orders, setOrders] = React.useState<PurchaseOrderRecord[]>([]);
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -149,23 +154,16 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Procurement & Replenishment
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Purchase Orders
-          </h1>
-          <p className="text-sm text-muted">
-            Order replenishment stock from suppliers and receive deliveries
-            directly into 3D warehouse racks.
-          </p>
-        </div>
-        <Link href="/goods-received">
-          <Button size="sm">Receive Goods (GRN)</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Procurement & Replenishment"
+        title="Purchase Orders"
+        description="Order replenishment stock from suppliers and receive deliveries directly into 3D warehouse racks."
+        actions={
+          <Link href={href("/goods-received")}>
+            <Button size="sm">Receive Goods (GRN)</Button>
+          </Link>
+        }
+      />
 
       {error && (
         <div className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">

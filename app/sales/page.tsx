@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Table,
   TableBody,
@@ -92,25 +93,18 @@ export default function SalesPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Sales
-          </h1>
-          <p className="text-sm text-muted">
-            Completed and pending POS orders. Select any order to inspect items
-            or reprint its receipt.
-          </p>
-        </div>
-        <Link
-          href="/pos"
-          className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white shadow-sm hover:bg-[#0f5c23]"
-        >
-          + New Sale
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Order Management"
+        title="Sales"
+        description="Completed and pending POS orders. Select any order to inspect items, process refunds, or reprint its receipt."
+        actions={
+          <Link href="/pos">
+            <Button size="sm">+ New Sale</Button>
+          </Link>
+        }
+      />
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row">
         <Input
           placeholder="Search by order #, control #, or customer…"
           value={search}

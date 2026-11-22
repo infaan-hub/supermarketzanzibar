@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {waitingForGuard ? (
         <div className="flex min-h-dvh items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-hover font-display text-base font-bold text-white shadow-[0_0_16px_rgba(21,114,45,0.28)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-base font-bold text-white shadow-[0_8px_20px_-4px_rgba(13,148,136,0.42)]">
               SZ
             </div>
             <p className="text-sm font-medium text-muted">

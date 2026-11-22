@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/components/auth/auth-provider";
 import { updateMe } from "@/lib/api";
 import { roleLabel } from "@/lib/auth/roles";
@@ -95,26 +96,20 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-[1000px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-display text-2xl font-bold text-foreground">
-              My Profile
-            </h1>
+    <div className="mx-auto max-w-[1040px] space-y-6">
+      <PageHeader
+        eyebrow={`Account · ${roleLabel(user.role)}`}
+        title="My Profile"
+        description={`@${user.username}${user.last_login ? ` · Last sign-in ${formatBusinessDateTime(user.last_login)}` : ""}`}
+        actions={
+          <>
             <Badge variant="default">{roleLabel(user.role)}</Badge>
-          </div>
-          <p className="text-sm text-muted">
-            @{user.username}
-            {user.last_login
-              ? ` · Last sign-in ${formatBusinessDateTime(user.last_login)}`
-              : ""}
-          </p>
-        </div>
-        <Button variant="secondary" onClick={() => void logout()}>
-          Sign out
-        </Button>
-      </div>
+            <Button size="sm" variant="secondary" onClick={() => void logout()}>
+              Sign out
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

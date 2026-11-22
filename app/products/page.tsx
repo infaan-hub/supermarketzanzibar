@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useProducts } from "@/hooks/useProducts";
@@ -98,33 +99,25 @@ export default function ProductsPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Products
-          </h1>
-          <p className="text-sm text-muted">
-            {filteredProducts.length} of {allProducts.length} active products.
-            Click any product to edit details or manage carton/pack barcodes.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/barcodes"
-            className="inline-flex h-10 items-center justify-center rounded border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent/5"
-          >
-            Print Labels
-          </Link>
-          <Link
-            href="/stock"
-            className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white shadow-sm hover:bg-[#0f5c23]"
-          >
-            + Register Product
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Merchandise Catalog"
+        title="Products"
+        description={`${filteredProducts.length} of ${allProducts.length} active products. Click any item to edit pricing, stock metadata, or carton/pack barcodes.`}
+        actions={
+          <>
+            <Link href="/barcodes">
+              <Button size="sm" variant="secondary">
+                Print Labels
+              </Button>
+            </Link>
+            <Link href="/stock">
+              <Button size="sm">+ Register Product</Button>
+            </Link>
+          </>
+        }
+      />
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row">
         <Input
           placeholder="Search by name, barcode, category, or supplier…"
           value={search}

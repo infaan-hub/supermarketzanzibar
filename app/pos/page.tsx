@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -156,31 +157,25 @@ export default function PosPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Point of Sale
-          </h1>
-          <p className="text-sm text-muted">
-            Scan Code 128 barcodes continuously or tap products to build the
-            basket and complete checkout on one screen.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/shopping-cart"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Full cart view ({cart.itemCount})
-          </Link>
-          <Link
-            href="/sales"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Sales history →
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Cashier Terminal · Live 3D Shelf Sync"
+        title="Point of Sale"
+        description="Scan Code 128 barcodes continuously or tap products to build the basket and complete checkout on one screen."
+        actions={
+          <>
+            <Link href="/shopping-cart">
+              <Button size="sm" variant="secondary">
+                Full Cart ({cart.itemCount})
+              </Button>
+            </Link>
+            <Link href="/sales">
+              <Button size="sm" variant="secondary">
+                Sales History →
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] xl:items-start">
         {/* LEFT: Scanner & Product Picker */}

@@ -2,52 +2,54 @@
 @import "tailwindcss";
 
 @theme {
-  /* Supermarket Zanzibar — green grocer identity, grounded in the legacy theme.
-     Deliberate, opinionated tokens so the UI never reads as a generic default. */
+  /* Supermarket Zanzibar — Coastal Aqua & Teal Enterprise Identity.
+     Clean white surfaces on light aqua canvas, crisp teal primary actions,
+     light glassmorphism, subtle shadows, and minimal visual clutter. */
   --color-background: #ffffff;
-  --color-foreground: #213128;
+  --color-canvas: #f3faf9;
+  --color-foreground: #0f2a2e;
 
-  --color-primary: #1f8f3a;
-  --color-primary-hover: #15722d;
-  --color-primary-soft: rgba(78, 173, 99, 0.16);
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-primary-soft: rgba(13, 148, 136, 0.12);
 
-  --color-muted: #5b7365;
-  --color-muted-foreground: #5f7468;
+  --color-muted: #527074;
+  --color-muted-foreground: #628084;
 
-  --color-border: rgba(86, 129, 97, 0.18);
-  --color-border-hover: rgba(86, 129, 97, 0.45);
-  --color-ring: #15722d;
+  --color-border: rgba(15, 118, 110, 0.14);
+  --color-border-hover: rgba(15, 118, 110, 0.34);
+  --color-ring: #0d9488;
 
-  --color-accent: #1f8f3a;
-  --color-accent-soft: rgba(78, 173, 99, 0.12);
+  --color-accent: #14b8a6;
+  --color-accent-soft: rgba(20, 184, 166, 0.10);
 
-  --color-success: #15722d;
-  --color-success-soft: rgba(21, 114, 45, 0.10);
+  --color-success: #059669;
+  --color-success-soft: rgba(5, 150, 105, 0.11);
 
-  --color-danger: #c4242a;
-  --color-danger-soft: rgba(196, 36, 42, 0.10);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.10);
 
-  --color-warning: #b45309;
-  --color-warning-soft: rgba(180, 83, 9, 0.10);
+  --color-warning: #d97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.11);
 
-  --color-surface-subtle: #f4faf9;
-  --color-surface-muted: #ebf7f5;
-  --color-chart-grid: #dfecea;
+  --color-surface-subtle: #effaf8;
+  --color-surface-muted: #e3f5f2;
+  --color-chart-grid: #d8ece9;
 
-  --color-sidebar: rgba(246, 252, 251, 0.96);
-  --color-sidebar-border: rgba(20, 122, 112, 0.14);
+  --color-sidebar: rgba(250, 254, 253, 0.94);
+  --color-sidebar-border: rgba(15, 118, 110, 0.12);
 
   --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 16px;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 18px;
   --radius-full: 9999px;
 
-  --shadow-card: 0 16px 34px rgba(63, 91, 69, 0.08);
-  --shadow-soft: 0 18px 40px rgba(64, 84, 70, 0.10);
-  --shadow-sm: 0 4px 12px rgba(63, 91, 69, 0.04);
+  --shadow-card: 0 10px 30px -12px rgba(15, 62, 66, 0.10), 0 2px 8px -2px rgba(15, 62, 66, 0.04);
+  --shadow-soft: 0 18px 42px -16px rgba(15, 62, 66, 0.14);
+  --shadow-sm: 0 2px 8px -2px rgba(15, 62, 66, 0.06);
 
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
@@ -60,9 +62,24 @@
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(20, 122, 112, 0.14);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  box-shadow: var(--shadow-card);
+}
+
+.page-surface {
+  background:
+    radial-gradient(ellipse 80% 45% at 100% 0%, rgba(20, 184, 166, 0.08), transparent 60%),
+    radial-gradient(ellipse 65% 40% at 0% 100%, rgba(13, 148, 136, 0.05), transparent 55%),
+    var(--color-canvas);
+}
+
+.page-banner {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(235, 250, 247, 0.92) 100%);
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  box-shadow: var(--shadow-card);
 }
 
 html {
@@ -70,10 +87,30 @@ html {
 }
 
 body {
-  @apply bg-background text-foreground antialiased;
+  @apply bg-canvas text-foreground antialiased;
   min-width: 320px;
   min-height: 100dvh;
   overflow-x: hidden;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Subtle coastal scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 118, 110, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 118, 110, 0.36);
 }
 
 .safe-main {
@@ -82,7 +119,7 @@ body {
 }
 
 .app-header {
-  height: calc(3.5rem + env(safe-area-inset-top));
+  height: calc(3.75rem + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
 }
 
@@ -110,8 +147,8 @@ body {
   }
 
   .app-header-inner {
-    padding-left: max(1.5rem, env(safe-area-inset-left));
-    padding-right: max(1.5rem, env(safe-area-inset-right));
+    padding-left: max(1.75rem, env(safe-area-inset-left));
+    padding-right: max(1.75rem, env(safe-area-inset-right));
   }
 }
 

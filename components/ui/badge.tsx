@@ -3,8 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement> {
+export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: "default" | "secondary" | "success" | "danger" | "warning";
 }
 
@@ -14,15 +13,18 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-display font-semibold transition-colors",
+          "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-display text-[11px] font-semibold tracking-tight transition-colors",
           {
             default:
-              "border-transparent bg-primary-hover text-white shadow-[0_0_10px_rgba(21,114,45,0.24)]",
+              "border-teal-600/20 bg-teal-600 text-white shadow-[0_2px_8px_rgba(13,148,136,0.28)]",
             secondary:
-              "border-border bg-background text-muted hover:bg-accent/5",
-            success: "border-success/20 bg-success/10 text-success",
-            danger: "border-danger/20 bg-danger/10 text-danger",
-            warning: "border-warning/20 bg-warning/10 text-warning",
+              "border-border bg-surface-subtle text-teal-900",
+            success:
+              "border-emerald-600/20 bg-emerald-50 text-emerald-800",
+            danger:
+              "border-red-600/20 bg-red-50 text-red-700",
+            warning:
+              "border-amber-500/25 bg-amber-50 text-amber-800",
           }[variant],
           className,
         )}

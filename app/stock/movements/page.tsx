@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -98,37 +99,33 @@ function StockMovementsContent() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href="/stock"
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            ← Back to Stock &amp; Counting
-          </Link>
-          <h1 className="mt-1 font-display text-2xl font-bold text-foreground">
-            Stock Movement Ledger
-          </h1>
-          <p className="text-sm text-muted">
-            Full audit trail of every stock receipt, manual adjustment, and POS
-            sale deduction.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {productId && (
-            <Button variant="secondary" onClick={() => setProductId("")}>
-              Clear Product Filter
+      <PageHeader
+        eyebrow="Inventory Audit Trail"
+        title="Stock Movement Ledger"
+        description="Complete chronological ledger of every goods receipt, warehouse transfer, adjustment, and POS sale deduction."
+        actions={
+          <>
+            <Link href="/stock">
+              <Button size="sm" variant="secondary">
+                ← Stock &amp; Counting
+              </Button>
+            </Link>
+            {productId && (
+              <Button size="sm" variant="secondary" onClick={() => setProductId("")}>
+                Clear Product Filter
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="default"
+              disabled={movements.length === 0}
+              onClick={() => exportCsv(movements)}
+            >
+              Export CSV
             </Button>
-          )}
-          <Button
-            variant="secondary"
-            disabled={movements.length === 0}
-            onClick={() => exportCsv(movements)}
-          >
-            Export CSV
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {summary && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

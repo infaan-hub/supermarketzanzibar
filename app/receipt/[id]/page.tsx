@@ -219,10 +219,13 @@ export default function SaleReceiptPage({
   );
 
   return (
-    <div className="mx-auto max-w-[780px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+    <div className="mx-auto max-w-[820px] space-y-6">
+      <div className="page-banner flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6 print:hidden">
         <div>
-          <div className="flex items-center gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
+            Verified Sale Receipt
+          </p>
+          <div className="mt-1 flex items-center gap-2">
             <h1 className="font-display text-2xl font-bold text-foreground">
               Receipt #{sale.id}
             </h1>
@@ -230,7 +233,7 @@ export default function SaleReceiptPage({
               {statusLabel(sale.status)}
             </Badge>
           </div>
-          <p className="text-sm text-muted">
+          <p className="mt-0.5 text-sm text-muted">
             Database-backed receipt · Thermal width: {settings.receiptWidth}
           </p>
         </div>

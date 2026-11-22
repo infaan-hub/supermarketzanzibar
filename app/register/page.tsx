@@ -144,24 +144,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
+    <div className="flex min-h-[84vh] items-center justify-center py-8">
+      <Card className="w-full max-w-xl rounded-3xl shadow-soft">
+        <CardHeader className="border-b border-border/70 bg-surface-subtle/60 pb-5">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-2xl">
-              {isBootstrapAdmin ? "Initial Admin Setup" : "Create account"}
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-sm">
+                SZ
+              </div>
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  {isBootstrapAdmin ? "Initial Admin Setup" : "Create account"}
+                </CardTitle>
+                <CardDescription>
+                  {isBootstrapAdmin
+                    ? "Create the first administrator account for Supermarket Zanzibar."
+                    : "Register for Supermarket Zanzibar. Staff roles are assigned in /admin/users."}
+                </CardDescription>
+              </div>
+            </div>
             {isBootstrapAdmin && (
               <Badge variant="success">First Admin Bootstrap</Badge>
             )}
           </div>
-          <CardDescription>
-            {isBootstrapAdmin
-              ? "Create the first administrator account for Supermarket Zanzibar."
-              : "Register an account. Staff roles can be assigned by an administrator."}
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div
@@ -302,13 +309,20 @@ export default function RegisterPage() {
             <Button type="submit" className="w-full" isLoading={loading}>
               {isBootstrapAdmin ? "Create administrator" : "Create account"}
             </Button>
-            <p className="text-center text-sm text-muted">
+            <p className="pt-1 text-center text-xs text-muted">
               Already have an account?{" "}
               <Link
                 href="/login"
-                className="font-medium text-primary hover:underline"
+                className="font-semibold text-teal-700 hover:underline"
               >
                 Sign in
+              </Link>
+              {" · "}
+              <Link
+                href="/"
+                className="font-semibold text-teal-700 hover:underline"
+              >
+                Browse Storefront
               </Link>
             </p>
           </form>

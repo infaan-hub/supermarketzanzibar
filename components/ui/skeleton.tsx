@@ -3,8 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export interface SkeletonProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
@@ -14,7 +13,7 @@ export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
       <div
         ref={ref}
         className={cn(
-          "animate-pulse rounded-md border-border bg-accent/5",
+          "animate-pulse rounded-xl bg-surface-muted/85",
           className,
         )}
         {...props}
@@ -31,9 +30,17 @@ export interface SkeletonTextProps {
 
 export function SkeletonText({ lines = 3, className }: SkeletonTextProps) {
   return (
-    <div className={cn("space-y-3", className)} aria-busy="true" aria-label="Loading">
+    <div
+      className={cn("space-y-3", className)}
+      aria-busy="true"
+      aria-label="Loading"
+    >
       {Array.from({ length: lines }).map((_, i) => (
-        <div key={i} className="h-4 rounded w-full" />
+        <div
+          key={i}
+          className="h-4 w-full animate-pulse rounded-lg bg-surface-muted/85"
+          style={{ width: i === lines - 1 ? "72%" : "100%" }}
+        />
       ))}
     </div>
   );

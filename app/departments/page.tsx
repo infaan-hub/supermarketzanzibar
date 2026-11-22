@@ -6,14 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isManagerRole, portalHref } from "@/lib/auth/roles";
 import { createDepartment, fetchDepartments } from "@/lib/api";
 import type { DepartmentSummary } from "@/types/api";
 
 export default function DepartmentsPage() {
   const { user } = useAuth();
   const canManage = isManagerRole(user?.role);
+  const href = (path: string) => portalHref(user?.role, path);
 
   const [departments, setDepartments] = React.useState<DepartmentSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -67,23 +69,16 @@ export default function DepartmentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Supermarket Spatial Directory
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Store Departments
-          </h1>
-          <p className="text-sm text-muted">
-            Every retail department connects live shelf stock to its 3D Digital
-            Twin aisle zone.
-          </p>
-        </div>
-        <Link href="/digital-twin">
-          <Button size="sm">Open 3D Supermarket</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Supermarket Spatial Directory"
+        title="Store Departments"
+        description="Every retail department connects live shelf stock directly to its 3D Digital Twin aisle zone."
+        actions={
+          <Link href={href("/digital-twin")}>
+            <Button size="sm">Open 3D Supermarket</Button>
+          </Link>
+        }
+      />
 
       {error && (
         <div className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -200,14 +195,14 @@ export default function DepartmentsPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    href={`/digital-twin?dept=${encodeURIComponent(dept.code)}`}
+                    href={href(`/digital-twin?dept=${encodeURIComponent(dept.code)}`)}
                     className="flex-1"
                   >
                     <Button size="sm" className="w-full">
                       Inspect in 3D
                     </Button>
                   </Link>
-                  <Link href={`/shelves?dept=${encodeURIComponent(dept.code)}`}>
+                  <Link href={href(`/shelves?dept=${encodeURIComponent(dept.code)}`)}>
                     <Button size="sm" variant="secondary">
                       Shelves
                     </Button>

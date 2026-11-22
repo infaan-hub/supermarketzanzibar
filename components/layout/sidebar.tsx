@@ -155,21 +155,21 @@ export function Sidebar({
       id="app-sidebar"
       aria-hidden={!isOpen}
       inert={!isOpen}
-      className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar/[0.98] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-xl backdrop-blur-md transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+      className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-[8px_0_32px_-12px_rgba(15,62,66,0.12)] backdrop-blur-xl transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       aria-label="Main navigation"
     >
       <div className="flex h-full flex-col">
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/60 px-5 backdrop-blur">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-hover font-display text-sm font-bold text-white shadow-[0_0_12px_rgba(21,114,45,0.30)]">
+        <div className="flex h-[3.75rem] shrink-0 items-center gap-3 border-b border-sidebar-border bg-white/75 px-4 backdrop-blur">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-[0_6px_14px_-3px_rgba(13,148,136,0.45)]">
             SZ
           </div>
           <div className="min-w-0">
-            <span className="block truncate font-display text-base font-bold tracking-tight text-foreground">
+            <span className="block truncate font-display text-[15px] font-bold tracking-tight text-foreground">
               Supermarket
             </span>
-            <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-teal-700">
+            <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-teal-700">
               {isAdmin
-                ? "Admin Portal (/admin)"
+                ? "Admin Portal"
                 : isSupplier
                   ? "Supplier Portal"
                   : user
@@ -179,7 +179,7 @@ export function Sidebar({
           </div>
           <button
             type="button"
-            className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-accent/10 hover:text-foreground lg:hidden"
+            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-subtle hover:text-foreground lg:hidden"
             aria-label="Close navigation"
             onClick={onClose}
           >
@@ -190,7 +190,7 @@ export function Sidebar({
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
           {visibleSections.map((section) => (
             <div key={section.title} className="space-y-1">
-              <p className="px-3 text-[11px] font-semibold tracking-wider text-muted/80 uppercase">
+              <p className="px-3 pb-0.5 font-display text-[10px] font-bold tracking-[0.14em] text-teal-900/50 uppercase">
                 {section.title}
               </p>
               {section.items.map((item) => {
@@ -201,22 +201,31 @@ export function Sidebar({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
                       active
-                        ? "bg-primary-hover text-white shadow-[0_0_10px_rgba(21,114,45,0.24)]"
-                        : "text-muted hover:bg-accent/5 hover:text-foreground",
+                        ? "bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-[0_6px_16px_-4px_rgba(13,148,136,0.42)]"
+                        : "text-muted hover:bg-surface-subtle hover:text-teal-950",
                     )}
                     aria-current={active ? "page" : undefined}
                   >
-                    <span className="h-4.5 w-4.5 shrink-0">{item.icon}</span>
+                    <span
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        active
+                          ? "text-white"
+                          : "text-teal-700/70 group-hover:text-teal-700",
+                      )}
+                    >
+                      {item.icon}
+                    </span>
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge === "cart" && cartCount > 0 && (
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+                          "rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
                           active
                             ? "bg-white/20 text-white"
-                            : "bg-primary/15 text-primary-hover",
+                            : "bg-teal-100 text-teal-800",
                         )}
                       >
                         {cartCount}
@@ -229,14 +238,14 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="shrink-0 border-t border-border px-3 py-3 space-y-2">
+        <div className="shrink-0 space-y-1.5 border-t border-sidebar-border bg-white/60 p-3">
           {user && (
             <Link
               href={profileHref}
               onClick={onNavigate}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors hover:bg-accent/5"
+              className="flex items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 transition-all hover:border-border hover:bg-white"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted font-display text-xs font-bold text-primary-hover">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface-muted font-display text-xs font-bold text-teal-800">
                 {(user.full_name || user.username).slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -252,9 +261,9 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => void logout()}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-muted transition-colors hover:bg-red-50 hover:text-danger"
           >
-            <span className="h-4.5 w-4.5 shrink-0">
+            <span className="h-4 w-4 shrink-0">
               <LogoutIcon />
             </span>
             Sign out

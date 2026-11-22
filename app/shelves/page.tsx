@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isInventoryRole, isManagerRole } from "@/lib/auth/roles";
+import { isInventoryRole, isManagerRole, portalHref } from "@/lib/auth/roles";
 import {
   createShelf,
   fetchDepartments,
@@ -27,6 +28,7 @@ function ShelvesPageInner() {
   const { user } = useAuth();
   const canEdit = isInventoryRole(user?.role);
   const canCreate = isManagerRole(user?.role);
+  const href = (path: string) => portalHref(user?.role, path);
 
   const [departments, setDepartments] = React.useState<DepartmentSummary[]>([]);
   const [shelves, setShelves] = React.useState<ShelfRecord[]>([]);
@@ -131,38 +133,31 @@ function ShelvesPageInner() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Planogram & Shelf-Slot Operations
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Shelves & Product Positions
-          </h1>
-          <p className="text-sm text-muted">
-            Assign products to physical shelf slots, review capacities, and
-            trigger live warehouse restocks reflected immediately in 3D.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="h-9 w-48 text-xs"
-            aria-label="Filter shelves by department"
-          >
-            <option value="">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.code}>
-                {d.code} · {d.name}
-              </option>
-            ))}
-          </Select>
-          <Link href="/digital-twin">
-            <Button size="sm">Open 3D Twin</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Planogram & Shelf-Slot Operations"
+        title="Shelves & Product Positions"
+        description="Assign products to physical shelf slots, manage capacities, and trigger live warehouse restocks reflected immediately in 3D."
+        actions={
+          <>
+            <Select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="h-9 w-48 text-xs"
+              aria-label="Filter shelves by department"
+            >
+              <option value="">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.code}>
+                  {d.code} · {d.name}
+                </option>
+              ))}
+            </Select>
+            <Link href={href("/digital-twin")}>
+              <Button size="sm">Open 3D Twin</Button>
+            </Link>
+          </>
+        }
+      />
 
       {error && (
         <div className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">

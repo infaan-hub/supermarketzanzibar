@@ -43,45 +43,48 @@ export function DashboardHeader({
   const updatedLabel = formatRelativeDateTime(updatedAt, now);
 
   return (
-    <section aria-labelledby="dashboard-title">
+    <section
+      aria-labelledby="dashboard-title"
+      className="page-banner rounded-2xl p-5 sm:p-6"
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-hover">
-            Overview
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+            Executive Overview
           </p>
           <h1
             id="dashboard-title"
-            className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+            className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
           >
             Business overview
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted">
             {greetingFor(generatedAt)}
             {userName ? `, ${userName}` : ""}. Here&apos;s how the store is
-            performing.
+            performing right now.
           </p>
         </div>
 
-        <div className="shrink-0 text-left sm:text-right">
-          <p className="text-sm font-medium tabular-nums text-foreground">
+        <div className="shrink-0 rounded-xl border border-border/70 bg-white/80 px-3.5 py-2 text-left shadow-sm sm:text-right">
+          <p className="font-display text-sm font-semibold tabular-nums text-foreground">
             {formatBusinessDate(generatedAt)}
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            As of {formatBusinessTime(generatedAt)} EAT · Updated{" "}
-            {updatedLabel}
+            {formatBusinessTime(generatedAt)} EAT · Updated {updatedLabel}
           </p>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 border-y border-border/70 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-          <span className="shrink-0 text-xs font-medium text-muted">
+      <div className="mt-5 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full min-w-0 items-center gap-2.5 sm:w-auto">
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-muted">
             Period
           </span>
           <div
             role="group"
             aria-label="Reporting period"
-            className="grid min-w-0 flex-1 grid-cols-4 rounded-lg bg-surface-muted p-0.5 sm:inline-flex sm:w-auto sm:flex-none"
+            className="grid min-w-0 flex-1 grid-cols-4 rounded-xl border border-border/80 bg-white/85 p-1 shadow-sm sm:inline-flex sm:w-auto sm:flex-none"
           >
             {DASHBOARD_RANGE_OPTIONS.map((option) => {
               const active = option.key === range;
@@ -91,8 +94,8 @@ export function DashboardHeader({
                   type="button"
                   className={
                     active
-                      ? "h-8 rounded-md bg-foreground px-2 text-xs font-medium text-background shadow-sm sm:px-3 sm:text-[13px]"
-                      : "h-8 rounded-md px-2 text-xs font-medium text-muted transition-colors hover:text-foreground sm:px-3 sm:text-[13px]"
+                      ? "h-8 rounded-lg bg-gradient-to-b from-teal-600 to-teal-700 px-2.5 font-display text-xs font-semibold text-white shadow-sm sm:px-3.5 sm:text-[13px] cursor-pointer"
+                      : "h-8 rounded-lg px-2.5 font-display text-xs font-medium text-muted transition-colors hover:bg-surface-subtle hover:text-foreground sm:px-3.5 sm:text-[13px] cursor-pointer"
                   }
                   aria-pressed={active}
                   onClick={() => onRangeChange(option.key)}
@@ -121,14 +124,14 @@ export function DashboardHeader({
 
           <button
             type="button"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-70 sm:px-3 sm:text-sm"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-white px-3 text-xs font-semibold text-foreground shadow-sm transition-all hover:border-teal-400/70 hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-70 sm:px-3.5 sm:text-sm cursor-pointer"
             onClick={onRefresh}
             disabled={refreshing}
             aria-label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
           >
             <RefreshIcon
               className={
-                refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4 text-muted"
+                refreshing ? "h-4 w-4 animate-spin text-teal-600" : "h-4 w-4 text-teal-700"
               }
             />
             {refreshing ? "Refreshing" : "Refresh"}

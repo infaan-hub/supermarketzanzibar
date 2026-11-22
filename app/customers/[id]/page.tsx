@@ -133,20 +133,20 @@ export default function CustomerDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div>
+      <div className="page-banner rounded-2xl p-5 sm:p-6">
         <Link
           href="/customers"
-          className="text-xs font-medium text-primary hover:underline"
+          className="text-xs font-semibold text-teal-700 hover:underline"
         >
           ← All Customers
         </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-2.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
           <h1 className="font-display text-2xl font-bold text-foreground">
             {customer.name}
           </h1>
           <Badge variant="success">{customer.loyaltyPoints} pts</Badge>
         </div>
-        <p className="text-sm text-muted">
+        <p className="mt-1 text-sm text-muted">
           Member since {formatDate(customer.createdAt)}
         </p>
       </div>

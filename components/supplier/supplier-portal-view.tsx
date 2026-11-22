@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -58,42 +59,36 @@ export function SupplierPortalView({
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Supplier Portal (/supplier)
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            {supplier ? supplier.companyName : "Supplier Workspace"}
-          </h1>
-          <p className="text-sm text-muted">
-            {supplier
-              ? `${supplier.contactName} · ${supplier.email}${supplier.phone ? ` · ${supplier.phone}` : ""}`
-              : "Track your supplied catalog, low-stock replenishment alerts, purchase orders, and receiving receipts."}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {(data?.availableSuppliers.length ?? 0) > 1 && (
-            <Select
-              value={selectedSupplierId || supplier?.id || ""}
-              onChange={(e) => setSelectedSupplierId(e.target.value)}
-              className="h-9 w-52 text-xs"
-              aria-label="Select supplier account"
-            >
-              {data?.availableSuppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.companyName}
-                </option>
-              ))}
-            </Select>
-          )}
-          <Button size="sm" variant="secondary" onClick={() => void load()}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Supplier Portal"
+        title={supplier ? supplier.companyName : "Supplier Workspace"}
+        description={
+          supplier
+            ? `${supplier.contactName} · ${supplier.email}${supplier.phone ? ` · ${supplier.phone}` : ""}`
+            : "Track your supplied catalog, low-stock replenishment alerts, purchase orders, and receiving receipts."
+        }
+        actions={
+          <>
+            {(data?.availableSuppliers.length ?? 0) > 1 && (
+              <Select
+                value={selectedSupplierId || supplier?.id || ""}
+                onChange={(e) => setSelectedSupplierId(e.target.value)}
+                className="h-9 w-52 text-xs"
+                aria-label="Select supplier account"
+              >
+                {data?.availableSuppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.companyName}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => void load()}>
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {/* Sub-navigation pills */}
       <div className="flex flex-wrap gap-2">

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate, formatMoney, paymentMethodLabel } from "@/lib/format";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import type { Receipt as ReceiptType } from "@/hooks/usePosCart";
@@ -76,28 +77,25 @@ export default function ReceiptPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[720px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Receipt
-          </h1>
-          <p className="text-sm text-muted">Latest completed transaction</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => window.print()}>
-            Print
-          </Button>
-          <Link
-            href="/pos"
-            className="inline-flex h-10 items-center rounded bg-primary-hover px-4 text-sm font-medium text-white"
-          >
-            New Sale
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto w-full max-w-[780px] space-y-6">
+      <PageHeader
+        eyebrow="Digital & Thermal Receipt"
+        title="Receipt"
+        description="Latest completed transaction ready for 58mm/80mm thermal printing."
+        className="print:hidden"
+        actions={
+          <>
+            <Button size="sm" variant="secondary" onClick={() => window.print()}>
+              Print
+            </Button>
+            <Link href="/pos">
+              <Button size="sm">New Sale</Button>
+            </Link>
+          </>
+        }
+      />
 
-      <div className="mx-auto max-w-[380px] rounded-lg border border-border bg-background p-6 shadow-md print:border-0 print:shadow-none">
+      <div className="mx-auto max-w-[390px] rounded-2xl border border-border bg-white p-6 shadow-soft print:border-0 print:shadow-none">
         <div className="border-b border-dashed border-border pb-4 text-center">
           <p className="font-display text-lg font-bold">{settings.storeName}</p>
           <p className="text-xs text-muted">{settings.storeAddress}</p>

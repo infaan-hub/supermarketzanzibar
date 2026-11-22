@@ -55,24 +55,24 @@ export function Shell({ title, children }: ShellProps) {
   }, [sidebarOpen, isDesktop, hideChrome]);
 
   if (storefront) {
-    return <div className="min-h-dvh bg-background">{children}</div>;
+    return <div className="min-h-dvh page-surface">{children}</div>;
   }
 
   if (authUtility || hideChrome) {
     return (
-      <div className="min-h-dvh bg-background">
+      <div className="min-h-dvh page-surface">
         <main className="mx-auto w-full max-w-[1400px] px-4 py-6">{children}</main>
       </div>
     );
   }
 
   return (
-    <div className="flex h-dvh min-h-dvh overflow-hidden bg-background print:block print:h-auto print:overflow-visible">
+    <div className="flex h-dvh min-h-dvh overflow-hidden bg-canvas print:block print:h-auto print:overflow-visible">
       {sidebarOpen && !isDesktop && (
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-foreground/40 backdrop-blur-[1px] lg:hidden print:hidden"
+          className="fixed inset-0 z-40 bg-teal-950/25 backdrop-blur-[2px] lg:hidden print:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -95,7 +95,7 @@ export function Shell({ title, children }: ShellProps) {
           className={
             isFullViewportCanvas
               ? "min-h-0 flex-1 overflow-hidden bg-[#f2fbfa] p-0 print:overflow-visible"
-              : "safe-main min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-background py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:py-6 lg:py-8 print:overflow-visible print:p-0"
+              : "safe-main page-surface min-h-0 flex-1 overflow-x-hidden overflow-y-auto py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:py-6 lg:py-7 print:overflow-visible print:bg-white print:p-0"
           }
         >
           {children}

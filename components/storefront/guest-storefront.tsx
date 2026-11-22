@@ -45,40 +45,43 @@ export function StorefrontHeader({
   const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-teal-200/70 bg-white/95 shadow-sm backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-border bg-white/88 shadow-[0_4px_24px_-12px_rgba(15,62,66,0.14)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-hover font-display text-sm font-bold text-white shadow-sm">
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 font-display text-sm font-bold text-white shadow-[0_6px_14px_-3px_rgba(13,148,136,0.45)] transition-transform group-hover:scale-[1.03]">
               SZ
             </div>
             <div>
-              <span className="block font-display text-base font-bold leading-tight text-foreground">
+              <span className="block font-display text-[15px] font-bold leading-tight text-foreground">
                 Supermarket Zanzibar
               </span>
-              <span className="block text-[10px] font-medium uppercase tracking-wider text-teal-700">
-                Stone Town · Fresh &amp; 3D Store
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-700">
+                Stone Town · Digital Storefront
               </span>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Storefront">
+          <nav
+            className="hidden items-center gap-1 rounded-xl border border-border/70 bg-surface-subtle/70 p-1 md:flex"
+            aria-label="Storefront"
+          >
             <Link
               href="/"
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3.5 py-1.5 font-display text-xs font-semibold transition-all ${
                 activePage === "shop"
-                  ? "bg-teal-50 text-teal-900"
-                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
+                  ? "bg-white text-teal-900 shadow-sm"
+                  : "text-muted hover:text-foreground"
               }`}
             >
-              Shop Products
+              Shop Catalog
             </Link>
             <Link
               href="/store-3d"
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3.5 py-1.5 font-display text-xs font-semibold transition-all ${
                 activePage === "3d"
-                  ? "bg-teal-50 text-teal-900"
-                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
+                  ? "bg-white text-teal-900 shadow-sm"
+                  : "text-muted hover:text-foreground"
               }`}
             >
               3D Store Tour
@@ -86,7 +89,7 @@ export function StorefrontHeader({
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {onOpenCart && (
             <Button
               size="sm"
@@ -94,9 +97,9 @@ export function StorefrontHeader({
               onClick={onOpenCart}
               aria-label="Open shopping basket"
             >
-              Basket
+              <span>Basket</span>
               {cartCount > 0 && (
-                <span className="ml-1.5 rounded-full bg-teal-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
+                <span className="rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
                   {cartCount}
                 </span>
               )}
@@ -105,9 +108,7 @@ export function StorefrontHeader({
 
           {isAuthenticated && user ? (
             <Link href={portalUrl}>
-              <Button size="sm">
-                {roleLabel(user.role)} Portal
-              </Button>
+              <Button size="sm">{roleLabel(user.role)} Portal</Button>
             </Link>
           ) : (
             <>
@@ -217,79 +218,98 @@ export function GuestStorefront() {
   const cartSubtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <div className="min-h-dvh bg-[#f5fbfa] text-foreground">
+    <div className="flex min-h-dvh flex-col page-surface text-foreground">
       <StorefrontHeader
         cartCount={cartCount}
         onOpenCart={() => setCartOpen(true)}
         activePage="shop"
       />
 
-      {/* Hero Banner */}
-      <section className="border-b border-teal-200/60 bg-gradient-to-br from-white via-[#eefaf7] to-[#e2f5f2]">
-        <div className="mx-auto flex max-w-[1400px] flex-col justify-between gap-6 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:py-12">
-          <div className="max-w-2xl space-y-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-white/90 px-3 py-1 text-xs font-semibold text-teal-800">
-              Live Store Availability · Stone Town, Zanzibar
+      {/* Editorial Coastal Hero */}
+      <section className="relative overflow-hidden border-b border-border/80 bg-gradient-to-br from-white via-[#eefaf8] to-[#dff5f1]">
+        <div className="mx-auto grid max-w-[1400px] items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.25fr_0.95fr] lg:py-14">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-teal-200/90 bg-white/90 px-3.5 py-1 text-xs font-semibold text-teal-800 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Live Shelf Stock · Stone Town, Zanzibar
             </span>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Fresh Groceries, Beverages &amp; Essentials — Explore in 3D
+            <h1 className="font-display text-3xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl">
+              Fresh Zanzibar groceries, now explorable in{" "}
+              <span className="text-teal-700">real-time 3D</span>.
             </h1>
-            <p className="text-sm text-muted sm:text-base">
-              Browse live shelf stock directly from our store database, build
-              your shopping basket without logging in, or take an interactive 3D
-              walkthrough of every supermarket aisle.
+            <p className="max-w-xl text-sm leading-relaxed text-muted sm:text-base">
+              Shop directly from live supermarket inventory without creating an
+              account, build your basket, or walk through all 18 aisles in our
+              interactive 3D Digital Twin store.
             </p>
-            <div className="flex flex-wrap items-center gap-2.5 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <Link href="/store-3d">
-                <Button>Explore 3D Supermarket</Button>
+                <Button size="lg">Explore 3D Supermarket</Button>
               </Link>
               <a href="#catalog">
-                <Button variant="secondary">Browse All Products</Button>
+                <Button size="lg" variant="secondary">
+                  Browse Aisles
+                </Button>
               </a>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:w-80">
-            <div className="glass-panel rounded-2xl p-4 shadow-sm">
-              <p className="text-xs text-muted">Active Products</p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-teal-900">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="glass-panel rounded-2xl p-5">
+              <p className="text-xs font-medium text-muted">Active Catalog</p>
+              <p className="mt-1.5 font-display text-3xl font-bold tabular-nums text-teal-900">
                 {catalog?.store.totalProducts ?? "—"}
               </p>
+              <p className="mt-1 text-xs text-muted">
+                Live products synced to PostgreSQL
+              </p>
             </div>
-            <div className="glass-panel rounded-2xl p-4 shadow-sm">
-              <p className="text-xs text-muted">Categories</p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-teal-900">
+            <div className="glass-panel rounded-2xl p-5">
+              <p className="text-xs font-medium text-muted">Store Departments</p>
+              <p className="mt-1.5 font-display text-3xl font-bold tabular-nums text-teal-900">
                 {catalog?.categories.length ?? "—"}
               </p>
+              <p className="mt-1 text-xs text-muted">
+                Groceries, beverages, dairy &amp; more
+              </p>
             </div>
-            <div className="glass-panel col-span-2 rounded-2xl p-4 shadow-sm">
-              <p className="text-xs font-semibold text-teal-800">
-                Staff, Admin &amp; Supplier Access
-              </p>
-              <p className="mt-0.5 text-xs text-muted">
-                Administrators manage under <code>/admin/*</code>, MarketMasters
-                operate on root workspaces, and Suppliers use{" "}
-                <code>/supplier/*</code>.
-              </p>
+            <div className="glass-panel sm:col-span-2 rounded-2xl p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-display text-sm font-bold text-teal-950">
+                    Dedicated Role Workspaces
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Admin (<code className="text-teal-800">/admin/*</code>) ·
+                    MarketMaster (<code className="text-teal-800">/dashboard</code>) ·
+                    Supplier (<code className="text-teal-800">/supplier/*</code>)
+                  </p>
+                </div>
+                <Link href="/login">
+                  <Button size="sm" variant="secondary">
+                    Staff Login
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Catalog Search & Category Filter */}
+      {/* Live Catalog Workspace */}
       <main
         id="catalog"
-        className="mx-auto max-w-[1400px] space-y-6 px-4 py-8 sm:px-6"
+        className="mx-auto w-full max-w-[1400px] flex-1 space-y-6 px-4 py-8 sm:px-6"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setSelectedCategory("")}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              className={`rounded-full px-3.5 py-1.5 font-display text-xs font-semibold transition-all cursor-pointer ${
                 selectedCategory === ""
-                  ? "bg-teal-700 text-white shadow-sm"
-                  : "border border-border bg-white text-muted hover:text-foreground"
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "border border-border bg-white text-muted hover:border-teal-400 hover:text-foreground"
               }`}
             >
               All Aisles
@@ -299,18 +319,19 @@ export function GuestStorefront() {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                className={`rounded-full px-3.5 py-1.5 font-display text-xs font-semibold transition-all cursor-pointer ${
                   selectedCategory === cat.id
-                    ? "bg-teal-700 text-white shadow-sm"
-                    : "border border-border bg-white text-muted hover:text-foreground"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "border border-border bg-white text-muted hover:border-teal-400 hover:text-foreground"
                 }`}
               >
-                {cat.name} ({cat.productCount})
+                {cat.name}{" "}
+                <span className="opacity-75">({cat.productCount})</span>
               </button>
             ))}
           </div>
 
-          <div className="w-full sm:w-72">
+          <div className="w-full shrink-0 sm:w-72">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -321,7 +342,7 @@ export function GuestStorefront() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <div className="rounded-2xl border border-danger/25 bg-red-50 px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
@@ -331,46 +352,46 @@ export function GuestStorefront() {
             {Array.from({ length: 8 }).map((_, idx) => (
               <div
                 key={idx}
-                className="h-56 animate-pulse rounded-2xl border border-border bg-white"
+                className="h-64 animate-pulse rounded-2xl border border-border bg-white/80"
               />
             ))}
           </div>
         ) : (catalog?.products ?? []).length === 0 ? (
           <Card>
-            <CardContent className="p-10 text-center">
+            <CardContent className="p-12 text-center">
               <p className="font-display text-base font-semibold text-foreground">
                 No matching products found
               </p>
               <p className="mt-1 text-xs text-muted">
-                Try another search term or explore another aisle category.
+                Try another search term or switch aisle categories.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {(catalog?.products ?? []).map((product) => {
               const inBasket =
                 cart.find((i) => i.productId === product.id)?.quantity ?? 0;
               return (
                 <Card
                   key={product.id}
-                  className="flex flex-col justify-between overflow-hidden border-teal-200/60 bg-white transition-shadow hover:shadow-md"
+                  className="group flex flex-col justify-between overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-teal-400/60 hover:shadow-soft"
                 >
                   <div>
-                    <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-[#f0faf8] to-[#e4f4f1] p-4">
+                    <div className="relative flex h-40 items-center justify-center bg-gradient-to-br from-[#f2fbfa] via-[#e9f7f5] to-[#ddf2ef] p-5">
                       {product.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={product.imageUrl}
                           alt={product.name}
-                          className="max-h-28 max-w-full rounded-lg object-contain"
+                          className="max-h-32 max-w-full rounded-xl object-contain transition-transform duration-200 group-hover:scale-105"
                         />
                       ) : (
-                        <span className="font-display text-2xl font-bold text-teal-800/35">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-teal-200/80 bg-white/80 font-display text-xl font-bold text-teal-700 shadow-sm">
                           {product.name.slice(0, 2).toUpperCase()}
-                        </span>
+                        </div>
                       )}
-                      <div className="absolute right-2.5 top-2.5">
+                      <div className="absolute right-3 top-3">
                         <Badge
                           variant={
                             product.stockStatus === "out_of_stock"
@@ -383,40 +404,65 @@ export function GuestStorefront() {
                           {product.stockStatus === "out_of_stock"
                             ? "Out of stock"
                             : product.stockStatus === "low_stock"
-                              ? "Limited stock"
+                              ? "Limited"
                               : "In stock"}
                         </Badge>
                       </div>
                     </div>
 
-                    <div className="space-y-1 p-4">
+                    <div className="space-y-1.5 p-4">
                       {product.category && (
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-teal-700">
                           {product.category.name}
                         </p>
                       )}
-                      <h2 className="line-clamp-2 font-display text-base font-bold text-foreground">
+                      <h2 className="line-clamp-2 font-display text-[15px] font-bold leading-snug text-foreground">
                         {product.name}
                       </h2>
                       {product.description && (
-                        <p className="line-clamp-2 text-xs text-muted">
+                        <p className="line-clamp-2 text-xs leading-relaxed text-muted">
                           {product.description}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-3">
+                  <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-surface-subtle/40 px-4 py-3">
                     <span className="font-display text-base font-bold tabular-nums text-teal-950">
                       {formatMoney(product.price)}
                     </span>
-                    <Button
-                      size="sm"
-                      disabled={!product.inStock}
-                      onClick={() => addToBasket(product)}
-                    >
-                      {inBasket > 0 ? `In Basket (${inBasket})` : "+ Add"}
-                    </Button>
+
+                    {inBasket > 0 ? (
+                      <div className="flex items-center gap-1 rounded-xl border border-teal-300/70 bg-white p-0.5 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => adjustBasket(product.id, -1)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-teal-900 hover:bg-surface-subtle cursor-pointer"
+                          aria-label={`Remove one ${product.name}`}
+                        >
+                          −
+                        </button>
+                        <span className="min-w-6 text-center font-mono text-xs font-bold text-teal-950">
+                          {inBasket}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => addToBasket(product)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-xs font-bold text-white hover:bg-teal-700 cursor-pointer"
+                          aria-label={`Add one more ${product.name}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        disabled={!product.inStock}
+                        onClick={() => addToBasket(product)}
+                      >
+                        + Add
+                      </Button>
+                    )}
                   </div>
                 </Card>
               );
@@ -425,17 +471,37 @@ export function GuestStorefront() {
         )}
       </main>
 
+      {/* Clean Footer */}
+      <footer className="mt-10 border-t border-border bg-white/80">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-4 py-6 text-xs text-muted sm:px-6">
+          <p className="font-medium text-foreground">
+            Supermarket Zanzibar · Stone Town · Live 3D Digital Twin &amp; Inventory
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href="/store-3d" className="hover:text-teal-800 hover:underline">
+              3D Store Tour
+            </Link>
+            <Link href="/login" className="hover:text-teal-800 hover:underline">
+              Sign In
+            </Link>
+            <Link href="/register" className="hover:text-teal-800 hover:underline">
+              Register
+            </Link>
+          </div>
+        </div>
+      </footer>
+
       {/* Guest Shopping Basket Drawer */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-foreground/40 backdrop-blur-[1px]">
-          <div className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="fixed inset-0 z-50 flex justify-end bg-teal-950/30 backdrop-blur-[2px]">
+          <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border bg-surface-subtle/70 px-5 py-4">
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">
                   Shopping Basket ({cartCount})
                 </h2>
                 <p className="text-xs text-muted">
-                  Saved in your browser — sign in to complete your order
+                  Saved locally — sign in to finalize checkout
                 </p>
               </div>
               <Button
@@ -449,21 +515,29 @@ export function GuestStorefront() {
 
             <div className="flex-1 space-y-3 overflow-y-auto p-5">
               {cart.length === 0 ? (
-                <p className="py-12 text-center text-sm text-muted">
-                  Your basket is empty. Add products from the catalog.
-                </p>
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <p className="font-display text-sm font-semibold text-foreground">
+                    Your basket is empty
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Add products from any aisle to start building your order.
+                  </p>
+                </div>
               ) : (
                 cart.map((item) => (
                   <div
                     key={item.productId}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-subtle/60 p-3"
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-subtle/60 p-3.5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {item.name}
                       </p>
                       <p className="text-xs text-muted">
-                        {formatMoney(item.price)} each
+                        {formatMoney(item.price)} × {item.quantity} ={" "}
+                        <strong className="text-teal-900">
+                          {formatMoney(item.price * item.quantity)}
+                        </strong>
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -492,10 +566,10 @@ export function GuestStorefront() {
               )}
             </div>
 
-            <div className="space-y-3 border-t border-border p-5">
+            <div className="space-y-3 border-t border-border bg-surface-subtle/50 p-5">
               <div className="flex items-center justify-between text-sm font-semibold">
-                <span>Estimated Total</span>
-                <span className="font-display text-lg text-teal-900">
+                <span className="text-muted">Estimated Subtotal</span>
+                <span className="font-display text-xl font-bold text-teal-950 tabular-nums">
                   {formatMoney(cartSubtotal)}
                 </span>
               </div>
@@ -510,7 +584,7 @@ export function GuestStorefront() {
                   </Button>
                 )}
                 <Link href="/login" className="flex-1">
-                  <Button className="w-full" size="sm">
+                  <Button className="w-full" size="md">
                     Sign In to Checkout
                   </Button>
                 </Link>

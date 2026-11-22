@@ -11,6 +11,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonText } from "@/components/ui/skeleton";
 import {
@@ -145,38 +146,34 @@ export default function ReportsPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Reports &amp; End-of-Day Z-Report
-          </h1>
-          <p className="text-sm text-muted">
-            {settings.storeName} · {data.range.contextLabel} · Generated{" "}
-            {formatBusinessDateTime(data.generatedAt)}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
-          <Button variant="secondary" onClick={() => exportReportCsv(data)}>
-            Export CSV
-          </Button>
-          <Button variant="default" onClick={() => window.print()}>
-            Print Z-Report
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Financial Intelligence · Z-Report"
+        title="Reports & End-of-Day Z-Report"
+        description={`${settings.storeName} · ${data.range.contextLabel} · Generated ${formatBusinessDateTime(data.generatedAt)}`}
+        actions={
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Button size="sm" variant="secondary" onClick={() => exportReportCsv(data)}>
+              Export CSV
+            </Button>
+            <Button size="sm" variant="default" onClick={() => window.print()}>
+              Print Z-Report
+            </Button>
+          </div>
+        }
+      />
 
       {/* Period Switcher */}
-      <div className="flex flex-wrap gap-2 print:hidden">
+      <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-border bg-white/90 p-1 shadow-sm print:hidden">
         {RANGES.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setRange(item.key)}
             className={cn(
-              "rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors",
+              "rounded-xl px-3.5 py-2 font-display text-xs font-semibold transition-all cursor-pointer",
               range === item.key
-                ? "border-primary-hover bg-primary-hover text-white"
-                : "border-border bg-background text-muted hover:text-foreground",
+                ? "bg-gradient-to-b from-teal-600 to-teal-700 text-white shadow-sm"
+                : "text-muted hover:bg-surface-subtle hover:text-foreground",
             )}
           >
             {item.label}

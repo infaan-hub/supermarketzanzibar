@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { fetchSystemInfo } from "@/lib/api";
 import type { ReceiptPaperWidth } from "@/lib/store-settings";
@@ -82,16 +83,12 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">
-          Store &amp; POS Settings
-        </h1>
-        <p className="text-sm text-muted">
-          Configure receipt branding, VAT/tax percentage used at checkout,
-          thermal paper width, and inventory thresholds.
-        </p>
-      </div>
+    <div className="mx-auto max-w-[1160px] space-y-6">
+      <PageHeader
+        eyebrow="System Configuration"
+        title="Store & POS Settings"
+        description="Configure receipt branding, VAT/tax percentage used at checkout, thermal paper width, and inventory alert thresholds."
+      />
 
       {savedNotice && (
         <div

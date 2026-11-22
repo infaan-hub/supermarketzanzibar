@@ -15,7 +15,7 @@ import { useElementWidth } from "@/hooks/useElementWidth";
 import { Panel, PanelEmpty, PanelHeader, PanelLink } from "./panel";
 
 const CHART_HEIGHT = 244;
-const SERIES_COLOR = "#1f8f3a";
+const SERIES_COLOR = "#0d9488";
 
 function niceTicks(max: number): number[] {
   if (!(max > 0)) return [0];

@@ -52,7 +52,7 @@ export function DashboardPageView() {
   return (
     <div className="relative isolate mx-auto w-full max-w-[1400px] space-y-5 sm:space-y-6">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top_right,rgba(78,173,99,0.12),transparent_64%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.14),transparent_64%)]"
         aria-hidden="true"
       />
 

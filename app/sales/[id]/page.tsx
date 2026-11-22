@@ -142,15 +142,15 @@ export default function SaleDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="page-banner flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <Link
             href="/sales"
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-semibold text-teal-700 hover:underline"
           >
             ← All Sales
           </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
             <h1 className="font-display text-2xl font-bold text-foreground">
               Sale #{sale.id}
             </h1>
@@ -163,16 +163,13 @@ export default function SaleDetailPage({
               </Badge>
             )}
           </div>
-          <p className="text-sm text-muted">
+          <p className="mt-1 text-sm text-muted">
             Recorded {formatBusinessDateTime(sale.createdAt)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/receipt/${sale.id}`}
-            className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white hover:bg-[#0f5c23]"
-          >
-            Print / Download Receipt
+          <Link href={`/receipt/${sale.id}`}>
+            <Button size="sm">Print / Download Receipt</Button>
           </Link>
           {canManage &&
             sale.payment &&

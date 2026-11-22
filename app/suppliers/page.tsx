@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonText } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -107,29 +108,26 @@ export default function SuppliersPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Suppliers
-          </h1>
-          <p className="text-sm text-muted">
-            Vendors, supplied product catalogues, and low-stock reorder lists.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            placeholder="Search suppliers…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-72"
-          />
-          {canManage && (
-            <Button onClick={() => setShowForm((v) => !v)}>
-              {showForm ? "Cancel" : "+ New Supplier"}
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Vendor Directory"
+        title="Suppliers"
+        description="Vendors, supplied product catalogues, and low-stock reorder queues."
+        actions={
+          <>
+            <Input
+              placeholder="Search suppliers…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full sm:w-64"
+            />
+            {canManage && (
+              <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+                {showForm ? "Cancel" : "+ New Supplier"}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {showForm && canManage && (
         <Card>

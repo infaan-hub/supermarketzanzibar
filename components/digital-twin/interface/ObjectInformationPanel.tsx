@@ -115,25 +115,25 @@ export function ObjectInformationPanel({
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={href("/pos")}
-              className="inline-flex h-9 items-center justify-center rounded bg-primary-hover px-3 text-xs font-medium text-white"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 px-3 font-display text-xs font-semibold text-white shadow-sm hover:from-teal-500 hover:to-teal-700"
             >
               Open POS
             </Link>
             <Link
               href={href("/warehouse")}
-              className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
             >
               Warehouse Ops
             </Link>
             <Link
               href={href("/shelves")}
-              className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
             >
               Shelves Setup
             </Link>
             <Link
               href={href("/purchase-orders")}
-              className="inline-flex h-9 items-center justify-center rounded border border-border bg-background px-3 text-xs font-medium text-foreground"
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-white px-3 font-display text-xs font-semibold text-foreground shadow-sm hover:border-teal-400 hover:bg-surface-subtle"
             >
               Purchase Orders
             </Link>

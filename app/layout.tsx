@@ -22,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-background">
+      <body className="bg-canvas text-foreground">
         <AuthProvider>
           <Shell title="Supermarket Zanzibar">{children}</Shell>
         </AuthProvider>

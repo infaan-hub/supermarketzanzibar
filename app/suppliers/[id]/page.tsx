@@ -126,15 +126,15 @@ export default function SupplierDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="page-banner flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <Link
             href="/suppliers"
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-semibold text-teal-700 hover:underline"
           >
             ← All Suppliers
           </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
             <h1 className="font-display text-2xl font-bold text-foreground">
               {supplier.companyName}
             </h1>
@@ -146,16 +146,13 @@ export default function SupplierDetailPage({
               {supplier.lowStockProducts.length} low-stock item(s)
             </Badge>
           </div>
-          <p className="text-sm text-muted">
+          <p className="mt-1 text-sm text-muted">
             Contact: {supplier.contactName} · Partner since{" "}
             {formatDate(supplier.createdAt)}
           </p>
         </div>
-        <Link
-          href="/stock"
-          className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white hover:bg-[#0f5c23]"
-        >
-          Receive Stock (IN)
+        <Link href="/goods-received">
+          <Button size="sm">Receive Stock (GRN)</Button>
         </Link>
       </div>
 

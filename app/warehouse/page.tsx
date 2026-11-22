@@ -16,8 +16,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DigitalTwinWorkspace } from "@/components/digital-twin/DigitalTwinWorkspace";
+import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isInventoryRole } from "@/lib/auth/roles";
+import { isInventoryRole, portalHref } from "@/lib/auth/roles";
 import {
   fetchProducts,
   fetchShelves,
@@ -34,6 +35,7 @@ import type {
 export default function WarehousePage() {
   const { user } = useAuth();
   const canEdit = isInventoryRole(user?.role);
+  const href = (path: string) => portalHref(user?.role, path);
 
   const [warehouse, setWarehouse] =
     React.useState<WarehouseOverviewResponse | null>(null);
@@ -157,30 +159,23 @@ export default function WarehousePage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
-            Phase 10 · 3D Warehouse Digital Twin
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Storage Warehouse & Racks
-          </h1>
-          <p className="text-sm text-muted">
-            Inspect Zones A–D in 3D, receive bulk pallets into exact rack levels,
-            and transfer reserve stock to retail shelves.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/digital-twin?scope=warehouse">
-            <Button variant="secondary" size="sm">
-              Full-Screen 3D Warehouse
-            </Button>
-          </Link>
-          <Link href="/goods-received">
-            <Button size="sm">Record Goods Receipt</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="3D Warehouse Digital Twin"
+        title="Storage Warehouse & Racks"
+        description="Inspect Zones A–D in 3D, receive bulk pallets into exact rack levels, and transfer reserve stock to retail shelves."
+        actions={
+          <>
+            <Link href={href("/digital-twin?scope=warehouse")}>
+              <Button variant="secondary" size="sm">
+                Full-Screen 3D Warehouse
+              </Button>
+            </Link>
+            <Link href={href("/goods-received")}>
+              <Button size="sm">Record Goods Receipt</Button>
+            </Link>
+          </>
+        }
+      />
 
       {error && (
         <div

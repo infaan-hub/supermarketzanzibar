@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonText } from "@/components/ui/skeleton";
 import {
@@ -102,15 +103,11 @@ export default function PaymentsPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">
-          Payments &amp; Reconciliation
-        </h1>
-        <p className="text-sm text-muted">
-          Monitor control numbers, confirm pending mobile money or bank
-          transfers, and reconcile receipts.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Financial Reconciliation"
+        title="Payments & Reconciliation"
+        description="Monitor control numbers, confirm pending mobile money or bank transfers, and reconcile receipts."
+      />
 
       {summary && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

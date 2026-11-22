@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
@@ -41,22 +42,18 @@ export default function ShoppingCartPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Shopping Cart
-          </h1>
-          <p className="text-muted">
-            Review the basket, attach a customer if needed, and complete checkout.
-          </p>
-        </div>
-        <Link
-          href="/pos"
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          ← Back to POS Terminal
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="POS Basket Review"
+        title="Shopping Cart"
+        description="Review line items, attach a loyalty customer if needed, and complete checkout."
+        actions={
+          <Link href="/pos">
+            <Button size="sm" variant="secondary">
+              ← Back to POS Terminal
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
