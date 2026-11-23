@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchCategories } from "@/lib/api";
+import { fetchCategories, invalidateApiCache } from "@/lib/api";
 import type { CategoriesResponse } from "@/types/api";
 
 export function useCategories(search?: string) {
@@ -30,6 +30,9 @@ export function useCategories(search?: string) {
     };
   }, [search, tick]);
 
-  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  const refresh = useCallback(() => {
+    invalidateApiCache();
+    setTick((n) => n + 1);
+  }, []);
   return { data, loading, error, refresh };
 }

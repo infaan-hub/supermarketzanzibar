@@ -8,8 +8,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { badRequest, json, serverError } from "@/lib/http";
 import { requireManager } from "@/lib/auth/request";
+import { roleDescription, roleLabel } from "@/lib/auth/roles";
 import { buildDashboardPeriod, isDashboardRange } from "@/lib/dashboard-range";
 import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
+import type { RoleActivityReport, RoleMemberReportRow } from "@/types/api";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,16 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const period = buildDashboardPeriod(rawRange, now);
 
-    const [confirmedSales, cancelledCount, activeProducts] = await Promise.all([
+    const [
+      confirmedSales,
+      cancelledCount,
+      activeProducts,
+      allUsers,
+      periodMovements,
+      periodPurchaseOrders,
+      periodGoodsReceipts,
+      periodAuditLogs,
+    ] = await Promise.all([
       prisma.sale.findMany({
         where: confirmedSaleWhere(period.start, period.end),
         include: {
@@ -64,9 +75,87 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.findMany({
         where: { isActive: true, quantity: { gt: 0 } },
-        include: { category: true },
+        select: {
+          id: true,
+          name: true,
+          barcode: true,
+          price: true,
+          costPrice: true,
+          quantity: true,
+          category: { select: { name: true } },
+        },
         orderBy: { quantity: "desc" },
       }),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          lastLogin: true,
+        },
+        orderBy: [{ role: "asc" }, { fullName: "asc" }],
+      }),
+      prisma.stockMovement
+        .findMany({
+          where: { date: { gte: period.start, lt: period.end } },
+          select: { performedById: true, quantity: true },
+        })
+        .catch(() => [] as Array<{ performedById: bigint | null; quantity: number }>),
+      prisma.purchaseOrder
+        .findMany({
+          where: { createdAt: { gte: period.start, lt: period.end } },
+          select: {
+            createdById: true,
+            supplier: { select: { userId: true } },
+          },
+        })
+        .catch(
+          () =>
+            [] as Array<{
+              createdById: bigint | null;
+              supplier: { userId: bigint } | null;
+            }>,
+        ),
+      prisma.goodsReceipt
+        .findMany({
+          where: { receivedAt: { gte: period.start, lt: period.end } },
+          select: {
+            receivedById: true,
+            supplier: { select: { userId: true } },
+          },
+        })
+        .catch(
+          () =>
+            [] as Array<{
+              receivedById: bigint | null;
+              supplier: { userId: bigint } | null;
+            }>,
+        ),
+      prisma.auditLog
+        .findMany({
+          where: { createdAt: { gte: period.start, lt: period.end } },
+          select: {
+            actorId: true,
+            action: true,
+            summary: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+        })
+        .catch(
+          () =>
+            [] as Array<{
+              actorId: bigint | null;
+              action: string;
+              summary: string;
+              createdAt: Date;
+            }>,
+        ),
     ]);
 
     let grossRevenue = 0;
@@ -173,6 +262,170 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => a.unitsSold - b.unitsSold || b.stockValue - a.stockValue)
       .slice(0, 10);
 
+    // Build All Roles Activity & Performance Reports across every system role.
+    const userActivityMap = new Map<
+      string,
+      {
+        salesProcessedCount: number;
+        salesRevenueAmount: number;
+        stockMovementsCount: number;
+        stockUnitsMoved: number;
+        purchaseOrdersCount: number;
+        goodsReceiptsCount: number;
+        auditActionsCount: number;
+        lastActionSummary: string | null;
+      }
+    >();
+
+    const ensureUserStats = (uid: string) => {
+      let entry = userActivityMap.get(uid);
+      if (!entry) {
+        entry = {
+          salesProcessedCount: 0,
+          salesRevenueAmount: 0,
+          stockMovementsCount: 0,
+          stockUnitsMoved: 0,
+          purchaseOrdersCount: 0,
+          goodsReceiptsCount: 0,
+          auditActionsCount: 0,
+          lastActionSummary: null,
+        };
+        userActivityMap.set(uid, entry);
+      }
+      return entry;
+    };
+
+    for (const sale of confirmedSales) {
+      const amt = Number(sale.finalAmount);
+      const actorIds = new Set<string>();
+      if (sale.userId) actorIds.add(sale.userId.toString());
+      if (sale.payment?.confirmedById) {
+        actorIds.add(sale.payment.confirmedById.toString());
+      }
+      for (const uid of actorIds) {
+        const st = ensureUserStats(uid);
+        st.salesProcessedCount += 1;
+        st.salesRevenueAmount += amt;
+      }
+    }
+
+    for (const mv of periodMovements) {
+      if (!mv.performedById) continue;
+      const st = ensureUserStats(mv.performedById.toString());
+      st.stockMovementsCount += 1;
+      st.stockUnitsMoved += Math.abs(mv.quantity);
+    }
+
+    for (const po of periodPurchaseOrders) {
+      if (po.createdById) {
+        ensureUserStats(po.createdById.toString()).purchaseOrdersCount += 1;
+      }
+      if (po.supplier?.userId) {
+        ensureUserStats(po.supplier.userId.toString()).purchaseOrdersCount += 1;
+      }
+    }
+
+    for (const gr of periodGoodsReceipts) {
+      if (gr.receivedById) {
+        ensureUserStats(gr.receivedById.toString()).goodsReceiptsCount += 1;
+      }
+      if (gr.supplier?.userId) {
+        ensureUserStats(gr.supplier.userId.toString()).goodsReceiptsCount += 1;
+      }
+    }
+
+    for (const log of periodAuditLogs) {
+      if (!log.actorId) continue;
+      const st = ensureUserStats(log.actorId.toString());
+      st.auditActionsCount += 1;
+      if (!st.lastActionSummary && log.summary) {
+        st.lastActionSummary = log.summary;
+      }
+    }
+
+    const orderedRoleKeys = [
+      "manager",
+      "marketmaster",
+      "supplier",
+      "admin",
+      "customer",
+      "viewer",
+    ];
+    const membersByRole = new Map<string, RoleMemberReportRow[]>();
+    for (const rk of orderedRoleKeys) {
+      membersByRole.set(rk, []);
+    }
+
+    for (const u of allUsers) {
+      const rKey = (u.role || "viewer").trim().toLowerCase();
+      if (!membersByRole.has(rKey)) {
+        membersByRole.set(rKey, []);
+      }
+      const uid = u.id.toString();
+      const st = ensureUserStats(uid);
+      membersByRole.get(rKey)!.push({
+        id: uid,
+        username: u.username,
+        fullName: u.fullName || u.username,
+        email: u.email,
+        phone: u.phone,
+        role: rKey,
+        roleLabel: roleLabel(rKey),
+        isActive: u.isActive,
+        lastLogin: u.lastLogin ? u.lastLogin.toISOString() : null,
+        salesProcessedCount: st.salesProcessedCount,
+        salesRevenueAmount: st.salesRevenueAmount,
+        stockMovementsCount: st.stockMovementsCount,
+        stockUnitsMoved: st.stockUnitsMoved,
+        purchaseOrdersCount: st.purchaseOrdersCount,
+        goodsReceiptsCount: st.goodsReceiptsCount,
+        auditActionsCount: st.auditActionsCount,
+        lastActionSummary: st.lastActionSummary,
+      });
+    }
+
+    const roleReports: RoleActivityReport[] = Array.from(
+      membersByRole.entries(),
+    ).map(([rKey, members]) => {
+      const signedInPeriodCount = members.filter((m) => {
+        if (!m.lastLogin) return false;
+        const ts = new Date(m.lastLogin).getTime();
+        return ts >= period.start.getTime() && ts < period.end.getTime();
+      }).length;
+
+      return {
+        role: rKey,
+        roleLabel: roleLabel(rKey),
+        description: roleDescription(rKey),
+        totalUsers: members.length,
+        activeUsers: members.filter((m) => m.isActive).length,
+        signedInPeriodCount,
+        salesProcessedCount: members.reduce(
+          (s, m) => s + m.salesProcessedCount,
+          0,
+        ),
+        salesRevenueAmount: members.reduce(
+          (s, m) => s + m.salesRevenueAmount,
+          0,
+        ),
+        stockMovementsCount: members.reduce(
+          (s, m) => s + m.stockMovementsCount,
+          0,
+        ),
+        stockUnitsMoved: members.reduce((s, m) => s + m.stockUnitsMoved, 0),
+        purchaseOrdersCount: members.reduce(
+          (s, m) => s + m.purchaseOrdersCount,
+          0,
+        ),
+        goodsReceiptsCount: members.reduce(
+          (s, m) => s + m.goodsReceiptsCount,
+          0,
+        ),
+        auditActionsCount: members.reduce((s, m) => s + m.auditActionsCount, 0),
+        members,
+      };
+    });
+
     return json(
       {
         generatedAt: now.toISOString(),
@@ -203,6 +456,7 @@ export async function GET(request: NextRequest) {
         paymentBreakdown,
         topProfitProducts,
         slowMovingProducts,
+        roleReports,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

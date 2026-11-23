@@ -507,7 +507,22 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
           positions: {
             include: {
               product: {
-                include: { category: true, modelAsset: true },
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                  barcode: true,
+                  categoryId: true,
+                  price: true,
+                  costPrice: true,
+                  quantity: true,
+                  imageName: true,
+                  imageContentType: true,
+                  description: true,
+                  updatedAt: true,
+                  category: { select: { id: true, name: true } },
+                  modelAsset: { select: { assetKey: true, version: true } },
+                },
               },
             },
             orderBy: { slotIndex: "asc" },
@@ -521,7 +536,24 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
       }),
       prisma.inventory.findMany({
         where: { storeId: store.id },
-        include: { product: { include: { category: true } } },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              barcode: true,
+              price: true,
+              costPrice: true,
+              quantity: true,
+              imageName: true,
+              imageContentType: true,
+              description: true,
+              updatedAt: true,
+              category: { select: { id: true, name: true } },
+            },
+          },
+        },
       }),
       prisma.inventoryBatch.findMany({
         where: { storeId: store.id, quantity: { gt: 0 } },
@@ -630,7 +662,7 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
               assetPath:
                 resolvedAsset?.path ?? "/models/products/groceries/cereal-box.glb",
               imageUrl:
-                prod.imageName || prod.imageData
+                prod.imageName || prod.imageContentType
                   ? `/api/products/${prod.id.toString()}/image?v=${prod.updatedAt.getTime()}`
                   : null,
               description: prod.description ?? "",

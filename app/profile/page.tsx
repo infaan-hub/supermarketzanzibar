@@ -2,19 +2,24 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/components/auth/auth-provider";
-import { updateMe } from "@/lib/api";
+import {
+  deleteProfileImage,
+  updateMe,
+  uploadProfileImage,
+} from "@/lib/api";
 import { roleLabel } from "@/lib/auth/roles";
 import { formatBusinessDateTime } from "@/lib/format";
 
 export default function ProfilePage() {
   const { user, refreshUser, logout } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,6 +28,11 @@ export default function ProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
+  const [imageBust, setImageBust] = useState<string>("");
+  const [imgFailed, setImgFailed] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -37,7 +47,45 @@ export default function ProfilePage() {
     setEmail(user.email);
     setPhone(user.phone);
     setAddress(user.address);
+    setImgFailed(false);
   }, [user]);
+
+  const handleUploadPhoto = async (file: File) => {
+    setUploadingImage(true);
+    setProfileMsg(null);
+    setProfileError(null);
+    try {
+      const res = await uploadProfileImage(file);
+      setImageBust(res.updatedAt || String(Date.now()));
+      setImgFailed(false);
+      await refreshUser();
+      setProfileMsg("Profile image updated.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Unable to upload profile image.",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setRemovingImage(true);
+    setProfileMsg(null);
+    setProfileError(null);
+    try {
+      await deleteProfileImage();
+      setImageBust(String(Date.now()));
+      await refreshUser();
+      setProfileMsg("Profile image removed.");
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Unable to remove profile image.",
+      );
+    } finally {
+      setRemovingImage(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +143,12 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const initials = (user.full_name || user.username).slice(0, 2).toUpperCase();
+  const hasPhoto = Boolean(user.profile_image_available || user.profile_image_url) && !imgFailed;
+  const photoUrl = user.profile_image_url
+    ? `${user.profile_image_url}${imageBust ? `&b=${encodeURIComponent(imageBust)}` : ""}`
+    : `/api/auth/me/image?u=${encodeURIComponent(user.id)}&b=${encodeURIComponent(imageBust || "1")}`;
+
   return (
     <div className="mx-auto max-w-[1040px] space-y-6">
       <PageHeader
@@ -109,6 +163,77 @@ export default function ProfilePage() {
           </>
         }
       />
+
+      {/* Profile Image Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Image</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#4CAF50] bg-[#1c1c1e] text-xl font-bold text-white shadow-lg">
+                {hasPhoto ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={photoUrl}
+                    alt={user.full_name || user.username}
+                    onError={() => setImgFailed(true)}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>{initials}</span>
+                )}
+              </div>
+              <div>
+                <p className="font-display text-base font-bold text-white">
+                  {user.full_name || user.username}
+                </p>
+                <p className="text-xs text-[#4CAF50]">
+                  {roleLabel(user.role)} · @{user.username}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Upload a JPG, PNG, WebP, or GIF image (up to 5 MB) for your
+                  account avatar.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void handleUploadPhoto(file);
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                isLoading={uploadingImage}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {hasPhoto ? "Change Profile Image" : "+ Add Profile Image"}
+              </Button>
+              {hasPhoto && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  isLoading={removingImage}
+                  onClick={() => void handleRemovePhoto()}
+                >
+                  Remove Photo
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

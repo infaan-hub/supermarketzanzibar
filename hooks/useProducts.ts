@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchProducts } from "@/lib/api";
+import { fetchProducts, invalidateApiCache } from "@/lib/api";
 import type { ProductsResponse } from "@/types/api";
 
 export function useProducts({
@@ -54,6 +54,9 @@ export function useProducts({
     };
   }, [search, categoryId, supplierId, lowStock, includeInactive, page, take, tick]);
 
-  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  const refresh = useCallback(() => {
+    invalidateApiCache();
+    setTick((n) => n + 1);
+  }, []);
   return { data, loading, error, refresh };
 }

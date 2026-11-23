@@ -20,6 +20,8 @@ export interface AuthUser {
   is_active: boolean;
   last_login: string | null;
   created_at: string;
+  profile_image_available?: boolean;
+  profile_image_url?: string | null;
 }
 
 export interface LoginResponse {
@@ -491,6 +493,43 @@ export interface PaymentsResponse {
 
 // ---- Reports (Z-Report & Profit Analytics) ---------------------------------
 
+export interface RoleMemberReportRow {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: string;
+  roleLabel: string;
+  isActive: boolean;
+  lastLogin: string | null;
+  salesProcessedCount: number;
+  salesRevenueAmount: number;
+  stockMovementsCount: number;
+  stockUnitsMoved: number;
+  purchaseOrdersCount: number;
+  goodsReceiptsCount: number;
+  auditActionsCount: number;
+  lastActionSummary: string | null;
+}
+
+export interface RoleActivityReport {
+  role: string;
+  roleLabel: string;
+  description: string;
+  totalUsers: number;
+  activeUsers: number;
+  signedInPeriodCount: number;
+  salesProcessedCount: number;
+  salesRevenueAmount: number;
+  stockMovementsCount: number;
+  stockUnitsMoved: number;
+  purchaseOrdersCount: number;
+  goodsReceiptsCount: number;
+  auditActionsCount: number;
+  members: RoleMemberReportRow[];
+}
+
 export interface ReportsResponse {
   generatedAt: string;
   timeZone: string;
@@ -533,6 +572,7 @@ export interface ReportsResponse {
     stockValue: number;
     unitsSold: number;
   }>;
+  roleReports?: RoleActivityReport[];
 }
 
 // ---- System Diagnostics (Settings) -----------------------------------------

@@ -72,14 +72,28 @@ async function uniqueSlug(name: string, barcode: string): Promise<string> {
   return candidate;
 }
 
-type ProductWithRelations = NonNullable<
-  Awaited<ReturnType<typeof getProductById>>
-> & {
+type ProductListRecord = {
+  id: bigint;
+  name: string;
+  slug: string;
+  price: Prisma.Decimal | number;
+  costPrice: Prisma.Decimal | number;
+  quantity: number;
+  barcode: string;
+  description: string;
+  isActive: boolean;
+  imageName?: string;
+  imageContentType?: string;
+  imageData?: Uint8Array | Buffer | null;
+  createdAt: Date;
+  updatedAt: Date;
+  category: { id: bigint; name: string } | null;
+  supplier: { id: bigint; companyName: string } | null;
   modelAsset?: { assetKey: string; version: string } | null;
   shelfPositions?: ShelfPositionWithHierarchy[];
 };
 
-function serializeProduct(product: ProductWithRelations) {
+function serializeProduct(product: ProductListRecord) {
   const effectiveAsset = resolveEffectiveProductAsset({
     name: product.name,
     categoryName: product.category?.name ?? null,
@@ -106,7 +120,9 @@ function serializeProduct(product: ProductWithRelations) {
           companyName: product.supplier.companyName,
         }
       : null,
-    image_available: Boolean(product.imageData),
+    image_available: Boolean(
+      product.imageName || product.imageContentType || product.imageData,
+    ),
     assetKey: effectiveAsset.entry.key,
     assetAutoDetected: !effectiveAsset.isExplicit,
     shelfPlacements: serializeShelfPositions(product.shelfPositions),
@@ -156,9 +172,22 @@ export async function GET(request: NextRequest) {
       prisma.product
         .findMany({
           where,
-          include: {
-            category: true,
-            supplier: true,
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            costPrice: true,
+            quantity: true,
+            barcode: true,
+            description: true,
+            isActive: true,
+            imageName: true,
+            imageContentType: true,
+            createdAt: true,
+            updatedAt: true,
+            category: { select: { id: true, name: true } },
+            supplier: { select: { id: true, companyName: true } },
             modelAsset: { select: { assetKey: true, version: true } },
             shelfPositions: {
               include: {
@@ -180,7 +209,23 @@ export async function GET(request: NextRequest) {
           if (!isMissingTwinTables(err)) throw err;
           return prisma.product.findMany({
             where,
-            include: { category: true, supplier: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              price: true,
+              costPrice: true,
+              quantity: true,
+              barcode: true,
+              description: true,
+              isActive: true,
+              imageName: true,
+              imageContentType: true,
+              createdAt: true,
+              updatedAt: true,
+              category: { select: { id: true, name: true } },
+              supplier: { select: { id: true, companyName: true } },
+            },
             orderBy: { name: "asc" },
             take: takeNum,
             skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,

@@ -145,7 +145,15 @@ export function Sidebar({
     : NAV_SECTIONS.map((section) => ({
         ...section,
         items: section.items
-          .filter((item) => canAccessPath(user?.role, item.href))
+          .filter((item) => {
+            if (
+              isAdmin &&
+              (item.href === "/stock" || item.href === "/goods-received")
+            ) {
+              return false;
+            }
+            return canAccessPath(user?.role, item.href);
+          })
           .map((item) => ({
             ...item,
             href: portalHref(user?.role, item.href),
@@ -322,8 +330,17 @@ export function Sidebar({
                 onClick={onNavigate}
                 className="ml-auto flex min-w-0 items-center gap-2 rounded-full bg-[#1c1c1e] py-1 pr-3 pl-1.5 transition-colors hover:bg-[#323238]"
               >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4CAF50] text-[10px] font-bold text-white">
-                  {(user.full_name || user.username).slice(0, 2).toUpperCase()}
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#4CAF50] text-[10px] font-bold text-white">
+                  {user.profile_image_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={user.profile_image_url}
+                      alt={user.full_name || user.username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    (user.full_name || user.username).slice(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[11px] font-semibold text-white">

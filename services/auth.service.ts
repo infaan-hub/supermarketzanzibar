@@ -48,6 +48,8 @@ export interface AuthUserDTO {
   is_active: boolean;
   last_login: string | null;
   created_at: string;
+  profile_image_available?: boolean;
+  profile_image_url?: string | null;
 }
 
 export function toAuthUserDTO(user: {
@@ -61,7 +63,20 @@ export function toAuthUserDTO(user: {
   isActive: boolean;
   lastLogin: Date | null;
   createdAt: Date;
+  updatedAt?: Date;
+  profileImageName?: string;
+  profileImageContentType?: string;
+  profileImageData?: Uint8Array | Buffer | null;
 }): AuthUserDTO {
+  const hasProfileImage = Boolean(
+    user.profileImageName ||
+      user.profileImageContentType ||
+      user.profileImageData,
+  );
+  const versionTs = user.updatedAt
+    ? user.updatedAt.getTime()
+    : user.createdAt.getTime();
+
   return {
     id: user.id.toString(),
     username: user.username,
@@ -73,6 +88,10 @@ export function toAuthUserDTO(user: {
     is_active: user.isActive,
     last_login: user.lastLogin ? user.lastLogin.toISOString() : null,
     created_at: user.createdAt.toISOString(),
+    profile_image_available: hasProfileImage,
+    profile_image_url: hasProfileImage
+      ? `/api/auth/me/image?u=${user.id.toString()}&v=${versionTs}`
+      : null,
   };
 }
 

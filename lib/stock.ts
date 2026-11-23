@@ -19,7 +19,16 @@ export interface StockLevel {
 export async function findStockLevels(): Promise<StockLevel[]> {
   const products = await prisma.product.findMany({
     where: { isActive: true },
-    include: { category: true },
+    select: {
+      id: true,
+      name: true,
+      barcode: true,
+      categoryId: true,
+      quantity: true,
+      price: true,
+      costPrice: true,
+      category: { select: { name: true } },
+    },
     orderBy: [{ quantity: "asc" }, { name: "asc" }],
   });
 

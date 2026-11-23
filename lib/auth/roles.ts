@@ -198,6 +198,8 @@ export function portalHref(
     if (path.startsWith("/dashboard?")) {
       return `/admin${path.slice("/dashboard".length)}`;
     }
+    if (path === "/stock") return "/admin/stock/movements";
+    if (path === "/goods-received") return "/admin/purchase-orders";
     return `/admin${path}`;
   }
 
@@ -246,6 +248,12 @@ export function adminCanonicalRedirect(pathname: string): string | null {
   }
   if (pathname === "/dashboard" || pathname === "/dashboard/") {
     return "/admin";
+  }
+  if (pathname === "/stock" || pathname === "/stock/") {
+    return "/admin/stock/movements";
+  }
+  if (pathname === "/goods-received" || pathname === "/goods-received/") {
+    return "/admin/purchase-orders";
   }
   return `/admin${pathname}`;
 }
@@ -459,9 +467,9 @@ export function roleDescription(role: string | null | undefined): string {
   const normalized = normalizeRole(role);
   switch (normalized) {
     case "admin":
-      return "Full system administration, user registration, and store settings.";
+      return "Full system administration, view-all supervision, role reports, user registration, and store settings.";
     case "manager":
-      return "Manages all store activities including inventory, viewing products, stock levels, receiving goods, and sending orders to suppliers.";
+      return "Manages all store and MarketMaster operational processes including inventory, viewing products, stock levels, receiving goods, POS, and sending orders to suppliers.";
     case "marketmaster":
       return "Manages Point of Sale (POS), sales, payments, customers, and all products, categories, and barcodes.";
     case "viewer":

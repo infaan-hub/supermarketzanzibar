@@ -59,9 +59,21 @@ export interface Receipt {
 
 export const CART_KEY = "ss_pos_cart";
 export const CART_CHANGE_EVENT = "sz-cart-change";
+export const POS_LOG_KEY = "sz_pos_product_log";
 const CUSTOMER_KEY = "ss_pos_customer";
 const PAYMENT_KEY = "ss_pos_payment";
 const DISCOUNT_KEY = "ss_pos_discount";
+
+export interface PosProductLogEntry {
+  id: string;
+  productId: string;
+  productName: string;
+  barcode: string | null;
+  price: number;
+  quantity: number;
+  source: "card_tap" | "barcode_scan" | "pickup_qr" | "checkout";
+  timestamp: string;
+}
 
 const EMPTY_CUSTOMER: CustomerForm = {
   customerId: null,
@@ -138,6 +150,29 @@ export function usePosCart() {
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanValue, setScanValue] = useState("");
+  const [posLog, setPosLog] = useState<PosProductLogEntry[]>(() =>
+    readJson(POS_LOG_KEY, []),
+  );
+
+  const appendPosLog = useCallback(
+    (entry: Omit<PosProductLogEntry, "id" | "timestamp">) => {
+      const item: PosProductLogEntry = {
+        ...entry,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: new Date().toISOString(),
+      };
+      setPosLog((prev) => {
+        const next = [item, ...prev].slice(0, 120);
+        try {
+          window.localStorage.setItem(POS_LOG_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const scanInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,19 +234,28 @@ export function usePosCart() {
 
   const addToCart = useCallback(
     (product: PosProduct) => {
+      const numericPrice =
+        typeof product.price === "string" ? Number(product.price) : product.price;
       addCartLine({
         productId: product.id,
         productName: product.name,
-        price:
-          typeof product.price === "string" ? Number(product.price) : product.price,
+        price: numericPrice,
         quantityMultiplier: 1,
         unitId: null,
         barcode: product.barcode ?? null,
       });
+      appendPosLog({
+        productId: product.id,
+        productName: product.name,
+        barcode: product.barcode ?? null,
+        price: numericPrice,
+        quantity: 1,
+        source: "card_tap",
+      });
       setScanError(null);
       setScanSuccess(`Added ${product.name} to cart.`);
     },
-    [addCartLine],
+    [addCartLine, appendPosLog],
   );
 
   const removeFromCart = useCallback((key: string) => {
@@ -337,6 +381,14 @@ export function usePosCart() {
             result.packaging.unitId === "each" ? null : result.packaging.unitId,
           barcode: result.barcode,
         });
+        appendPosLog({
+          productId: result.product.id,
+          productName: result.product.name,
+          barcode: result.barcode,
+          price: Number(result.price),
+          quantity: result.packaging.quantityMultiplier,
+          source: "barcode_scan",
+        });
 
         const pack =
           result.packaging.quantityMultiplier > 1
@@ -353,7 +405,7 @@ export function usePosCart() {
         setScanning(false);
       }
     },
-    [addCartLine, cart, checkingOut, scanning],
+    [addCartLine, appendPosLog, cart, checkingOut, scanning],
   );
 
   const handleScan = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -424,6 +476,17 @@ export function usePosCart() {
         // ignore
       }
 
+      for (const line of cartSnapshot) {
+        appendPosLog({
+          productId: line.productId,
+          productName: line.productName,
+          barcode: line.barcode ?? null,
+          price: line.price,
+          quantity: line.quantity,
+          source: "checkout",
+        });
+      }
+
       setCart([]);
       setCustomer(EMPTY_CUSTOMER);
       setDiscountInput("");
@@ -442,6 +505,7 @@ export function usePosCart() {
   return {
     cart,
     setCart,
+    posLog,
     itemCount,
     customer,
     setCustomer,

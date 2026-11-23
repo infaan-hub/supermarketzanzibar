@@ -14,12 +14,16 @@ import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonText } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/auth/auth-provider";
+import { isAdminRole } from "@/lib/auth/roles";
 import { fetchAllBarcodes } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import type { BulkBarcodeItem } from "@/types/api";
 
 export default function BarcodesStudioPage() {
+  const { user } = useAuth();
+  const isViewOnly = isAdminRole(user?.role);
   const { settings } = useStoreSettings();
   const [items, setItems] = useState<BulkBarcodeItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +78,9 @@ export default function BarcodesStudioPage() {
   };
 
   const printQueue = useMemo(() => {
+    if (isViewOnly) {
+      return filtered.map((item) => ({ key: item.id, item }));
+    }
     const stickers: Array<{ key: string; item: BulkBarcodeItem }> = [];
     for (const item of items) {
       const count = copiesByBarcode[item.barcode] ?? 0;
@@ -82,7 +89,7 @@ export default function BarcodesStudioPage() {
       }
     }
     return stickers;
-  }, [items, copiesByBarcode]);
+  }, [isViewOnly, filtered, items, copiesByBarcode]);
 
   const selectAllVisible = () => {
     const next: Record<string, number> = { ...copiesByBarcode };
@@ -116,10 +123,25 @@ export default function BarcodesStudioPage() {
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
         title="Barcode Label Studio"
-        description="Select products and carton/pack labels, set copy counts, and print an A4 or thermal label sheet."
+        description={
+          isViewOnly
+            ? `Viewing all ${items.length} registered Code 128 product and carton/pack barcode labels across the store (View-Only mode).`
+            : "Select products and carton/pack labels, set copy counts, and print an A4 or thermal label sheet."
+        }
         className="print:hidden"
         actions={
           <>
+            {isViewOnly && (
+              <>
+                <Badge variant="secondary">View-Only Supervision</Badge>
+                <Input
+                  placeholder="Search products or barcodes…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full sm:w-64"
+                />
+              </>
+            )}
             <Select
               value={layout}
               onChange={(e) => setLayout(e.target.value as "compact" | "shelf")}
@@ -128,101 +150,105 @@ export default function BarcodesStudioPage() {
               <option value="compact">Compact Stickers (3-col)</option>
               <option value="shelf">Shelf Price Cards (2-col)</option>
             </Select>
-            <Button
-              variant="default"
-              disabled={printQueue.length === 0}
-              onClick={() => window.print()}
-            >
-              Print Sheet ({printQueue.length})
-            </Button>
+            {!isViewOnly && (
+              <Button
+                variant="default"
+                disabled={printQueue.length === 0}
+                onClick={() => window.print()}
+              >
+                Print Sheet ({printQueue.length})
+              </Button>
+            )}
           </>
         }
       />
 
-      {/* Selector panel — hidden when printing */}
-      <Card className="print:hidden">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Choose Labels ({items.length} available)</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              placeholder="Search products or barcodes…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:w-64"
-            />
-            <Button variant="secondary" size="sm" onClick={selectAllVisible}>
-              +1 All Visible
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCopiesByBarcode({})}
-              disabled={printQueue.length === 0}
-            >
-              Clear Queue
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filtered.length === 0 ? (
-            <EmptyState
-              title="No barcodes found"
-              description="Register products on the Stock page to generate Code 128 labels."
-            />
-          ) : (
-            <div className="grid max-h-[340px] grid-cols-1 gap-2.5 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((item) => {
-                const count = copiesByBarcode[item.barcode] ?? 0;
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
-                      count > 0
-                        ? "border-primary/40 bg-surface-subtle"
-                        : "border-border bg-background"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-foreground">
-                        {item.productName}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-xs text-muted">
-                        <span className="font-mono">{item.barcode}</span>
-                        {item.quantityMultiplier > 1 && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {item.unitId} × {item.quantityMultiplier}
-                          </Badge>
-                        )}
+      {/* Selector panel — hidden in Admin View-Only mode and when printing */}
+      {!isViewOnly && (
+        <Card className="print:hidden">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Choose Labels ({items.length} available)</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                placeholder="Search products or barcodes…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full sm:w-64"
+              />
+              <Button variant="secondary" size="sm" onClick={selectAllVisible}>
+                +1 All Visible
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCopiesByBarcode({})}
+                disabled={printQueue.length === 0}
+              >
+                Clear Queue
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filtered.length === 0 ? (
+              <EmptyState
+                title="No barcodes found"
+                description="Register products on the Stock page to generate Code 128 labels."
+              />
+            ) : (
+              <div className="grid max-h-[340px] grid-cols-1 gap-2.5 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+                {filtered.map((item) => {
+                  const count = copiesByBarcode[item.barcode] ?? 0;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                        count > 0
+                          ? "border-primary/40 bg-surface-subtle"
+                          : "border-border bg-background"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">
+                          {item.productName}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-xs text-muted">
+                          <span className="font-mono">{item.barcode}</span>
+                          {item.quantityMultiplier > 1 && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {item.unitId} × {item.quantityMultiplier}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setCopies(item.barcode, count - 1)}
+                        >
+                          −
+                        </Button>
+                        <span className="w-7 text-center text-xs font-bold tabular-nums">
+                          {count}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setCopies(item.barcode, count + 1)}
+                        >
+                          +
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setCopies(item.barcode, count - 1)}
-                      >
-                        −
-                      </Button>
-                      <span className="w-7 text-center text-xs font-bold tabular-nums">
-                        {count}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setCopies(item.barcode, count + 1)}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Printable Preview Sheet */}
       {printQueue.length === 0 ? (

@@ -17,7 +17,24 @@ export async function GET(request: NextRequest) {
   if (!guard.ok) return guard.response;
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: guard.user.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: guard.user.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        address: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+        profileImageName: true,
+        profileImageContentType: true,
+      },
+    });
     if (!user) return json({ detail: "User not found." }, { status: 404 });
     return json({ user: toAuthUserDTO(user) });
   } catch (error) {

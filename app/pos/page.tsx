@@ -31,8 +31,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
 import { useCustomers } from "@/hooks/useCustomers";
 import { usePosCart } from "@/hooks/usePosCart";
-import { portalHref } from "@/lib/auth/roles";
-import { formatMoney } from "@/lib/format";
+import { isAdminRole, portalHref } from "@/lib/auth/roles";
+import { formatBusinessDateTime, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type OrderFulfillmentMode = "delivery" | "dine_in" | "takeaway";
@@ -40,6 +40,7 @@ type OrderFulfillmentMode = "delivery" | "dine_in" | "takeaway";
 export default function PosPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const isViewOnly = isAdminRole(user?.role);
   const { data, loading, error, refresh } = useProducts({ take: 200 });
   const { data: categoriesData } = useCategories();
   const { data: customersData } = useCustomers({ take: 100 });
@@ -51,6 +52,10 @@ export default function PosPage() {
   const [fulfillmentMode, setFulfillmentMode] =
     useState<OrderFulfillmentMode>("delivery");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [posLogFilter, setPosLogFilter] = useState<
+    "all" | "activity" | "in_stock" | "low_stock"
+  >("all");
+  const [posLogSearch, setPosLogSearch] = useState("");
 
   const products = useMemo(() => data?.products ?? [], [data]);
   const categories = useMemo(
@@ -224,62 +229,80 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Barcode & Pickup QR Scanner Bar */}
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <form
-                onSubmit={handleScanSubmit}
-                className="flex flex-col gap-2 sm:flex-row sm:items-center"
-              >
-                <Input
-                  id="barcode-scan"
-                  ref={cart.scanInputRef}
-                  value={cart.scanValue}
-                  onChange={(e) => cart.setScanValue(e.target.value)}
-                  placeholder="Scan barcode or Express Pickup QR (SZPICK1:…) and press Enter…"
-                  autoComplete="off"
-                  spellCheck={false}
-                  autoFocus
-                  disabled={cart.scanning || cart.checkingOut}
-                  className="flex-1"
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="submit"
-                    disabled={
-                      !cart.scanValue.trim() ||
-                      cart.scanning ||
-                      cart.checkingOut
-                    }
-                  >
-                    {cart.scanning ? "Looking…" : "+ Scan Add"}
-                  </Button>
-                  <BarcodeCameraScanner
-                    continuous
-                    disabled={cart.checkingOut}
-                    startLabel="Camera Scan"
-                    onScan={handleCameraScan}
+          {/* Barcode & Pickup QR Scanner Bar (Hidden in Admin View-Only Mode) */}
+          {!isViewOnly ? (
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <form
+                  onSubmit={handleScanSubmit}
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                >
+                  <Input
+                    id="barcode-scan"
+                    ref={cart.scanInputRef}
+                    value={cart.scanValue}
+                    onChange={(e) => cart.setScanValue(e.target.value)}
+                    placeholder="Scan barcode or Express Pickup QR (SZPICK1:…) and press Enter…"
+                    autoComplete="off"
+                    spellCheck={false}
+                    autoFocus
+                    disabled={cart.scanning || cart.checkingOut}
+                    className="flex-1"
                   />
-                </div>
-              </form>
-              {cart.scanError && (
-                <div
-                  role="alert"
-                  className="rounded-xl border border-danger/30 bg-danger/15 px-3.5 py-2 text-xs text-danger"
-                >
-                  {cart.scanError}
-                </div>
-              )}
-              {cart.scanSuccess && (
-                <div
-                  role="status"
-                  className="rounded-xl border border-[#4CAF50]/30 bg-[#4CAF50]/15 px-3.5 py-2 text-xs text-[#4CAF50]"
-                >
-                  {cart.scanSuccess}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="submit"
+                      disabled={
+                        !cart.scanValue.trim() ||
+                        cart.scanning ||
+                        cart.checkingOut
+                      }
+                    >
+                      {cart.scanning ? "Looking…" : "+ Scan Add"}
+                    </Button>
+                    <BarcodeCameraScanner
+                      continuous
+                      disabled={cart.checkingOut}
+                      startLabel="Camera Scan"
+                      onScan={handleCameraScan}
+                    />
+                  </div>
+                </form>
+                {cart.scanError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-danger/30 bg-danger/15 px-3.5 py-2 text-xs text-danger"
+                  >
+                    {cart.scanError}
+                  </div>
+                )}
+                {cart.scanSuccess && (
+                  <div
+                    role="status"
+                    className="rounded-xl border border-[#4CAF50]/30 bg-[#4CAF50]/15 px-3.5 py-2 text-xs text-[#4CAF50]"
+                  >
+                    {cart.scanSuccess}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#4CAF50]/30 bg-[#4CAF50]/10 px-4 py-3 text-xs text-white">
+              <div>
+                <span className="font-bold text-[#4CAF50]">
+                  Admin POS Supervision &amp; Added Products Log ·{" "}
+                </span>
+                Viewing all {products.length} products registered in POS and
+                live POS log events (View-Only mode).
+              </div>
+              <a
+                href="#pos-added-products-log"
+                className="rounded-full bg-[#4CAF50] px-3.5 py-1 font-semibold text-white hover:bg-[#43A047]"
+              >
+                Jump to POS Log ({products.length}) ↓
+              </a>
+            </div>
+          )}
 
           {/* Circular Categories Row matching reference */}
           {categories.length > 0 && (
@@ -446,13 +469,17 @@ export default function PosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => cart.addToCart(p)}
-                          disabled={p.quantity <= 0 || cart.checkingOut}
-                        >
-                          + Add
-                        </Button>
+                        {isViewOnly ? (
+                          <Badge variant="secondary">View-Only</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => cart.addToCart(p)}
+                            disabled={p.quantity <= 0 || cart.checkingOut}
+                          >
+                            + Add
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -470,13 +497,17 @@ export default function PosPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        if (!out && !cart.checkingOut) cart.addToCart(p);
+                        if (!isViewOnly && !out && !cart.checkingOut) {
+                          cart.addToCart(p);
+                        }
                       }}
                       className={cn(
                         "group relative flex flex-col rounded-[26px] border border-white/[0.07] bg-[#2a2a2e] px-4 pt-16 pb-4 text-center shadow-[0_16px_34px_-12px_rgba(0,0,0,0.65)] transition-all duration-200",
                         out
                           ? "opacity-55 cursor-not-allowed"
-                          : "cursor-pointer hover:-translate-y-1 hover:border-[#4CAF50]/45",
+                          : isViewOnly
+                            ? "hover:-translate-y-1 hover:border-[#4CAF50]/45"
+                            : "cursor-pointer hover:-translate-y-1 hover:border-[#4CAF50]/45",
                       )}
                     >
                       {/* Floating Pop-Out Top Product Image */}
@@ -838,18 +869,277 @@ export default function PosPage() {
           )}
 
           {/* Full-Width Dark Pill "Confirm Order" Button matching reference */}
-          <button
-            type="button"
-            disabled={cart.cart.length === 0 || cart.checkingOut}
-            onClick={() => void handleCompleteSale()}
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-[#141416] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.5)] transition-all hover:bg-black disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-          >
-            {cart.checkingOut
-              ? "Processing Order…"
-              : `Confirm Order — ${formatMoney(cart.grandTotal)}`}
-          </button>
+          {isViewOnly ? (
+            <div className="mt-5 flex h-12 w-full items-center justify-center rounded-full border border-[#4CAF50]/30 bg-[#141416] font-display text-xs font-bold text-[#4CAF50]">
+              View-Only Admin POS Supervision
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={cart.cart.length === 0 || cart.checkingOut}
+              onClick={() => void handleCompleteSale()}
+              className="mt-5 flex h-12 w-full items-center justify-center rounded-full bg-[#141416] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.5)] transition-all hover:bg-black disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            >
+              {cart.checkingOut
+                ? "Processing Order…"
+                : `Confirm Order — ${formatMoney(cart.grandTotal)}`}
+            </button>
+          )}
         </aside>
       </div>
+
+      {/* POS LOG SECTION — All Added Products & Live POS Activity Log */}
+      <section
+        id="pos-added-products-log"
+        aria-labelledby="pos-log-heading"
+        className="space-y-4 pt-4"
+      >
+        <Card>
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2
+                  id="pos-log-heading"
+                  className="font-display text-lg font-bold text-white"
+                >
+                  POS Log — All Added Products ({products.length})
+                </h2>
+                <p className="text-xs text-muted">
+                  <span className="font-semibold text-[#4CAF50]">
+                    Complete POS Product Registry &amp; Addition Log ·{" "}
+                  </span>
+                  Tracks every product added to the POS system, shelf location,
+                  stock balance, and live POS cart/scan activity.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  placeholder="Search POS log by product, barcode, category…"
+                  value={posLogSearch}
+                  onChange={(e) => setPosLogSearch(e.target.value)}
+                  className="h-9 w-full sm:w-64"
+                />
+              </div>
+            </div>
+
+            {/* POS Log Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  ["all", `All Added Products (${products.length})`],
+                  ["activity", `POS Cart & Scan Log (${cart.posLog.length})`],
+                  [
+                    "in_stock",
+                    `In Stock (${products.filter((p) => p.quantity > 0).length})`,
+                  ],
+                  [
+                    "low_stock",
+                    `Low / Out of Stock (${products.filter((p) => p.quantity <= 10).length})`,
+                  ],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPosLogFilter(key)}
+                  className={cn(
+                    "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                    posLogFilter === key
+                      ? "bg-[#4CAF50] text-white shadow-sm"
+                      : "border border-white/10 bg-[#1c1c1e] text-muted hover:text-white",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {posLogFilter === "activity" ? (
+              cart.posLog.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-[#1c1c1e] p-6 text-center text-xs text-muted">
+                  No recent POS cart tap or barcode scan events recorded in this
+                  session yet. Switch to &ldquo;All Added Products&rdquo; to
+                  view all {products.length} products registered in POS.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Barcode</TableHead>
+                      <TableHead>POS Action</TableHead>
+                      <TableHead className="text-right">Qty Added</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Logged At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cart.posLog
+                      .filter((entry) => {
+                        const q = posLogSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          entry.productName.toLowerCase().includes(q) ||
+                          (entry.barcode ?? "").toLowerCase().includes(q)
+                        );
+                      })
+                      .map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-semibold text-white">
+                            {entry.productName}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted">
+                            {entry.barcode ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="default">
+                              {entry.source === "barcode_scan"
+                                ? "Barcode Scanned"
+                                : entry.source === "checkout"
+                                  ? "POS Sale Completed"
+                                  : "Added to POS Cart"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-white tabular-nums">
+                            +{entry.quantity}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-white tabular-nums">
+                            {formatMoney(entry.price)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted">
+                            {formatBusinessDateTime(entry.timestamp)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              )
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Added Product</TableHead>
+                    <TableHead>Category &amp; Barcode</TableHead>
+                    <TableHead>Shelf Placement</TableHead>
+                    <TableHead className="text-right">POS Price</TableHead>
+                    <TableHead className="text-right">Stock Qty</TableHead>
+                    <TableHead className="text-right">POS Status</TableHead>
+                    <TableHead className="text-right">Added / Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products
+                    .filter((p) => {
+                      if (posLogFilter === "in_stock" && p.quantity <= 0) {
+                        return false;
+                      }
+                      if (posLogFilter === "low_stock" && p.quantity > 10) {
+                        return false;
+                      }
+                      const q = posLogSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        p.name.toLowerCase().includes(q) ||
+                        (p.barcode ?? "").toLowerCase().includes(q) ||
+                        (p.category?.name ?? "").toLowerCase().includes(q) ||
+                        (p.supplier?.companyName ?? "").toLowerCase().includes(q)
+                      );
+                    })
+                    .map((p) => {
+                      const placement = p.shelfPlacements?.[0] ?? null;
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1c1c1e] text-xs font-bold text-[#4CAF50]">
+                                {p.image_available ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img
+                                    src={`/api/products/${p.id}/image?v=${encodeURIComponent(p.updatedAt ?? "")}`}
+                                    alt={p.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span>{p.name.slice(0, 2).toUpperCase()}</span>
+                                )}
+                              </div>
+                              <div>
+                                <Link
+                                  href={portalHref(
+                                    user?.role,
+                                    `/products/${p.id}`,
+                                  )}
+                                  className="font-semibold text-white hover:text-[#4CAF50] hover:underline"
+                                >
+                                  {p.name}
+                                </Link>
+                                <p className="text-[11px] text-muted">
+                                  {p.supplier?.companyName ?? "Direct Store Stock"}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="block text-xs font-medium text-white">
+                              {p.category?.name ?? "General"}
+                            </span>
+                            <span className="font-mono text-[11px] text-muted">
+                              {p.barcode}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted">
+                            {placement ? (
+                              <span className="text-white">
+                                <strong className="text-[#4CAF50]">
+                                  {placement.departmentCode}
+                                </strong>{" "}
+                                · {placement.shelfCode} · Col{" "}
+                                {placement.columnNumber}
+                              </span>
+                            ) : (
+                              "Unassigned"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-white tabular-nums">
+                            {formatMoney(p.price)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-white tabular-nums">
+                            {p.quantity}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge
+                              variant={
+                                p.quantity <= 0
+                                  ? "danger"
+                                  : p.quantity <= 10
+                                    ? "warning"
+                                    : "success"
+                              }
+                            >
+                              {p.quantity <= 0
+                                ? "Out of Stock"
+                                : p.quantity <= 10
+                                  ? "Low Stock"
+                                  : "Active in POS"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted">
+                            {p.updatedAt
+                              ? formatBusinessDateTime(p.updatedAt)
+                              : p.createdAt
+                                ? formatBusinessDateTime(p.createdAt)
+                                : "Logged"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

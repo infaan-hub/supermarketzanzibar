@@ -143,8 +143,17 @@ export function Header({
                 {user ? roleLabel(user.role) : displayStore}
               </p>
             </div>
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4CAF50] text-[11px] font-bold text-white">
-              {initials}
+            <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#4CAF50] text-[11px] font-bold text-white">
+              {user?.profile_image_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={user.profile_image_url}
+                  alt={user.full_name || user.username}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
           </Link>
         </div>

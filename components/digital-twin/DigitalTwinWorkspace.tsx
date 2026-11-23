@@ -7,7 +7,12 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isInventoryRole, isManagerRole, portalHref } from "@/lib/auth/roles";
+import {
+  isAdminRole,
+  isInventoryRole,
+  isManagerRole,
+  portalHref,
+} from "@/lib/auth/roles";
 import {
   addShelfColumn,
   fetchDigitalTwin,
@@ -82,6 +87,7 @@ export interface DigitalTwinWorkspaceProps {
   initialShelfCode?: string | null;
   initialSearch?: string | null;
   embedded?: boolean;
+  readOnly?: boolean;
 }
 
 export function DigitalTwinWorkspace({
@@ -90,10 +96,12 @@ export function DigitalTwinWorkspace({
   initialShelfCode = null,
   initialSearch = null,
   embedded = false,
+  readOnly = false,
 }: DigitalTwinWorkspaceProps) {
   const { user } = useAuth();
-  const canRestock = isInventoryRole(user?.role);
-  const canInitialize = isManagerRole(user?.role);
+  const isViewOnly = readOnly || isAdminRole(user?.role);
+  const canRestock = !isViewOnly && isInventoryRole(user?.role);
+  const canInitialize = !isViewOnly && isManagerRole(user?.role);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
@@ -848,23 +856,40 @@ export function DigitalTwinWorkspace({
           }
           onClose={() => setCloseUpPosition(null)}
           footerActions={
-            <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
-              <Link
-                href={portalHref(
-                  user?.role,
-                  `/products/${closeUpPosition.product.id}`,
-                )}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-semibold text-foreground transition-colors hover:bg-surface-subtle"
-              >
-                Edit Product
-              </Link>
-              <Link
-                href={portalHref(user?.role, "/pos")}
-                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-hover"
-              >
-                Sell in POS
-              </Link>
-            </div>
+            isViewOnly ? (
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+                <span className="rounded-full bg-[#38383f] px-3 py-1 text-[11px] font-semibold text-white">
+                  View-Only Supervision
+                </span>
+                <Link
+                  href={portalHref(
+                    user?.role,
+                    `/products/${closeUpPosition.product.id}`,
+                  )}
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-4 text-xs font-semibold text-white transition-colors hover:bg-primary-hover"
+                >
+                  View Product Details
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
+                <Link
+                  href={portalHref(
+                    user?.role,
+                    `/products/${closeUpPosition.product.id}`,
+                  )}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-semibold text-foreground transition-colors hover:bg-surface-subtle"
+                >
+                  Edit Product
+                </Link>
+                <Link
+                  href={portalHref(user?.role, "/pos")}
+                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-hover"
+                >
+                  Sell in POS
+                </Link>
+              </div>
+            )
           }
         />
       )}

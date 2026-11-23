@@ -127,9 +127,18 @@ export async function refreshAccessToken(): Promise<{
 interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
   _retried?: boolean;
+  bypassCache?: boolean;
 }
 
-async function request<T>(path: string, init?: RequestConfig): Promise<T> {
+const GET_CACHE_TTL_MS = 8_000;
+const getResponseCache = new Map<string, { expiresAt: number; data: unknown }>();
+const getInFlight = new Map<string, Promise<unknown>>();
+
+export function invalidateApiCache() {
+  getResponseCache.clear();
+}
+
+async function performRequest<T>(path: string, init?: RequestConfig): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const headers = new Headers(init?.headers ?? {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
@@ -154,7 +163,7 @@ async function request<T>(path: string, init?: RequestConfig): Promise<T> {
       const retryHeaders = new Headers(init?.headers ?? {});
       if (!retryHeaders.has("Accept")) retryHeaders.set("Accept", "application/json");
       retryHeaders.set("Authorization", `Bearer ${refreshed.access}`);
-      return request<T>(path, {
+      return performRequest<T>(path, {
         ...init,
         headers: retryHeaders,
         _retried: true,
@@ -177,6 +186,46 @@ async function request<T>(path: string, init?: RequestConfig): Promise<T> {
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+async function request<T>(path: string, init?: RequestConfig): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isGet = method === "GET";
+
+  if (!isGet) {
+    getResponseCache.clear();
+    return performRequest<T>(path, init);
+  }
+
+  if (typeof window !== "undefined" && !init?.bypassCache) {
+    const cached = getResponseCache.get(path);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data as T;
+    }
+    const existing = getInFlight.get(path);
+    if (existing) {
+      return existing as Promise<T>;
+    }
+  }
+
+  const promise = performRequest<T>(path, init)
+    .then((data) => {
+      if (typeof window !== "undefined") {
+        getResponseCache.set(path, {
+          expiresAt: Date.now() + GET_CACHE_TTL_MS,
+          data,
+        });
+      }
+      return data;
+    })
+    .finally(() => {
+      getInFlight.delete(path);
+    });
+
+  if (typeof window !== "undefined") {
+    getInFlight.set(path, promise);
+  }
+  return promise;
 }
 
 function queryString(options?: ListOptions): string {
@@ -224,7 +273,7 @@ export async function logoutRequest(): Promise<void> {
 }
 
 export async function fetchMe(): Promise<{ user: AuthUser }> {
-  return request<{ user: AuthUser }>("/api/auth/me");
+  return request<{ user: AuthUser }>("/api/auth/me", { bypassCache: true });
 }
 
 export async function updateMe(input: {
@@ -239,6 +288,31 @@ export async function updateMe(input: {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+}
+
+export async function uploadProfileImage(file: File): Promise<{
+  profile_image_available: boolean;
+  profile_image_url: string;
+  updatedAt: string;
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request<{
+    profile_image_available: boolean;
+    profile_image_url: string;
+    updatedAt: string;
+  }>("/api/auth/me/image", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function deleteProfileImage(): Promise<{
+  profile_image_available: boolean;
+}> {
+  return request<{ profile_image_available: boolean }>("/api/auth/me/image", {
+    method: "DELETE",
   });
 }
 
