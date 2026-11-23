@@ -1,5 +1,5 @@
-// PATCH  /api/categories/[id] - Update a category (manager/admin).
-// DELETE /api/categories/[id] - Delete a category (manager/admin).
+// PATCH  /api/categories/[id] - Update a category (marketmaster/manager/admin).
+// DELETE /api/categories/[id] - Delete a category (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -11,7 +11,7 @@ import {
   serverError,
   validationError,
 } from "@/lib/http";
-import { requireManager } from "@/lib/auth/request";
+import { requireProductManager } from "@/lib/auth/request";
 
 function parseId(raw: string): bigint | null {
   if (!/^\d+$/.test(raw)) return null;
@@ -26,7 +26,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -88,7 +88,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

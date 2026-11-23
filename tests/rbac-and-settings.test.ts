@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_ROLES,
   adminCanonicalRedirect,
   canAccessPath,
   defaultHomeForRole,
@@ -9,9 +10,11 @@ import {
   isManagerRole,
   isMarketMasterRole,
   isPosRole,
+  isProductRole,
   isPublicPath,
   isStaffRole,
   portalHref,
+  roleDescription,
   roleLabel,
 } from "../lib/auth/roles";
 import {
@@ -21,6 +24,30 @@ import {
 import { generateReceipt } from "../lib/receipt";
 
 describe("RBAC path and role guards", () => {
+  it("registers manager and marketmaster while removing cashier, inventory_staff, and driver", () => {
+    expect(ALL_ROLES).toContain("admin");
+    expect(ALL_ROLES).toContain("manager");
+    expect(ALL_ROLES).toContain("marketmaster");
+    expect(ALL_ROLES).not.toContain("cashier");
+    expect(ALL_ROLES).not.toContain("inventory_staff");
+    expect(ALL_ROLES).not.toContain("driver");
+
+    // Removed roles have zero operational access.
+    expect(isStaffRole("cashier")).toBe(false);
+    expect(isPosRole("cashier")).toBe(false);
+    expect(isProductRole("cashier")).toBe(false);
+    expect(isInventoryRole("inventory_staff")).toBe(false);
+    expect(isStaffRole("inventory_staff")).toBe(false);
+    expect(isStaffRole("driver")).toBe(false);
+    expect(canAccessPath("cashier", "/pos")).toBe(false);
+    expect(canAccessPath("cashier", "/dashboard")).toBe(false);
+    expect(canAccessPath("inventory_staff", "/shelves")).toBe(false);
+    expect(canAccessPath("inventory_staff", "/goods-received")).toBe(false);
+    expect(canAccessPath("inventory_staff", "/stock")).toBe(false);
+    expect(canAccessPath("driver", "/dashboard")).toBe(false);
+    expect(canAccessPath("driver", "/pos")).toBe(false);
+  });
+
   it("allows guest public storefront and auth paths without any role", () => {
     expect(isPublicPath("/")).toBe(true);
     expect(isPublicPath("/store-3d")).toBe(true);
@@ -44,34 +71,72 @@ describe("RBAC path and role guards", () => {
 
     expect(canAccessPath("marketmaster", "/admin")).toBe(false);
     expect(canAccessPath("marketmaster", "/admin/pos")).toBe(false);
+    expect(canAccessPath("marketmaster", "/users")).toBe(false);
+    expect(canAccessPath("marketmaster", "/settings")).toBe(false);
     expect(canAccessPath("manager", "/admin/users")).toBe(false);
     expect(canAccessPath("manager", "/users")).toBe(false);
-    expect(canAccessPath("cashier", "/settings")).toBe(false);
+    expect(canAccessPath("manager", "/settings")).toBe(false);
     expect(canAccessPath("supplier", "/admin")).toBe(false);
   });
 
-  it("allows admin, marketmaster, and manager on /reports but blocks cashiers and customers", () => {
+  it("allows admin and manager across all store, inventory, stock, receiving, and supplier activities", () => {
     expect(canAccessPath("admin", "/reports")).toBe(true);
-    expect(canAccessPath("marketmaster", "/reports")).toBe(true);
     expect(canAccessPath("manager", "/reports")).toBe(true);
-    expect(canAccessPath("cashier", "/reports")).toBe(false);
+    expect(canAccessPath("manager", "/dashboard")).toBe(true);
+    expect(canAccessPath("manager", "/pos")).toBe(true);
+    expect(canAccessPath("manager", "/sales")).toBe(true);
+    expect(canAccessPath("manager", "/payments")).toBe(true);
+    expect(canAccessPath("manager", "/customers")).toBe(true);
+    expect(canAccessPath("manager", "/products")).toBe(true);
+    expect(canAccessPath("manager", "/products/12")).toBe(true);
+    expect(canAccessPath("manager", "/categories")).toBe(true);
+    expect(canAccessPath("manager", "/barcodes")).toBe(true);
+    expect(canAccessPath("manager", "/stock")).toBe(true);
+    expect(canAccessPath("manager", "/stock/movements")).toBe(true);
+    expect(canAccessPath("manager", "/warehouse")).toBe(true);
+    expect(canAccessPath("manager", "/shelves")).toBe(true);
+    expect(canAccessPath("manager", "/departments")).toBe(true);
+    expect(canAccessPath("manager", "/digital-twin")).toBe(true);
+    expect(canAccessPath("manager", "/goods-received")).toBe(true);
+    expect(canAccessPath("manager", "/purchase-orders")).toBe(true);
+    expect(canAccessPath("manager", "/suppliers")).toBe(true);
+    expect(canAccessPath("manager", "/supplier")).toBe(true);
+
     expect(canAccessPath("customer", "/reports")).toBe(false);
   });
 
-  it("allows staff roles on /dashboard, POS, and inventory while blocking customers from staff screens", () => {
+  it("scopes marketmaster to POS, sales, payments, customers, and all products", () => {
     expect(canAccessPath("marketmaster", "/dashboard")).toBe(true);
     expect(canAccessPath("marketmaster", "/pos")).toBe(true);
-    expect(canAccessPath("marketmaster", "/purchase-orders")).toBe(true);
-    expect(canAccessPath("cashier", "/dashboard")).toBe(true);
-    expect(canAccessPath("cashier", "/pos")).toBe(true);
-    expect(canAccessPath("cashier", "/products/12")).toBe(true);
+    expect(canAccessPath("marketmaster", "/shopping-cart")).toBe(true);
+    expect(canAccessPath("marketmaster", "/sales")).toBe(true);
+    expect(canAccessPath("marketmaster", "/payments")).toBe(true);
+    expect(canAccessPath("marketmaster", "/customers")).toBe(true);
+    expect(canAccessPath("marketmaster", "/products")).toBe(true);
+    expect(canAccessPath("marketmaster", "/products/12")).toBe(true);
+    expect(canAccessPath("marketmaster", "/categories")).toBe(true);
+    expect(canAccessPath("marketmaster", "/barcodes")).toBe(true);
+    expect(canAccessPath("marketmaster", "/digital-twin")).toBe(true);
+    expect(canAccessPath("marketmaster", "/departments")).toBe(true);
+
+    // Supplier procurement, receiving, warehouse, stock batches, shelves & reports belong to Manager/Admin.
+    expect(canAccessPath("marketmaster", "/reports")).toBe(false);
+    expect(canAccessPath("marketmaster", "/purchase-orders")).toBe(false);
+    expect(canAccessPath("marketmaster", "/goods-received")).toBe(false);
+    expect(canAccessPath("marketmaster", "/suppliers")).toBe(false);
+    expect(canAccessPath("marketmaster", "/supplier")).toBe(false);
+    expect(canAccessPath("marketmaster", "/stock")).toBe(false);
+    expect(canAccessPath("marketmaster", "/stock/movements")).toBe(false);
+    expect(canAccessPath("marketmaster", "/shelves")).toBe(false);
+    expect(canAccessPath("marketmaster", "/warehouse")).toBe(false);
+
+    // Supplier portal & storefront access for suppliers and customers.
     expect(canAccessPath("supplier", "/supplier")).toBe(true);
     expect(canAccessPath("supplier", "/supplier/orders")).toBe(true);
     expect(canAccessPath("supplier", "/stock/movements")).toBe(true);
     expect(canAccessPath("customer", "/dashboard")).toBe(false);
     expect(canAccessPath("customer", "/pos")).toBe(false);
     expect(canAccessPath("customer", "/supplier")).toBe(false);
-    // Customers can browse the public storefront `/` and `/store-3d`.
     expect(canAccessPath("customer", "/")).toBe(true);
     expect(canAccessPath("customer", "/store-3d")).toBe(true);
   });
@@ -80,7 +145,6 @@ describe("RBAC path and role guards", () => {
     expect(defaultHomeForRole("admin")).toBe("/admin");
     expect(defaultHomeForRole("marketmaster")).toBe("/dashboard");
     expect(defaultHomeForRole("manager")).toBe("/dashboard");
-    expect(defaultHomeForRole("cashier")).toBe("/dashboard");
     expect(defaultHomeForRole("supplier")).toBe("/supplier");
     expect(defaultHomeForRole("customer")).toBe("/");
 
@@ -104,7 +168,8 @@ describe("RBAC path and role guards", () => {
 
   it("allows any authenticated user to access /profile", () => {
     expect(canAccessPath("customer", "/profile")).toBe(true);
-    expect(canAccessPath("driver", "/profile")).toBe(true);
+    expect(canAccessPath("viewer", "/profile")).toBe(true);
+    expect(canAccessPath("supplier", "/profile")).toBe(true);
     expect(canAccessPath(null, "/profile")).toBe(false);
   });
 
@@ -112,17 +177,23 @@ describe("RBAC path and role guards", () => {
     expect(isAdminRole("ADMIN")).toBe(true);
     expect(isMarketMasterRole("MarketMaster")).toBe(true);
     expect(roleLabel("marketmaster")).toBe("MarketMaster");
-    expect(isManagerRole("marketmaster")).toBe(true);
+    expect(roleLabel("manager")).toBe("Manager");
+    expect(roleDescription("manager")).toContain("inventory");
+    expect(roleDescription("marketmaster")).toContain("POS");
     expect(isManagerRole("Manager")).toBe(true);
-    expect(isStaffRole("Cashier")).toBe(true);
-    expect(isInventoryRole("inventory_staff")).toBe(true);
-    expect(isPosRole("cashier")).toBe(true);
+    expect(isManagerRole("marketmaster")).toBe(false);
+    expect(isInventoryRole("manager")).toBe(true);
+    expect(isInventoryRole("marketmaster")).toBe(false);
+    expect(isProductRole("marketmaster")).toBe(true);
+    expect(isProductRole("manager")).toBe(true);
+    expect(isPosRole("marketmaster")).toBe(true);
+    expect(isPosRole("manager")).toBe(true);
     expect(isPosRole("viewer")).toBe(false);
     expect(isExplorerRole("viewer")).toBe(true);
     expect(isStaffRole("customer")).toBe(false);
   });
 
-  it("enforces Phase 16 Digital Twin, Warehouse, Shelves, and Procurement RBAC", () => {
+  it("enforces Digital Twin, Warehouse, Shelves, and Procurement RBAC for viewer", () => {
     // Viewer can explore 3D store, warehouse & departments, but not POS/shelves/GRN/POs/users.
     expect(canAccessPath("viewer", "/digital-twin")).toBe(true);
     expect(canAccessPath("viewer", "/warehouse")).toBe(true);
@@ -131,20 +202,7 @@ describe("RBAC path and role guards", () => {
     expect(canAccessPath("viewer", "/shelves")).toBe(false);
     expect(canAccessPath("viewer", "/goods-received")).toBe(false);
     expect(canAccessPath("viewer", "/purchase-orders")).toBe(false);
-
-    // Inventory staff can manage shelves & goods received, but not POS or POs or users.
-    expect(canAccessPath("inventory_staff", "/digital-twin")).toBe(true);
-    expect(canAccessPath("inventory_staff", "/shelves")).toBe(true);
-    expect(canAccessPath("inventory_staff", "/goods-received")).toBe(true);
-    expect(canAccessPath("inventory_staff", "/pos")).toBe(false);
-    expect(canAccessPath("inventory_staff", "/purchase-orders")).toBe(false);
-    expect(canAccessPath("inventory_staff", "/users")).toBe(false);
-
-    // Manager can manage purchase orders, shelves, POS, and reports, but not /users.
-    expect(canAccessPath("manager", "/purchase-orders")).toBe(true);
-    expect(canAccessPath("manager", "/goods-received")).toBe(true);
-    expect(canAccessPath("manager", "/digital-twin")).toBe(true);
-    expect(canAccessPath("manager", "/users")).toBe(false);
+    expect(canAccessPath("viewer", "/users")).toBe(false);
   });
 });
 

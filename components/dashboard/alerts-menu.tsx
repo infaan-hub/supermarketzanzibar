@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { portalHref } from "@/lib/auth/roles";
+import { canAccessPath, portalHref } from "@/lib/auth/roles";
 import {
   formatCount,
   formatMoneyAdaptive,
@@ -111,7 +111,12 @@ export function AlertsMenu({
               <div className="divide-y divide-border">
                 {lowStock > 0 ? (
                   <Link
-                    href={portalHref(user?.role, "/stock")}
+                    href={portalHref(
+                      user?.role,
+                      canAccessPath(user?.role, "/stock")
+                        ? "/stock"
+                        : "/products",
+                    )}
                     className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-subtle"
                     onClick={() => setOpen(false)}
                   >

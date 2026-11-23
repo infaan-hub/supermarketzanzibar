@@ -1,11 +1,11 @@
 // GET   /api/sales/[id] - Full sale detail with items, customer snapshot & payment.
-// PATCH /api/sales/[id] - Update sale status (manager/admin). Cancelling a sale
+// PATCH /api/sales/[id] - Update sale status (marketmaster/manager/admin). Cancelling a sale
 //                         transactionally restocks items and logs IN movements.
 
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, json, notFound, serverError } from "@/lib/http";
-import { requireManager, requireStaff } from "@/lib/auth/request";
+import { requirePos, requireStaff } from "@/lib/auth/request";
 import { recordAuditLog } from "@/lib/audit";
 import { publishInventoryEvent } from "@/lib/realtime/event-bus";
 import { isMissingTwinTables } from "@/services/digital-twin.service";
@@ -109,7 +109,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requirePos(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

@@ -232,7 +232,7 @@ export default function WarehousePage() {
         </div>
       )}
 
-      {/* Operational Forms (Inventory Staff / Manager / Admin) */}
+      {/* Operational Forms (Manager / Supplier / Admin) */}
       {canEdit && (
         <div className="grid gap-5 lg:grid-cols-2">
           <Card>

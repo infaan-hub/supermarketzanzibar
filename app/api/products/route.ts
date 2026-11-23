@@ -13,7 +13,7 @@ import {
   validationError,
 } from "@/lib/http";
 import { prisma } from "@/lib/db";
-import { requireExplorer, requireStaff } from "@/lib/auth/request";
+import { requireExplorer, requireProductManager } from "@/lib/auth/request";
 import { isValidCode128, normalizeBarcode } from "@/lib/barcodes";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
 import { getProductById } from "@/lib/products";
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const guard = await requireStaff(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   let body: unknown;

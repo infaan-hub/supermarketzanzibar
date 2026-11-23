@@ -4,66 +4,65 @@
 // Portal layout:
 // - Guest (no login): `/` (Public Storefront), `/store-3d` (Read-only 3D Store),
 //   `/login`, `/register`, `/unauthorized`.
-// - Admin (`admin`): ALL management pages live under `/admin/*`.
-// - MarketMaster & Store Staff (`marketmaster`, `manager`, `cashier`,
-//   `inventory_staff`, `viewer`): operational root routes (`/dashboard`, `/pos`,
-//   `/digital-twin`, `/products`, `/stock`, `/warehouse`, `/shelves`, etc.).
+// - Admin (`admin`): ALL management pages live under `/admin/*`, including user
+//   registration for `manager`, `marketmaster`, and other roles.
+// - Manager (`manager`): manages all operational activities — inventory, stock,
+//   products, receiving goods, supplier orders, shelves, warehouse, POS, reports.
+// - MarketMaster (`marketmaster`): manages POS (checkout, sales, payments,
+//   customers) and all products (catalogue, categories, barcodes).
+// - Viewer (`viewer`): read-only exploration of overview, 3D store & warehouse.
 // - Supplier (`supplier`): dedicated self-service portal under `/supplier/*`.
 
 export const ALL_ROLES = [
   "admin",
-  "marketmaster",
   "manager",
-  "cashier",
-  "inventory_staff",
+  "marketmaster",
   "viewer",
   "supplier",
-  "driver",
   "customer",
 ] as const;
 
 export type AppRole = (typeof ALL_ROLES)[number];
 
 export const ADMIN_ROLES: readonly string[] = ["admin"];
-export const MANAGER_ROLES: readonly string[] = [
-  "admin",
-  "marketmaster",
-  "manager",
-];
+export const MANAGER_ROLES: readonly string[] = ["admin", "manager"];
 export const INVENTORY_ROLES: readonly string[] = [
   "admin",
-  "marketmaster",
   "manager",
-  "inventory_staff",
   "supplier",
+];
+export const PRODUCT_ROLES: readonly string[] = [
+  "admin",
+  "manager",
+  "marketmaster",
 ];
 export const POS_ROLES: readonly string[] = [
   "admin",
-  "marketmaster",
   "manager",
-  "cashier",
+  "marketmaster",
 ];
 export const STAFF_ROLES: readonly string[] = [
   "admin",
-  "marketmaster",
   "manager",
-  "cashier",
-  "inventory_staff",
+  "marketmaster",
   "supplier",
 ];
 export const EXPLORE_ROLES: readonly string[] = [
   "admin",
-  "marketmaster",
   "manager",
-  "cashier",
-  "inventory_staff",
+  "marketmaster",
+  "supplier",
+  "viewer",
+];
+export const WAREHOUSE_VIEW_ROLES: readonly string[] = [
+  "admin",
+  "manager",
   "supplier",
   "viewer",
 ];
 export const SUPPLIER_PORTAL_ROLES: readonly string[] = [
   "supplier",
   "admin",
-  "marketmaster",
   "manager",
 ];
 
@@ -94,6 +93,10 @@ export function isManagerRole(role: string | null | undefined): boolean {
 
 export function isInventoryRole(role: string | null | undefined): boolean {
   return INVENTORY_ROLES.includes(normalizeRole(role));
+}
+
+export function isProductRole(role: string | null | undefined): boolean {
+  return PRODUCT_ROLES.includes(normalizeRole(role));
 }
 
 export function isPosRole(role: string | null | undefined): boolean {
@@ -244,7 +247,9 @@ export function requiredRolesForPath(
     pathname === "/reports" ||
     pathname.startsWith("/reports/") ||
     pathname === "/purchase-orders" ||
-    pathname.startsWith("/purchase-orders/")
+    pathname.startsWith("/purchase-orders/") ||
+    pathname === "/suppliers" ||
+    pathname.startsWith("/suppliers/")
   ) {
     return MANAGER_ROLES;
   }
@@ -253,18 +258,36 @@ export function requiredRolesForPath(
     pathname === "/goods-received" ||
     pathname.startsWith("/goods-received/") ||
     pathname === "/shelves" ||
-    pathname.startsWith("/shelves/")
+    pathname.startsWith("/shelves/") ||
+    pathname === "/stock" ||
+    pathname.startsWith("/stock/")
   ) {
     return INVENTORY_ROLES;
+  }
+
+  if (pathname === "/warehouse" || pathname.startsWith("/warehouse/")) {
+    return WAREHOUSE_VIEW_ROLES;
   }
 
   if (
     pathname === "/pos" ||
     pathname.startsWith("/pos/") ||
     pathname === "/shopping-cart" ||
-    pathname.startsWith("/shopping-cart/")
+    pathname.startsWith("/shopping-cart/") ||
+    pathname === "/sales" ||
+    pathname.startsWith("/sales/") ||
+    pathname === "/payments" ||
+    pathname.startsWith("/payments/") ||
+    pathname === "/customers" ||
+    pathname.startsWith("/customers/") ||
+    pathname === "/receipt" ||
+    pathname.startsWith("/receipt/")
   ) {
     return POS_ROLES;
+  }
+
+  if (pathname === "/barcodes" || pathname.startsWith("/barcodes/")) {
+    return PRODUCT_ROLES;
   }
 
   if (
@@ -272,8 +295,6 @@ export function requiredRolesForPath(
     pathname.startsWith("/dashboard/") ||
     pathname === "/digital-twin" ||
     pathname.startsWith("/digital-twin/") ||
-    pathname === "/warehouse" ||
-    pathname.startsWith("/warehouse/") ||
     pathname === "/departments" ||
     pathname.startsWith("/departments/") ||
     pathname === "/products" ||
@@ -308,21 +329,35 @@ export function roleLabel(role: string | null | undefined): string {
       return "MarketMaster";
     case "manager":
       return "Manager";
-    case "cashier":
-      return "Cashier";
-    case "inventory_staff":
-      return "Inventory Staff";
     case "viewer":
       return "Viewer";
     case "supplier":
       return "Supplier";
-    case "driver":
-      return "Driver";
     case "customer":
       return "Customer";
     default:
       return normalized
         ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
         : "User";
+  }
+}
+
+export function roleDescription(role: string | null | undefined): string {
+  const normalized = normalizeRole(role);
+  switch (normalized) {
+    case "admin":
+      return "Full system administration, user registration, and store settings.";
+    case "manager":
+      return "Manages all store activities including inventory, viewing products, stock levels, receiving goods, and sending orders to suppliers.";
+    case "marketmaster":
+      return "Manages Point of Sale (POS), sales, payments, customers, and all products, categories, and barcodes.";
+    case "viewer":
+      return "Read-only access to overview, 3D store, warehouse, products, and departments.";
+    case "supplier":
+      return "Self-service supplier portal for assigned products, purchase orders, and deliveries.";
+    case "customer":
+      return "Public storefront shopper account.";
+    default:
+      return "Store user account.";
   }
 }

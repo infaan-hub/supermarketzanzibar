@@ -191,7 +191,7 @@ export function GuestBasketDrawer({
                     Express Store Pickup QR
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted">
-                    Show this code to a cashier at checkout to scan your entire
+                    Show this code to store staff at checkout to scan your entire
                     basket straight into POS.
                   </p>
                   <div className="mx-auto mt-3 inline-flex rounded-md border border-border bg-white p-2.5">

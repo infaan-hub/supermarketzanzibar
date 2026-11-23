@@ -22,7 +22,12 @@ import {
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createUser, updateUser } from "@/lib/api";
-import { ALL_ROLES, roleLabel } from "@/lib/auth/roles";
+import {
+  ALL_ROLES,
+  normalizeRole,
+  roleDescription,
+  roleLabel,
+} from "@/lib/auth/roles";
 import { formatDate } from "@/lib/format";
 
 export default function UsersPage() {
@@ -39,13 +44,20 @@ export default function UsersPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState("cashier");
+  const [role, setRole] = useState("manager");
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const openCreateWithRole = (targetRole: string) => {
+    setRole(targetRole);
+    setFormError(null);
+    setNotice(null);
+    setShowCreate(true);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +82,7 @@ export default function UsersPage() {
       setPassword("");
       setCompanyName("");
       setShowCreate(false);
-      setNotice("User account created.");
+      setNotice(`${roleLabel(role)} account created.`);
       refresh();
     } catch (err) {
       setFormError(
@@ -151,11 +163,34 @@ export default function UsersPage() {
     <div className="mx-auto max-w-[1400px] space-y-6">
       <PageHeader
         title="Users & Permissions"
-        description="Create staff, MarketMaster, and supplier accounts, assign roles, and manage access."
+        description="Register Manager, MarketMaster, supplier, and other accounts, assign roles, and manage access."
         actions={
-          <Button size="sm" onClick={() => setShowCreate((v) => !v)}>
-            {showCreate ? "Cancel" : "+ Create User"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {!showCreate && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => openCreateWithRole("manager")}
+                >
+                  + Register Manager
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => openCreateWithRole("marketmaster")}
+                >
+                  + Register MarketMaster
+                </Button>
+              </>
+            )}
+            <Button
+              size="sm"
+              variant={showCreate ? "secondary" : "ghost"}
+              onClick={() => setShowCreate((v) => !v)}
+            >
+              {showCreate ? "Cancel" : "+ Other Role"}
+            </Button>
+          </div>
         }
       />
 
@@ -173,9 +208,9 @@ export default function UsersPage() {
       {showCreate && (
         <Card>
           <CardHeader>
-            <CardTitle>Create Staff / User Account</CardTitle>
+            <CardTitle>Register {roleLabel(role)} / User Account</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <form
               onSubmit={handleCreate}
               className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
@@ -205,7 +240,11 @@ export default function UsersPage() {
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
-              <Select value={role} onChange={(e) => setRole(e.target.value)}>
+              <Select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                aria-label="Account role"
+              >
                 {ALL_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {roleLabel(r)}
@@ -228,9 +267,15 @@ export default function UsersPage() {
                 />
               )}
               <Button type="submit" isLoading={creating}>
-                Create Account
+                Register {roleLabel(role)}
               </Button>
             </form>
+            <p className="rounded-md border border-border bg-surface-subtle px-3 py-2 text-xs text-muted">
+              <span className="font-semibold text-foreground">
+                {roleLabel(role)} permissions:
+              </span>{" "}
+              {roleDescription(role)}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -277,6 +322,10 @@ export default function UsersPage() {
             <TableBody>
               {users.map((u) => {
                 const isSelf = currentUser?.id === u.id;
+                const normalizedUserRole = normalizeRole(u.role);
+                const isLegacyRole = !(ALL_ROLES as readonly string[]).includes(
+                  normalizedUserRole,
+                );
                 return (
                   <TableRow key={u.id}>
                     <TableCell>
@@ -298,14 +347,19 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={u.role}
+                        value={isLegacyRole ? u.role : normalizedUserRole}
                         disabled={isSelf || busyId === u.id}
                         onChange={(e) =>
                           void handleRoleUpdate(u.id, e.target.value)
                         }
-                        className="h-8 w-36 text-xs"
+                        className="h-8 w-40 text-xs"
                         aria-label={`Role for ${u.username}`}
                       >
+                        {isLegacyRole && (
+                          <option value={u.role} disabled>
+                            {roleLabel(u.role)} (Removed)
+                          </option>
+                        )}
                         {ALL_ROLES.map((r) => (
                           <option key={r} value={r}>
                             {roleLabel(r)}

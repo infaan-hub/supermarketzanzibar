@@ -15,9 +15,9 @@ import {
 export type Role =
   | "admin"
   | "manager"
-  | "cashier"
+  | "marketmaster"
+  | "viewer"
   | "supplier"
-  | "driver"
   | "customer"
   | string;
 

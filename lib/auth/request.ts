@@ -9,6 +9,7 @@ import {
   INVENTORY_ROLES,
   MANAGER_ROLES,
   POS_ROLES,
+  PRODUCT_ROLES,
   STAFF_ROLES,
   normalizeRole,
 } from "@/lib/auth/roles";
@@ -140,7 +141,17 @@ export function requirePos(req: Request | NextRequest): Promise<GuardResult> {
   return requireRoles(
     req,
     POS_ROLES,
-    "Cashier, manager, or administrator permission is required for POS.",
+    "MarketMaster, manager, or administrator permission is required for POS.",
+  );
+}
+
+export function requireProductManager(
+  req: Request | NextRequest,
+): Promise<GuardResult> {
+  return requireRoles(
+    req,
+    PRODUCT_ROLES,
+    "MarketMaster, manager, or administrator permission is required to manage products.",
   );
 }
 
@@ -150,7 +161,7 @@ export function requireInventory(
   return requireRoles(
     req,
     INVENTORY_ROLES,
-    "Inventory staff, manager, or administrator permission is required.",
+    "Manager, supplier, or administrator permission is required for inventory operations.",
   );
 }
 

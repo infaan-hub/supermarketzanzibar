@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isAdminRole, isManagerRole } from "@/lib/auth/roles";
+import { isInventoryRole, isProductRole, portalHref } from "@/lib/auth/roles";
 import {
   archiveProduct,
   createProductBarcodeLabel,
@@ -42,8 +42,10 @@ export default function ProductDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { user } = useAuth();
-  const canEdit = isManagerRole(user?.role);
-  const canArchive = isAdminRole(user?.role);
+  const canEdit = isProductRole(user?.role);
+  const canArchive = isProductRole(user?.role);
+  const canAdjustStock = isInventoryRole(user?.role);
+  const productsHref = portalHref(user?.role, "/products");
 
   const { data: categoriesData } = useCategories();
   const { data: suppliersData } = useSuppliers();
@@ -127,7 +129,7 @@ export default function ProductDetailPage({
     }
     try {
       await archiveProduct(product.id);
-      router.push("/products");
+      router.push(productsHref);
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : "Unable to archive product.",
@@ -195,7 +197,7 @@ export default function ProductDetailPage({
           description={error ?? "Unable to load product details."}
           action={
             <Link
-              href="/products"
+              href={productsHref}
               className="inline-flex h-10 items-center rounded bg-primary-hover px-4 text-sm font-medium text-white"
             >
               Back to Products
@@ -216,7 +218,7 @@ export default function ProductDetailPage({
       <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
-            href="/products"
+            href={productsHref}
             className="text-xs font-medium text-muted hover:text-foreground hover:underline"
           >
             ← All products
@@ -257,12 +259,14 @@ export default function ProductDetailPage({
               </Button>
             </a>
           )}
-          <Link
-            href="/stock"
-            className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white hover:bg-[#0f5c23]"
-          >
-            Adjust Stock (IN / OUT)
-          </Link>
+          {canAdjustStock && (
+            <Link
+              href={portalHref(user?.role, "/stock")}
+              className="inline-flex h-10 items-center justify-center rounded bg-primary-hover px-4 text-sm font-medium text-white hover:bg-[#0f5c23]"
+            >
+              Adjust Stock (IN / OUT)
+            </Link>
+          )}
         </div>
       </div>
 

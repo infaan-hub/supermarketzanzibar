@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isProductRole } from "@/lib/auth/roles";
 import {
   createCategory,
   deleteCategory,
@@ -25,7 +25,7 @@ import type { Category } from "@/types/api";
 
 export default function CategoriesPage() {
   const { user } = useAuth();
-  const canManage = isManagerRole(user?.role);
+  const canManage = isProductRole(user?.role);
 
   const [search, setSearch] = useState("");
   const { data, loading, error, refresh } = useCategories(

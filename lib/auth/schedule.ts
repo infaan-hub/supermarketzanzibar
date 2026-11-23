@@ -1,10 +1,10 @@
 // Scheduled access-window enforcement, ported from the Django CustomUser model.
 //
-// Supplier and driver accounts require an active access window
+// Supplier accounts require an active access window
 // (access_window_start <= now < access_window_end) to log in and to use their
 // role-scoped endpoints. Admin and customer accounts are not gated.
 
-const SCHEDULED_ACCESS_ROLES = new Set(["supplier", "driver"]);
+const SCHEDULED_ACCESS_ROLES = new Set(["supplier"]);
 
 export interface ScheduleUser {
   role: string;

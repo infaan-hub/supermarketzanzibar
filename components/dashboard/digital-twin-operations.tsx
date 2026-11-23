@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
-import { portalHref } from "@/lib/auth/roles";
+import { canAccessPath, portalHref } from "@/lib/auth/roles";
 import type { DashboardOverview } from "@/types/api";
 import { Panel, PanelHeader, PanelLink } from "./panel";
 
@@ -15,6 +15,7 @@ export function DigitalTwinOperations({
 }) {
   const { user } = useAuth();
   const href = (path: string) => portalHref(user?.role, path);
+  const canOpen = (path: string) => canAccessPath(user?.role, path);
 
   const expiringSoon = operations?.expiringSoonCount ?? 0;
   const expired = operations?.expiredCount ?? 0;
@@ -33,16 +34,20 @@ export function DigitalTwinOperations({
               <Link href={href("/digital-twin")}>
                 <Button size="sm">3D Store</Button>
               </Link>
-              <Link href={href("/warehouse")}>
-                <Button size="sm" variant="secondary">
-                  Warehouse
-                </Button>
-              </Link>
-              <Link href={href("/purchase-orders")}>
-                <Button size="sm" variant="secondary">
-                  Purchase Orders
-                </Button>
-              </Link>
+              {canOpen("/warehouse") && (
+                <Link href={href("/warehouse")}>
+                  <Button size="sm" variant="secondary">
+                    Warehouse
+                  </Button>
+                </Link>
+              )}
+              {canOpen("/purchase-orders") && (
+                <Link href={href("/purchase-orders")}>
+                  <Button size="sm" variant="secondary">
+                    Purchase Orders
+                  </Button>
+                </Link>
+              )}
             </div>
           }
         />
@@ -54,12 +59,14 @@ export function DigitalTwinOperations({
               <p className="text-xl font-semibold tabular-nums text-warning">
                 {expiringSoon}
               </p>
-              <Link
-                href={href("/stock")}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Review batches
-              </Link>
+              {canOpen("/stock") && (
+                <Link
+                  href={href("/stock")}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Review batches
+                </Link>
+              )}
             </div>
           </div>
 
@@ -85,12 +92,14 @@ export function DigitalTwinOperations({
               <p className="text-xl font-semibold tabular-nums text-foreground">
                 {pendingPOs}
               </p>
-              <Link
-                href={href("/goods-received")}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Receive stock
-              </Link>
+              {canOpen("/goods-received") && (
+                <Link
+                  href={href("/goods-received")}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Receive stock
+                </Link>
+              )}
             </div>
           </div>
 
@@ -100,12 +109,14 @@ export function DigitalTwinOperations({
               <p className="text-xl font-semibold tabular-nums text-foreground">
                 {whUnits.toLocaleString()}
               </p>
-              <Link
-                href={href("/warehouse")}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Inspect racks
-              </Link>
+              {canOpen("/warehouse") && (
+                <Link
+                  href={href("/warehouse")}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Inspect racks
+                </Link>
+              )}
             </div>
           </div>
         </div>

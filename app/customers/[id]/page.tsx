@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isPosRole } from "@/lib/auth/roles";
 import { fetchCustomerDetail, updateCustomer } from "@/lib/api";
 import {
   formatBusinessDateTime,
@@ -38,7 +38,7 @@ export default function CustomerDetailPage({
 }) {
   const { id } = use(params);
   const { user } = useAuth();
-  const canEdit = isManagerRole(user?.role);
+  const canEdit = isPosRole(user?.role);
 
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);

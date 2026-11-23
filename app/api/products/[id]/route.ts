@@ -1,6 +1,6 @@
 // GET    /api/products/[id] - Product detail including barcodes & recent movements.
-// PATCH  /api/products/[id] - Update product details (manager/admin).
-// DELETE /api/products/[id] - Archive (deactivate) product (admin).
+// PATCH  /api/products/[id] - Update product details (marketmaster/manager/admin).
+// DELETE /api/products/[id] - Archive (deactivate) product (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -13,8 +13,7 @@ import {
   validationError,
 } from "@/lib/http";
 import {
-  requireAdmin,
-  requireManager,
+  requireProductManager,
   requireStaff,
 } from "@/lib/auth/request";
 import { listProductBarcodes } from "@/services/barcode.service";
@@ -110,7 +109,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -242,7 +241,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireAdmin(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

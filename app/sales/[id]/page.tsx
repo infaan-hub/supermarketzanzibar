@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isPosRole } from "@/lib/auth/roles";
 import {
   fetchSaleDetail,
   updatePaymentStatus,
@@ -45,7 +45,7 @@ export default function SaleDetailPage({
 }) {
   const { id } = use(params);
   const { user } = useAuth();
-  const canManage = isManagerRole(user?.role);
+  const canManage = isPosRole(user?.role);
 
   const [sale, setSale] = useState<SaleDetail | null>(null);
   const [loading, setLoading] = useState(true);

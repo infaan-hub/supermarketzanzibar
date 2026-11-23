@@ -1,9 +1,9 @@
 // Unified Point of Sale (POS) terminal.
 //
 // Split-screen workflow: continuous barcode scanning & searchable catalogue on
-// the left, live basket + customer selector + checkout on the right. Cashiers
-// stay on /pos across multi-item scans and jump to /receipt/[id] only when a
-// sale is finalized.
+// the left, live basket + customer selector + checkout on the right. POS
+// operators (MarketMaster, Manager, Admin) stay on /pos across multi-item scans
+// and jump to /receipt/[id] only when a sale is finalized.
 
 "use client";
 

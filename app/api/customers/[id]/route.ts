@@ -1,11 +1,11 @@
 // GET   /api/customers/[id] - Customer profile, loyalty points & purchase history.
-// PATCH /api/customers/[id] - Update customer contact info or loyalty points (manager/admin).
+// PATCH /api/customers/[id] - Update customer contact info or loyalty points (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { badRequest, conflict, json, notFound, serverError } from "@/lib/http";
-import { requireManager, requireStaff } from "@/lib/auth/request";
+import { requirePos, requireStaff } from "@/lib/auth/request";
 import { isEmailValid } from "@/lib/validation";
 
 function parseId(raw: string): bigint | null {
@@ -90,7 +90,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requirePos(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

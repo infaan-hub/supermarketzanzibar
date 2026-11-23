@@ -1,11 +1,11 @@
 // GET  /api/categories - List categories with product counts.
-// POST /api/categories - Create a new category (manager/admin).
+// POST /api/categories - Create a new category (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { badRequest, created, json, serverError, validationError } from "@/lib/http";
-import { requireExplorer, requireManager } from "@/lib/auth/request";
+import { requireExplorer, requireProductManager } from "@/lib/auth/request";
 
 export async function GET(request: NextRequest) {
   const guard = await requireExplorer(request);
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

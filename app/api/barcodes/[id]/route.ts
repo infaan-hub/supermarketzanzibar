@@ -1,7 +1,7 @@
-// DELETE /api/barcodes/[id] - Remove a non-primary pack/shelf barcode (manager/admin).
+// DELETE /api/barcodes/[id] - Remove a non-primary pack/shelf barcode (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
-import { requireManager } from "@/lib/auth/request";
+import { requireProductManager } from "@/lib/auth/request";
 import {
   badRequest,
   json,
@@ -15,7 +15,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

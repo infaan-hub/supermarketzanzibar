@@ -1,9 +1,9 @@
 // GET  /api/barcodes?productId=...  - List labels for one product (or all active labels when omitted).
-// POST /api/barcodes                - Attach a pack/shelf label (manager/admin).
+// POST /api/barcodes                - Attach a pack/shelf label (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { requireManager, requireStaff } from "@/lib/auth/request";
+import { requireProductManager, requireStaff } from "@/lib/auth/request";
 import {
   badRequest,
   conflict,
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const guard = await requireManager(request);
+  const guard = await requireProductManager(request);
   if (!guard.ok) return guard.response;
 
   let body: unknown;

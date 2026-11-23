@@ -1,9 +1,9 @@
-// PATCH /api/payments/[id] - Confirm or update a payment's reconciliation status (manager/admin).
+// PATCH /api/payments/[id] - Confirm or update a payment's reconciliation status (marketmaster/manager/admin).
 
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { badRequest, json, notFound, serverError } from "@/lib/http";
-import { requireManager } from "@/lib/auth/request";
+import { requirePos } from "@/lib/auth/request";
 
 const ALLOWED_STATUSES = new Set(["confirmed", "pending", "failed", "refunded"]);
 
@@ -11,7 +11,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireManager(request);
+  const guard = await requirePos(request);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

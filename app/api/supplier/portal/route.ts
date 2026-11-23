@@ -1,8 +1,8 @@
 // GET /api/supplier/portal — Scoped Supplier Portal API (`/supplier/*`).
 //
 // Suppliers strictly see ONLY their own profile, products, low-stock reorder
-// queue, purchase orders, and delivery receipts. Admins, Managers, and
-// MarketMasters may optionally pass `?supplierId=<id>` to inspect a supplier.
+// queue, purchase orders, and delivery receipts. Admins and Managers may
+// optionally pass `?supplierId=<id>` to inspect a supplier.
 
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const guard = await requireRoles(
     request,
     SUPPLIER_PORTAL_ROLES,
-    "Supplier, MarketMaster, Manager, or Admin access is required.",
+    "Supplier, Manager, or Admin access is required.",
   );
   if (!guard.ok) return guard.response;
 

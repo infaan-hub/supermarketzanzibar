@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isPosRole } from "@/lib/auth/roles";
 import { updatePaymentStatus } from "@/lib/api";
 import {
   formatBusinessDateTime,
@@ -37,7 +37,7 @@ import {
 
 export default function PaymentsPage() {
   const { user } = useAuth();
-  const canManage = isManagerRole(user?.role);
+  const canManage = isPosRole(user?.role);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

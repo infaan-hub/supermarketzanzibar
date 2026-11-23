@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
   const address = typeof body.address === "string" ? body.address.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const role = typeof body.role === "string" ? body.role.trim() : "cashier";
+  const role = typeof body.role === "string" ? body.role.trim() : "manager";
   const companyName =
     typeof body.companyName === "string" ? body.companyName.trim() : undefined;
 

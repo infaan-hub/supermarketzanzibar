@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
-import { portalHref } from "@/lib/auth/roles";
+import { canAccessPath, portalHref } from "@/lib/auth/roles";
 import { ArrowRightIcon } from "./icons";
 
 export function Panel({
@@ -69,6 +69,9 @@ export function PanelLink({
   children?: ReactNode;
 }) {
   const { user } = useAuth();
+  if (user && !canAccessPath(user.role, href)) {
+    return null;
+  }
   return (
     <Link
       href={portalHref(user?.role, href)}
