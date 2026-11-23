@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import { Canvas } from "@react-three/fiber";
+import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import {
   CAMERA_PRESETS,
   PHYSICAL_AREAS,
   type Bounds2D,
+  type Vec3,
 } from "@/lib/digital-twin/spatial-plan";
 import type {
   GraphicsQuality,
@@ -21,14 +23,17 @@ import type {
 import { StoreEnvironment } from "./StoreEnvironment";
 import { LightingSystem } from "./LightingSystem";
 import { CameraSystem } from "./CameraSystem";
+import { PostProcessingEffects } from "./PostProcessingEffects";
 import type {
   CameraGoal,
   CameraMovementInput,
+  CameraPose,
 } from "@/components/digital-twin/controls/CameraControls";
 import { StoreBuilding } from "@/components/digital-twin/building/StoreBuilding";
 import { Department } from "@/components/digital-twin/departments/Department";
 import { Shelf } from "@/components/digital-twin/shelves/Shelf";
 import { WarehouseScene } from "@/components/digital-twin/warehouse/WarehouseScene";
+import { ShoppingPath3D } from "@/components/digital-twin/interface/ShoppingPath3D";
 
 export interface SupermarketSceneProps {
   shelves: TwinShelfNode[];
@@ -48,8 +53,15 @@ export interface SupermarketSceneProps {
   onControlsReady?: (controls: OrbitControlsImpl | null) => void;
   movementRef?: React.RefObject<CameraMovementInput>;
   movementBounds?: Bounds2D;
+  enableShelfCollision?: boolean;
+  onCameraPoseChange?: (pose: CameraPose) => void;
+  onWalkToFloorPoint?: (point: [number, number]) => void;
   shopperMode?: boolean;
   basketQuantities?: Readonly<Record<string, number>>;
+  searchMatchedProductIds?: ReadonlySet<string>;
+  searchActive?: boolean;
+  lastPickedEvent?: { productId: string; nonce: number } | null;
+  shoppingPathPoints?: Vec3[];
 }
 
 export function SupermarketScene({
@@ -70,8 +82,15 @@ export function SupermarketScene({
   onControlsReady,
   movementRef,
   movementBounds,
+  enableShelfCollision = false,
+  onCameraPoseChange,
+  onWalkToFloorPoint,
   shopperMode = false,
   basketQuantities,
+  searchMatchedProductIds,
+  searchActive = false,
+  lastPickedEvent,
+  shoppingPathPoints,
 }: SupermarketSceneProps) {
   const highlightedDepartmentCode =
     selection?.type === "department" ? selection.departmentCode : null;
@@ -110,6 +129,9 @@ export function SupermarketScene({
       gl={{
         antialias: quality !== "low",
         powerPreference: "high-performance",
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.04,
+        outputColorSpace: THREE.SRGBColorSpace,
       }}
       onPointerMissed={onClearSelection}
       className="h-full w-full"
@@ -121,11 +143,15 @@ export function SupermarketScene({
         onControlsReady={onControlsReady}
         movementRef={movementRef}
         movementBounds={movementBounds}
+        enableShelfCollision={enableShelfCollision}
+        onCameraPoseChange={onCameraPoseChange}
       />
 
       <StoreBuilding
         showCeiling={showCeiling}
         highlightedDepartmentCode={highlightedDepartmentCode}
+        shopperMode={shopperMode}
+        onWalkToFloorPoint={onWalkToFloorPoint}
       />
 
       {/* Overhead 3D department signage */}
@@ -143,6 +169,11 @@ export function SupermarketScene({
             onSelect={onSelectDepartment}
           />
         ))}
+
+      {/* Guided 3D floor route for items in the customer's basket */}
+      {shoppingPathPoints && shoppingPathPoints.length >= 2 && (
+        <ShoppingPath3D points={shoppingPathPoints} />
+      )}
 
       {/* Retail supermarket shelves & products */}
       {showRetail &&
@@ -163,6 +194,9 @@ export function SupermarketScene({
             onSelectProduct={onSelectProduct}
             shopperMode={shopperMode}
             basketQuantities={basketQuantities}
+            searchMatchedProductIds={searchMatchedProductIds}
+            searchActive={searchActive}
+            lastPickedEvent={lastPickedEvent}
           />
         ))}
 
@@ -175,6 +209,8 @@ export function SupermarketScene({
           onSelectPosition={onSelectWarehousePosition}
         />
       )}
+
+      <PostProcessingEffects quality={quality} />
     </Canvas>
   );
 }

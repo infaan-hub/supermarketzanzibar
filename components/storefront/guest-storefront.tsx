@@ -7,9 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGuestBasket, type GuestCartItem } from "@/hooks/useGuestBasket";
+import {
+  applyPublicShelfEventToSnapshot,
+  usePublicStorefrontRealtime,
+  type PublicShelfEvent,
+} from "@/hooks/usePublicStorefrontRealtime";
 import { defaultHomeForRole, roleLabel } from "@/lib/auth/roles";
 import { fetchPublicCatalog, fetchPublicDigitalTwin } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { encodePickupCode } from "@/lib/storefront/pickup-code";
 import { Interactive3DStorefront } from "@/components/storefront/interactive-3d-storefront";
 import type { PublicCatalogProduct, PublicCatalogResponse } from "@/types/api";
 import type { DigitalTwinSnapshot } from "@/types/digital-twin";
@@ -119,7 +125,36 @@ export function GuestBasketDrawer({
   onAdjustItem: (productId: string, delta: number) => void;
   onClear: () => void;
 }) {
+  const [showQr, setShowQr] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const pickupCode = React.useMemo(
+    () =>
+      encodePickupCode(
+        cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      ),
+    [cart],
+  );
+
+  React.useEffect(() => {
+    if (cart.length === 0) setShowQr(false);
+  }, [cart.length]);
+
   if (!open) return null;
+
+  const handleCopyCode = () => {
+    if (!pickupCode || typeof navigator === "undefined") return;
+    navigator.clipboard
+      ?.writeText(pickupCode)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+      })
+      .catch(() => undefined);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
@@ -130,7 +165,7 @@ export function GuestBasketDrawer({
               Shopping basket ({count})
             </h2>
             <p className="text-xs text-muted">
-              Saved on this device until checkout
+              Saved on this device · Ready for Express POS Pickup
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={onClose}>
@@ -149,45 +184,75 @@ export function GuestBasketDrawer({
               </p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div
-                key={item.productId}
-                className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {item.name}
+            <>
+              {showQr && pickupCode && (
+                <div className="mb-3 rounded-lg border border-border bg-surface-subtle p-4 text-center">
+                  <p className="text-xs font-semibold text-foreground">
+                    Express Store Pickup QR
                   </p>
-                  <p className="text-xs text-muted tabular-nums">
-                    {formatMoney(item.price)} × {item.quantity} ={" "}
-                    <strong className="text-foreground">
-                      {formatMoney(item.price * item.quantity)}
-                    </strong>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    Show this code to a cashier at checkout to scan your entire
+                    basket straight into POS.
                   </p>
+                  <div className="mx-auto mt-3 inline-flex rounded-md border border-border bg-white p-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/public/pickup-qr?code=${encodeURIComponent(pickupCode)}`}
+                      alt="Express POS Pickup QR Code"
+                      className="h-40 w-40 object-contain"
+                    />
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-center gap-2">
+                    <code className="max-w-[220px] truncate rounded border border-border bg-white px-2 py-1 font-mono text-[10px] text-foreground">
+                      {pickupCode}
+                    </code>
+                    <Button size="sm" variant="secondary" onClick={handleCopyCode}>
+                      {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 w-7 p-0"
-                    onClick={() => onAdjustItem(item.productId, -1)}
-                  >
-                    −
-                  </Button>
-                  <span className="w-6 text-center font-mono text-xs font-semibold">
-                    {item.quantity}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 w-7 p-0"
-                    onClick={() => onAdjustItem(item.productId, 1)}
-                  >
-                    +
-                  </Button>
+              )}
+
+              {cart.map((item) => (
+                <div
+                  key={item.productId}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted tabular-nums">
+                      {formatMoney(item.price)} × {item.quantity} ={" "}
+                      <strong className="text-foreground">
+                        {formatMoney(item.price * item.quantity)}
+                      </strong>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 w-7 p-0"
+                      onClick={() => onAdjustItem(item.productId, -1)}
+                    >
+                      −
+                    </Button>
+                    <span className="w-6 text-center font-mono text-xs font-semibold">
+                      {item.quantity}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 w-7 p-0"
+                      onClick={() => onAdjustItem(item.productId, 1)}
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
         </div>
 
@@ -198,11 +263,20 @@ export function GuestBasketDrawer({
               {formatMoney(subtotal)}
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {cart.length > 0 && (
-              <Button variant="secondary" size="sm" onClick={onClear}>
-                Clear
-              </Button>
+              <>
+                <Button variant="secondary" size="sm" onClick={onClear}>
+                  Clear
+                </Button>
+                <Button
+                  variant={showQr ? "default" : "secondary"}
+                  size="sm"
+                  onClick={() => setShowQr((v) => !v)}
+                >
+                  {showQr ? "Hide QR" : "Pickup QR"}
+                </Button>
+              </>
             )}
             <Link href="/login" className="flex-1">
               <Button className="w-full" size="md">
@@ -284,13 +358,34 @@ export function GuestStorefront() {
     return () => window.clearTimeout(timer);
   }, [loadCatalog]);
 
+  // Live sanitized public SSE updates (<200ms after POS sale or shelf restock):
+  // patch matching 3D shelf slots immediately in memory, then debounce a full reconcile.
+  const reconcileTimerRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    return () => {
+      if (reconcileTimerRef.current) window.clearTimeout(reconcileTimerRef.current);
+    };
+  }, []);
+
+  const { connected: realtimeConnected } = usePublicStorefrontRealtime(
+    React.useCallback(
+      (event: PublicShelfEvent) => {
+        setTwinSnapshot((prev) => applyPublicShelfEventToSnapshot(prev, event));
+        if (reconcileTimerRef.current) {
+          window.clearTimeout(reconcileTimerRef.current);
+        }
+        reconcileTimerRef.current = window.setTimeout(() => {
+          void loadTwin(true);
+          void loadCatalog();
+        }, 450);
+      },
+      [loadTwin, loadCatalog],
+    ),
+    true,
+  );
+
   React.useEffect(() => {
     void loadTwin(false);
-    // Keep live shelf availability fresh every 30s without moving the camera.
-    const interval = window.setInterval(() => {
-      void loadTwin(true);
-    }, 30_000);
-    return () => window.clearInterval(interval);
   }, [loadTwin]);
 
   const catalogById = React.useMemo(() => {
@@ -384,6 +479,7 @@ export function GuestStorefront() {
             error={twinError}
             onRefresh={() => void loadTwin(true)}
             refreshing={twinRefreshing}
+            realtimeConnected={realtimeConnected}
             catalogById={catalogById}
             basketQuantities={basket.basketQuantities}
             basketCount={basket.count}

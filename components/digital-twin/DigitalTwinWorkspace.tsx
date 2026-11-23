@@ -18,7 +18,8 @@ import {
   CAMERA_PRESETS,
   findAreaByCode,
   findFixtureByCode,
-  shelfSlotWorldPosition,
+  shelfFixtureWorldCamera,
+  shelfSlotWorldCamera,
 } from "@/lib/digital-twin/spatial-plan";
 import type { CameraGoal } from "@/components/digital-twin/controls/CameraControls";
 import { SelectionControls } from "@/components/digital-twin/controls/SelectionControls";
@@ -241,13 +242,13 @@ export function DigitalTwinWorkspace({
       });
       setRightOpen(true);
       const fixture = findFixtureByCode(shelf.code);
-      const offset = fixture?.cameraOffset ?? [4.2, 2.5, 4.2];
+      if (fixture) {
+        const framing = shelfFixtureWorldCamera(fixture, 1);
+        flyTo(framing.position, framing.target);
+        return;
+      }
       flyTo(
-        [
-          shelf.position[0] + offset[0],
-          shelf.position[1] + offset[1],
-          shelf.position[2] + offset[2],
-        ],
+        [shelf.position[0] + 4.2, shelf.position[1] + 2.5, shelf.position[2] + 4.2],
         [shelf.position[0], shelf.position[1] + 1.0, shelf.position[2]],
       );
     },
@@ -266,18 +267,10 @@ export function DigitalTwinWorkspace({
       });
       setRightOpen(true);
       const fixture = findFixtureByCode(pos.shelfCode);
-      const target = fixture
-        ? shelfSlotWorldPosition(fixture, pos.slotIndex)
-        : ([0, 1.2, 0] as [number, number, number]);
-      const offset = fixture?.cameraOffset ?? [2.8, 1.4, 2.8];
-      flyTo(
-        [
-          target[0] + offset[0] * 0.58,
-          target[1] + 0.9,
-          target[2] + offset[2] * 0.58,
-        ],
-        target,
-      );
+      if (fixture) {
+        const framing = shelfSlotWorldCamera(fixture, pos.slotIndex, 2.15);
+        flyTo(framing.position, framing.target);
+      }
     },
     [flyTo],
   );
@@ -763,8 +756,8 @@ export function DigitalTwinWorkspace({
                   }}
                   onTopDown={() =>
                     flyTo(
-                      CAMERA_PRESETS.topDown.position,
-                      CAMERA_PRESETS.topDown.target,
+                      CAMERA_PRESETS.topdown.position,
+                      CAMERA_PRESETS.topdown.target,
                     )
                   }
                   onToggleCeiling={() => setShowCeiling((v) => !v)}

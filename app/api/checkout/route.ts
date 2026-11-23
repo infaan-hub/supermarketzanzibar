@@ -230,6 +230,12 @@ export async function POST(request: NextRequest) {
       // shelf positions / warehouse reserve inside the same DB transaction.
       const touchedShelfIds: string[] = [];
       const touchedPositionIds: string[] = [];
+      const positionUpdates: Array<{
+        productId: string;
+        shelfCode?: string;
+        positionId?: string;
+        quantity: number;
+      }> = [];
 
       for (const [pidStr, qty] of requestedQuantities.entries()) {
         const pid = BigInt(pidStr);
@@ -248,6 +254,14 @@ export async function POST(request: NextRequest) {
         const synced = await syncTwinDeductionInTx(tx, pid, qty);
         touchedShelfIds.push(...synced.touchedShelfIds);
         touchedPositionIds.push(...synced.touchedPositionIds);
+        if (synced.positionUpdates.length > 0) {
+          positionUpdates.push(...synced.positionUpdates);
+        } else {
+          positionUpdates.push({
+            productId: pidStr,
+            quantity: Math.max(0, product.quantity - qty),
+          });
+        }
       }
 
       const totalAmount = lines.reduce(
@@ -348,7 +362,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { ...createdSale, payment, lines, touchedShelfIds, touchedPositionIds };
+      return {
+        ...createdSale,
+        payment,
+        lines,
+        touchedShelfIds,
+        touchedPositionIds,
+        positionUpdates,
+      };
     });
 
     // Post-commit audit log & real-time 3D Digital Twin SSE broadcast (Phases 9, 12, 16).
@@ -365,12 +386,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const primaryUpdate = sale.positionUpdates[0];
     publishInventoryEvent({
       type: "sale_completed",
       shelfId: sale.touchedShelfIds[0],
-      positionId: sale.touchedPositionIds[0],
-      productId: sale.lines[0]?.productId.toString(),
+      shelfCode: primaryUpdate?.shelfCode,
+      positionId: primaryUpdate?.positionId ?? sale.touchedPositionIds[0],
+      productId: primaryUpdate?.productId ?? sale.lines[0]?.productId.toString(),
+      quantity: primaryUpdate?.quantity,
       delta: -totalSoldUnits,
+      updates: sale.positionUpdates,
       summary: `POS sale #${sale.id.toString()}: -${totalSoldUnits} unit(s)`,
     });
 

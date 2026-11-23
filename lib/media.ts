@@ -84,3 +84,19 @@ export function code128DataUrl(
 ): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(code128Svg(value, options))}`;
 }
+
+/** Generate a clean SVG QR code (used for Express POS Pickup Basket codes). */
+export function qrCodeSvg(value: string, scale = 4): string {
+  const text = (value ?? "").trim();
+  if (!text || text.length > 512) {
+    throw new Error("QR code value must be between 1 and 512 characters.");
+  }
+  return bwipjs.toSVG({
+    bcid: "qrcode",
+    text,
+    scale: Math.min(Math.max(Math.floor(scale), 2), 8),
+    eclevel: "M",
+    paddingwidth: 2,
+    paddingheight: 2,
+  } as Parameters<typeof bwipjs.toSVG>[0]);
+}

@@ -1075,7 +1075,16 @@ export async function transferWarehouseToShelf(input: {
     shelfCode: result.shelfCode,
     positionId: result.positionId,
     warehouseLocationId: result.warehouseLocationId ?? undefined,
+    quantity: result.newShelfQuantity,
     delta: input.quantity,
+    updates: [
+      {
+        productId: result.productId,
+        shelfCode: result.shelfCode,
+        positionId: result.positionId,
+        quantity: result.newShelfQuantity,
+      },
+    ],
     summary: `Restocked +${input.quantity} ${result.productName} onto ${result.shelfCode}`,
   });
 
@@ -1091,26 +1100,49 @@ export async function syncTwinDeductionInTx(
   tx: Prisma.TransactionClient,
   productId: bigint,
   quantitySold: number,
-): Promise<{ touchedShelfIds: string[]; touchedPositionIds: string[] }> {
+): Promise<{
+  touchedShelfIds: string[];
+  touchedPositionIds: string[];
+  positionUpdates: Array<{
+    productId: string;
+    shelfCode: string;
+    positionId: string;
+    quantity: number;
+  }>;
+}> {
   const touchedShelfIds: string[] = [];
   const touchedPositionIds: string[] = [];
+  const positionUpdates: Array<{
+    productId: string;
+    shelfCode: string;
+    positionId: string;
+    quantity: number;
+  }> = [];
   let remaining = quantitySold;
 
   try {
     const positions = await tx.shelfPosition.findMany({
       where: { productId, quantity: { gt: 0 } },
+      include: { shelf: { select: { shelfCode: true } } },
       orderBy: { quantity: "desc" },
     });
 
     for (const pos of positions) {
       if (remaining <= 0) break;
       const take = Math.min(pos.quantity, remaining);
+      const nextQty = Math.max(0, pos.quantity - take);
       await tx.shelfPosition.update({
         where: { id: pos.id },
         data: { quantity: { decrement: take } },
       });
       touchedShelfIds.push(pos.shelfId);
       touchedPositionIds.push(pos.id);
+      positionUpdates.push({
+        productId: productId.toString(),
+        shelfCode: pos.shelf.shelfCode,
+        positionId: pos.id,
+        quantity: nextQty,
+      });
       remaining -= take;
     }
 
@@ -1133,5 +1165,5 @@ export async function syncTwinDeductionInTx(
     if (!isMissingTwinTables(error)) throw error;
   }
 
-  return { touchedShelfIds, touchedPositionIds };
+  return { touchedShelfIds, touchedPositionIds, positionUpdates };
 }

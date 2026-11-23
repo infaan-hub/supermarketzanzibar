@@ -1,8 +1,8 @@
 // GET /api/public/digital-twin — Read-only sanitized 3D Store layout for guest
 // visitors (`/` and `/store-3d`). Strips internal cost prices, warehouse stock & PII.
-// When the 3D layout tables have not yet been initialized by an admin, projects
-// live active Product rows from PostgreSQL onto the 18 retail fixtures read-only
-// so customers can immediately explore and pick real products off 3D shelves.
+// Includes real product photos, descriptions, and ProductBarcode pack/carton
+// variants. When the 3D layout tables have not yet been initialized by an admin,
+// projects live active Product rows from PostgreSQL onto the 18 retail fixtures.
 
 import { prisma } from "@/lib/db";
 import { json, serverError } from "@/lib/http";
@@ -16,6 +16,7 @@ import {
 import { getDigitalTwinSnapshot } from "@/services/digital-twin.service";
 import type {
   DigitalTwinSnapshot,
+  ProductPackOption,
   TwinDepartmentNode,
   TwinShelfNode,
   TwinShelfPositionNode,
@@ -50,6 +51,95 @@ function departmentCodeForProduct(
   return "GRO";
 }
 
+function buildPackOptions(
+  unitPrice: number,
+  primaryBarcode: string,
+  barcodes: Array<{
+    id: string;
+    barcode: string;
+    unitId: string | null;
+    quantityMultiplier: unknown;
+  }>,
+): ProductPackOption[] {
+  const options: ProductPackOption[] = [
+    {
+      id: "single",
+      label: "Single (1×)",
+      barcode: primaryBarcode,
+      quantityMultiplier: 1,
+      packPrice: unitPrice,
+    },
+  ];
+  const seenMultipliers = new Set<number>([1]);
+  for (const b of barcodes) {
+    const mult = Math.round(Number(b.quantityMultiplier));
+    if (!Number.isFinite(mult) || mult <= 1 || seenMultipliers.has(mult)) {
+      continue;
+    }
+    seenMultipliers.add(mult);
+    const labelBase =
+      b.unitId && b.unitId !== "each" ? b.unitId : `${mult}-Pack`;
+    options.push({
+      id: b.id,
+      label: `${labelBase} (${mult}×)`,
+      barcode: b.barcode,
+      quantityMultiplier: mult,
+      packPrice: unitPrice * mult,
+    });
+  }
+  return options.sort((a, b) => a.quantityMultiplier - b.quantityMultiplier);
+}
+
+interface PublicProductMeta {
+  imageUrl: string | null;
+  description: string;
+  packOptions: ProductPackOption[];
+}
+
+async function loadPublicProductMetaMap(
+  productIds: string[],
+): Promise<Map<string, PublicProductMeta>> {
+  const bigIds = productIds
+    .filter((id) => /^\d+$/.test(id))
+    .map((id) => BigInt(id));
+  if (bigIds.length === 0) return new Map();
+
+  const rows = await prisma.product.findMany({
+    where: { id: { in: bigIds } },
+    select: {
+      id: true,
+      price: true,
+      barcode: true,
+      imageName: true,
+      description: true,
+      barcodes: {
+        select: {
+          id: true,
+          barcode: true,
+          unitId: true,
+          quantityMultiplier: true,
+        },
+        orderBy: { quantityMultiplier: "asc" },
+      },
+    },
+  });
+
+  const map = new Map<string, PublicProductMeta>();
+  for (const row of rows) {
+    const idStr = row.id.toString();
+    map.set(idStr, {
+      imageUrl: row.imageName ? `/api/public/products/${idStr}/image` : null,
+      description: row.description ?? "",
+      packOptions: buildPackOptions(
+        Number(row.price),
+        row.barcode,
+        row.barcodes,
+      ),
+    });
+  }
+  return map;
+}
+
 async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot> {
   const now = new Date();
   const products = await prisma.product.findMany({
@@ -61,7 +151,18 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       quantity: true,
       barcode: true,
       sku: true,
+      imageName: true,
+      description: true,
       category: { select: { id: true, name: true } },
+      barcodes: {
+        select: {
+          id: true,
+          barcode: true,
+          unitId: true,
+          quantityMultiplier: true,
+        },
+        orderBy: { quantityMultiplier: "asc" },
+      },
     },
     orderBy: [{ quantity: "desc" }, { name: "asc" }],
     take: 140,
@@ -70,7 +171,6 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
   const retailAreas = PHYSICAL_AREAS.filter((a) => a.category === "retail");
   const areaByCode = new Map(retailAreas.map((a) => [a.code, a]));
 
-  // Prepare fixture slot buckets deterministically.
   const shelfBuckets = SHELF_FIXTURES.map((fixture) => {
     const area = areaByCode.get(fixture.departmentCode);
     const slotCount = Math.min(fixture.tiers * fixture.slotsPerTier, 12);
@@ -111,7 +211,6 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
     };
   });
 
-  // Assign real active database products onto matching department fixtures.
   for (const product of products) {
     const deptCode = departmentCodeForProduct(
       product.name,
@@ -129,6 +228,7 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
     targetBucket.cursor += 1;
     const asset = resolveProductAsset(product.name, product.category?.name);
     const onShelf = Math.max(0, product.quantity);
+    const idStr = product.id.toString();
 
     slot.quantity = onShelf;
     slot.visualState = classifyInventoryState({
@@ -136,9 +236,9 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       reorderLevel: LOW_STOCK_THRESHOLD,
     });
     slot.product = {
-      id: product.id.toString(),
+      id: idStr,
       name: product.name,
-      sku: product.sku ?? `SKU-${product.id.toString()}`,
+      sku: product.sku ?? `SKU-${idStr}`,
       barcode: product.barcode ?? "",
       categoryId: product.category ? product.category.id.toString() : null,
       categoryName: product.category?.name ?? null,
@@ -147,6 +247,15 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       totalStock: onShelf,
       assetKey: asset.key,
       assetPath: asset.path,
+      imageUrl: product.imageName
+        ? `/api/public/products/${idStr}/image`
+        : null,
+      description: product.description ?? "",
+      packOptions: buildPackOptions(
+        Number(product.price),
+        product.barcode,
+        product.barcodes,
+      ),
     };
   }
 
@@ -257,6 +366,16 @@ export async function GET() {
       return json(liveProjection);
     }
 
+    const placedIds = Array.from(
+      new Set(
+        snapshot.shelves
+          .flatMap((s) => s.positions)
+          .map((p) => p.product?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const metaById = await loadPublicProductMetaMap(placedIds);
+
     // Return ONLY customer-facing retail floor data; strip internal warehouse & cost fields.
     const sanitized: DigitalTwinSnapshot = {
       initialized: snapshot.initialized,
@@ -265,18 +384,32 @@ export async function GET() {
       departments: snapshot.departments,
       shelves: snapshot.shelves.map((shelf) => ({
         ...shelf,
-        positions: shelf.positions.map((pos) => ({
-          ...pos,
-          warehouseQuantity: 0,
-          reservedQuantity: 0,
-          nearestExpiryDate: null,
-          product: pos.product
-            ? {
-                ...pos.product,
-                costPrice: 0,
-              }
-            : null,
-        })),
+        positions: shelf.positions.map((pos) => {
+          const meta = pos.product ? metaById.get(pos.product.id) : undefined;
+          return {
+            ...pos,
+            warehouseQuantity: 0,
+            reservedQuantity: 0,
+            nearestExpiryDate: null,
+            product: pos.product
+              ? {
+                  ...pos.product,
+                  costPrice: 0,
+                  imageUrl: meta?.imageUrl ?? null,
+                  description: meta?.description ?? "",
+                  packOptions: meta?.packOptions ?? [
+                    {
+                      id: "single",
+                      label: "Single (1×)",
+                      barcode: pos.product.barcode,
+                      quantityMultiplier: 1,
+                      packPrice: pos.product.price,
+                    },
+                  ],
+                }
+              : null,
+          };
+        }),
       })),
       warehouseRacks: [],
       mappings: [],

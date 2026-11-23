@@ -6,24 +6,56 @@ import { Text } from "@react-three/drei";
 export function Walls() {
   return (
     <group name="Supermarket_Walls_Group">
-      {/* West retail wall */}
+      {/* West & East retail walls */}
       <mesh position={[-19, 2.6, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.32, 5.2, 28]} />
-        <meshStandardMaterial color="#f1f7f6" roughness={0.85} />
+        <meshStandardMaterial color="#f2f7f6" roughness={0.86} />
       </mesh>
-      {/* East retail wall */}
       <mesh position={[19, 2.6, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.32, 5.2, 28]} />
-        <meshStandardMaterial color="#f1f7f6" roughness={0.85} />
+        <meshStandardMaterial color="#f2f7f6" roughness={0.86} />
       </mesh>
-      {/* Perimeter aqua/teal architectural accent stripe */}
+
+      {/* Structural architectural pilasters along East & West walls */}
+      {[-10, -3.5, 3.5, 10].map((z) => (
+        <React.Fragment key={`pilaster-${z}`}>
+          <mesh position={[-18.78, 2.6, z]} castShadow receiveShadow>
+            <boxGeometry args={[0.24, 5.2, 0.42]} />
+            <meshStandardMaterial color="#e4eeec" roughness={0.78} />
+          </mesh>
+          <mesh position={[18.78, 2.6, z]} castShadow receiveShadow>
+            <boxGeometry args={[0.24, 5.2, 0.42]} />
+            <meshStandardMaterial color="#e4eeec" roughness={0.78} />
+          </mesh>
+        </React.Fragment>
+      ))}
+
+      {/* Dark rubber architectural skirting/baseboard grounding perimeter walls to terrazzo */}
+      <mesh position={[-18.82, 0.08, 0]}>
+        <boxGeometry args={[0.04, 0.16, 27.8]} />
+        <meshStandardMaterial color="#27343c" roughness={0.55} metalness={0.25} />
+      </mesh>
+      <mesh position={[18.82, 0.08, 0]}>
+        <boxGeometry args={[0.04, 0.16, 27.8]} />
+        <meshStandardMaterial color="#27343c" roughness={0.55} metalness={0.25} />
+      </mesh>
+      <mesh position={[-10.8, 0.08, -13.81]}>
+        <boxGeometry args={[16.2, 0.16, 0.04]} />
+        <meshStandardMaterial color="#27343c" roughness={0.55} metalness={0.25} />
+      </mesh>
+      <mesh position={[10.8, 0.08, -13.81]}>
+        <boxGeometry args={[16.2, 0.16, 0.04]} />
+        <meshStandardMaterial color="#27343c" roughness={0.55} metalness={0.25} />
+      </mesh>
+
+      {/* Perimeter teal architectural accent stripe */}
       <mesh position={[-18.82, 4.35, 0]}>
         <boxGeometry args={[0.04, 0.24, 27.6]} />
-        <meshStandardMaterial color="#0f766e" roughness={0.4} />
+        <meshStandardMaterial color="#0f766e" roughness={0.38} />
       </mesh>
       <mesh position={[18.82, 4.35, 0]}>
         <boxGeometry args={[0.04, 0.24, 27.6]} />
-        <meshStandardMaterial color="#0f766e" roughness={0.4} />
+        <meshStandardMaterial color="#0f766e" roughness={0.38} />
       </mesh>
 
       {/* North partition separating retail hall from warehouse/staff (with double-door opening) */}
@@ -35,10 +67,37 @@ export function Walls() {
         <boxGeometry args={[16.4, 5.2, 0.34]} />
         <meshStandardMaterial color="#e8f1f0" roughness={0.82} />
       </mesh>
+
+      {/* Warehouse double swinging impact doors with stainless kickplates & porthole windows */}
+      {[-1.24, 1.24].map((dx, idx) => (
+        <group key={`wh-door-${idx}`} position={[dx, 1.52, -14]}>
+          <mesh castShadow>
+            <boxGeometry args={[2.42, 3.04, 0.08]} />
+            <meshStandardMaterial color="#334155" roughness={0.45} metalness={0.35} />
+          </mesh>
+          {/* Stainless bumper kickplate */}
+          <mesh position={[0, -0.92, 0.048]}>
+            <boxGeometry args={[2.32, 0.95, 0.014]} />
+            <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.22} />
+          </mesh>
+          {/* Circular observation porthole */}
+          <mesh position={[dx > 0 ? -0.45 : 0.45, 0.42, 0.046]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.24, 0.24, 0.02, 20]} />
+            <meshPhysicalMaterial
+              color="#dff6ff"
+              transparent
+              opacity={0.42}
+              roughness={0.08}
+              clearcoat={0.9}
+            />
+          </mesh>
+        </group>
+      ))}
+
       {/* Header above warehouse double doors */}
       <mesh position={[0, 4.15, -14]} castShadow>
         <boxGeometry args={[5.2, 2.1, 0.36]} />
-        <meshStandardMaterial color="#0f766e" roughness={0.45} />
+        <meshStandardMaterial color="#0f766e" roughness={0.42} />
       </mesh>
       <Text
         position={[0, 3.65, -13.78]}
@@ -75,15 +134,28 @@ export function Walls() {
         <meshStandardMaterial color="#64748b" metalness={0.55} roughness={0.42} />
       </mesh>
 
-      {/* Emergency exit sign (West) */}
-      <mesh position={[-18.8, 2.65, 10.6]}>
-        <boxGeometry args={[0.08, 0.35, 0.8]} />
-        <meshStandardMaterial
-          color="#16a34a"
-          emissive="#15803d"
-          emissiveIntensity={0.6}
-        />
-      </mesh>
+      {/* Illuminated green emergency EXIT sign (West wall) */}
+      <group position={[-18.8, 2.7, 10.6]}>
+        <mesh>
+          <boxGeometry args={[0.08, 0.36, 0.84]} />
+          <meshStandardMaterial
+            color="#16a34a"
+            emissive="#15803d"
+            emissiveIntensity={1.15}
+            toneMapped={false}
+          />
+        </mesh>
+        <Text
+          position={[0.05, 0, 0]}
+          rotation={[0, Math.PI / 2, 0]}
+          fontSize={0.18}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          EXIT
+        </Text>
+      </group>
     </group>
   );
 }

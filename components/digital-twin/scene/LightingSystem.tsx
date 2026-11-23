@@ -9,14 +9,15 @@ export function LightingSystem({ quality }: { quality: GraphicsQuality }) {
 
   return (
     <group name="Lighting_System">
-      <hemisphereLight args={["#f0fdfa", "#cbd5e1", 0.92]} />
-      <ambientLight intensity={0.32} color="#ffffff" />
+      {/* Balanced architectural skylight & warm terrazzo bounce */}
+      <hemisphereLight args={["#f4fbfa", "#c6d3d6", 0.88]} />
+      <ambientLight intensity={0.26} color="#ffffff" />
 
-      {/* Main sunlit key light entering the storefront */}
+      {/* Main sunlit coastal key light entering from the south-east facade */}
       <directionalLight
         position={[18, 28, 22]}
-        intensity={1.35}
-        color="#fffdf8"
+        intensity={1.38}
+        color="#fffdf7"
         castShadow={castShadows}
         shadow-mapSize-width={shadowSize}
         shadow-mapSize-height={shadowSize}
@@ -26,33 +27,53 @@ export function LightingSystem({ quality }: { quality: GraphicsQuality }) {
         shadow-camera-bottom={-34}
         shadow-camera-near={2}
         shadow-camera-far={85}
-        shadow-bias={-0.0005}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.03}
       />
 
-      {/* Cool fill light from the back-of-house / warehouse side */}
+      {/* Cool architectural fill light from the north / chilled side */}
       <directionalLight
         position={[-16, 16, -24]}
-        intensity={0.55}
+        intensity={0.52}
         color="#e0f2fe"
       />
 
-      {/* Warm retail interior accent lights */}
+      {/* Zone-calibrated interior retail accent lights (3000K Bakery/Produce, 5500K Dairy, Neutral Aisles) */}
       {quality !== "low" && (
         <>
+          {/* Warm 3000K bakery & west aisle accent */}
           <pointLight
-            position={[-6, 4.4, 2]}
-            intensity={8}
+            position={[-13.5, 4.2, 4.2]}
+            intensity={8.5}
+            distance={16}
+            decay={2}
+            color="#ffe8c2"
+          />
+          {/* Crisp neutral grocery/beverage mid-hall illumination */}
+          <pointLight
+            position={[-3.2, 4.4, 0.5]}
+            intensity={8.5}
             distance={18}
             decay={2}
-            color="#fffbeb"
+            color="#fffdf8"
           />
+          {/* Cool 5500K dairy & beverage chiller zone accent */}
           <pointLight
-            position={[6, 4.4, 2]}
-            intensity={8}
-            distance={18}
+            position={[12.5, 4.2, -4.5]}
+            intensity={9.0}
+            distance={17}
             decay={2}
-            color="#f0fdfa"
+            color="#e0f4ff"
           />
+          {/* Warm 3000K fresh produce island highlight */}
+          <pointLight
+            position={[13.5, 4.0, 4.8]}
+            intensity={8.0}
+            distance={14}
+            decay={2}
+            color="#ffefd1"
+          />
+          {/* Back-of-house high-bay warehouse illumination */}
           <pointLight
             position={[0, 5.4, -22]}
             intensity={10}

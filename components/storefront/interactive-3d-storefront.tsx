@@ -6,26 +6,33 @@ import Link from "next/link";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import {
   BUILDING_DIMENSIONS,
   CAMERA_PRESETS,
+  buildShoppingPathPoints,
   findAreaByCode,
   findFixtureByCode,
-  shelfSlotWorldPosition,
+  resolveWalkCollision,
+  shelfFixtureWorldCamera,
+  shelfSlotWorldCamera,
 } from "@/lib/digital-twin/spatial-plan";
 import type {
   CameraGoal,
   CameraMovementInput,
+  CameraPose,
 } from "@/components/digital-twin/controls/CameraControls";
 import { FloorPlan2DFallback } from "@/components/digital-twin/interface/FloorPlan2DFallback";
 import {
   WebGLErrorBoundary,
   isWebGLAvailable,
 } from "@/components/digital-twin/interface/WebGLErrorBoundary";
+import { StoreMinimap } from "@/components/storefront/store-minimap";
 import type { PublicCatalogProduct } from "@/types/api";
 import type {
   DigitalTwinSnapshot,
+  GraphicsQuality,
   TwinSelection,
   TwinShelfNode,
   TwinShelfPositionNode,
@@ -52,14 +59,14 @@ const SupermarketScene = dynamic(
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 const WALK_START_GOAL: Omit<CameraGoal, "nonce"> = {
-  position: [-1.4, 1.72, 9.8],
+  position: [-1.4, 1.65, 9.8],
   target: [-1.4, 1.35, 1.5],
 };
 
 const RETAIL_WALK_BOUNDS = {
-  minX: BUILDING_DIMENSIONS.retail.bounds.minX + 1.2,
-  maxX: BUILDING_DIMENSIONS.retail.bounds.maxX - 1.2,
-  minZ: BUILDING_DIMENSIONS.retail.bounds.minZ + 1.2,
+  minX: BUILDING_DIMENSIONS.retail.bounds.minX + 1.0,
+  maxX: BUILDING_DIMENSIONS.retail.bounds.maxX - 1.0,
+  minZ: BUILDING_DIMENSIONS.retail.bounds.minZ + 1.0,
   maxZ: BUILDING_DIMENSIONS.retail.bounds.maxZ + 2.0,
 };
 
@@ -69,6 +76,7 @@ export interface ShelfPickPayload {
   price: number;
   maxQuantity: number;
   categoryName: string | null;
+  quantity?: number;
 }
 
 export interface Interactive3DStorefrontProps {
@@ -77,6 +85,7 @@ export interface Interactive3DStorefrontProps {
   error: string | null;
   onRefresh: () => void;
   refreshing?: boolean;
+  realtimeConnected?: boolean;
   catalogById?: ReadonlyMap<string, PublicCatalogProduct>;
   basketQuantities: Readonly<Record<string, number>>;
   basketCount: number;
@@ -95,6 +104,7 @@ export function Interactive3DStorefront({
   error,
   onRefresh,
   refreshing = false,
+  realtimeConnected = false,
   catalogById,
   basketQuantities,
   basketCount,
@@ -115,6 +125,16 @@ export function Interactive3DStorefront({
   });
 
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("overview");
+  const [quality, setQuality] = React.useState<GraphicsQuality>("high");
+  const [showMinimap, setShowMinimap] = React.useState(true);
+  const [showRoute, setShowRoute] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setQuality("balanced");
+      setShowMinimap(false);
+    }
+  }, []);
   const [webglOk, setWebglOk] = React.useState(true);
   const [selection, setSelection] = React.useState<TwinSelection>(null);
   const [activeDeptCode, setActiveDeptCode] = React.useState<string>("");
@@ -123,6 +143,21 @@ export function Interactive3DStorefront({
     target: CAMERA_PRESETS.overview.target,
     nonce: 1,
   });
+  const [cameraPose, setCameraPose] = React.useState<CameraPose>({
+    x: CAMERA_PRESETS.overview.position[0],
+    z: CAMERA_PRESETS.overview.position[2],
+    yaw: Math.PI,
+  });
+
+  // In-3D Live Product Search & Spotlight state
+  const [shelfSearch, setShelfSearch] = React.useState("");
+  const [searchCursor, setSearchCursor] = React.useState(0);
+
+  // Tactile GSAP pick-off event tracker
+  const [lastPickedEvent, setLastPickedEvent] = React.useState<{
+    productId: string;
+    nonce: number;
+  } | null>(null);
 
   React.useEffect(() => {
     const ok = isWebGLAvailable();
@@ -234,24 +269,25 @@ export function Interactive3DStorefront({
     [flyTo],
   );
 
+  // Aisle-side aware shelf camera framing (faces the shelf's open aisle cleanly).
   const handleSelectShelf = React.useCallback(
     (shelf: TwinShelfNode) => {
       setActiveDeptCode(shelf.departmentCode);
       setSelection({ type: "shelf", shelfId: shelf.id, shelfCode: shelf.code });
       const fixture = findFixtureByCode(shelf.code);
-      const offset = fixture?.cameraOffset ?? [3.6, 2.0, 3.4];
-      flyTo(
-        [
-          shelf.position[0] + offset[0] * 0.85,
-          Math.min(2.6, Math.max(1.5, shelf.position[1] + offset[1] * 0.82)),
-          shelf.position[2] + offset[2] * 0.85,
-        ],
-        [shelf.position[0], shelf.position[1] + 1.05, shelf.position[2]],
-      );
+      if (fixture) {
+        // Choose whichever side of a double-sided gondola is closest to current camera.
+        const preferredSide: 1 | -1 =
+          cameraPose.x < fixture.position[0] ? -1 : 1;
+        const framing = shelfFixtureWorldCamera(fixture, preferredSide);
+        flyTo(framing.position, framing.target);
+      }
     },
-    [flyTo],
+    [cameraPose.x, flyTo],
   );
 
+  // Aisle-side aware product slot auto-framing: computes exact outward normal so
+  // clicking a slot on either side of a double-sided gondola ALWAYS lands in front of it!
   const handleSelectProduct = React.useCallback(
     (pos: TwinShelfPositionNode) => {
       if (!pos.product) return;
@@ -265,23 +301,41 @@ export function Interactive3DStorefront({
         objectName: pos.objectName,
       });
       const fixture = findFixtureByCode(pos.shelfCode);
-      const target = fixture
-        ? shelfSlotWorldPosition(fixture, pos.slotIndex)
-        : ([0, 1.2, 0] as [number, number, number]);
-      const offset = fixture?.cameraOffset ?? [2.5, 1.2, 2.5];
-      flyTo(
-        [
-          target[0] + offset[0] * 0.48,
-          Math.max(1.25, target[1] + 0.52),
-          target[2] + offset[2] * 0.48,
-        ],
-        target,
-      );
+      if (fixture) {
+        const framing = shelfSlotWorldCamera(fixture, pos.slotIndex, 1.95);
+        flyTo(framing.position, framing.target);
+      }
     },
     [flyTo, snapshot],
   );
 
-  // External focus request from catalog ("View on shelf" button).
+  // Matterport-style click-on-floor to walk smoothly at eye level (y = 1.65m).
+  const handleWalkToFloorPoint = React.useCallback(
+    ([worldX, worldZ]: [number, number]) => {
+      const [safeX, safeZ] = resolveWalkCollision(
+        cameraPose.x,
+        cameraPose.z,
+        worldX,
+        worldZ,
+        0.48,
+        RETAIL_WALK_BOUNDS,
+      );
+      const dx = safeX - cameraPose.x;
+      const dz = safeZ - cameraPose.z;
+      const dist = Math.hypot(dx, dz);
+      const lookDirX = dist > 0.25 ? dx / dist : Math.sin(cameraPose.yaw);
+      const lookDirZ = dist > 0.25 ? dz / dist : Math.cos(cameraPose.yaw);
+
+      setViewPreset("walk");
+      flyTo(
+        [safeX, 1.65, safeZ],
+        [safeX + lookDirX * 3.2, 1.38, safeZ + lookDirZ * 3.2],
+      );
+    },
+    [cameraPose, flyTo],
+  );
+
+  // External focus request from catalog ("Show on shelf" button).
   React.useEffect(() => {
     if (!focusProductRequest || !snapshot) return;
     const match = snapshot.shelves
@@ -293,12 +347,85 @@ export function Interactive3DStorefront({
     }
   }, [focusProductRequest, snapshot, handleSelectProduct, webglOk]);
 
+  // In-3D Live Product Search & Spotlight matches
+  const searchQueryClean = shelfSearch.trim().toLowerCase();
+  const searchMatches = React.useMemo(() => {
+    if (!searchQueryClean || !snapshot) return [];
+    return snapshot.shelves.flatMap((shelf) =>
+      shelf.positions
+        .filter((pos) => {
+          if (!pos.product) return false;
+          return (
+            pos.product.name.toLowerCase().includes(searchQueryClean) ||
+            (pos.product.categoryName ?? "")
+              .toLowerCase()
+              .includes(searchQueryClean) ||
+            shelf.name.toLowerCase().includes(searchQueryClean) ||
+            shelf.departmentName.toLowerCase().includes(searchQueryClean)
+          );
+        })
+        .map((pos) => ({ shelf, pos })),
+    );
+  }, [searchQueryClean, snapshot]);
+
+  const searchMatchedProductIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const m of searchMatches) {
+      if (m.pos.product) set.add(m.pos.product.id);
+    }
+    return set;
+  }, [searchMatches]);
+
+  const searchShelfCodes = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const m of searchMatches) set.add(m.shelf.code);
+    return set;
+  }, [searchMatches]);
+
+  const jumpToSearchMatch = (nextIndex: number) => {
+    if (searchMatches.length === 0) return;
+    const wrapped =
+      ((nextIndex % searchMatches.length) + searchMatches.length) %
+      searchMatches.length;
+    setSearchCursor(wrapped);
+    handleSelectProduct(searchMatches[wrapped].pos);
+  };
+
+  // Shelves holding items currently in the customer's basket + Guided 3D floor path
+  const basketStops = React.useMemo(() => {
+    if (!snapshot) return [];
+    const stops: Array<{ shelfCode: string; slotIndex: number }> = [];
+    for (const shelf of snapshot.shelves) {
+      for (const pos of shelf.positions) {
+        if (pos.product && (basketQuantities[pos.product.id] ?? 0) > 0) {
+          stops.push({ shelfCode: shelf.code, slotIndex: pos.slotIndex });
+        }
+      }
+    }
+    return stops;
+  }, [snapshot, basketQuantities]);
+
+  const basketShelfCodes = React.useMemo(
+    () => new Set(basketStops.map((s) => s.shelfCode)),
+    [basketStops],
+  );
+
+  const shoppingPathPoints = React.useMemo(() => {
+    if (!showRoute || basketStops.length === 0) return [];
+    return buildShoppingPathPoints(basketStops);
+  }, [showRoute, basketStops]);
+
+  const handlePickAdd = (payload: ShelfPickPayload) => {
+    onAddItem(payload);
+    setLastPickedEvent({ productId: payload.productId, nonce: Date.now() });
+  };
+
   const handleZoom = (factor: number) => {
     const ctrl = controlsRef.current;
     if (!ctrl) return;
     const cam = ctrl.object;
     const dir = cam.position.clone().sub(ctrl.target);
-    const nextLen = Math.min(44, Math.max(1.6, dir.length() * factor));
+    const nextLen = Math.min(44, Math.max(1.4, dir.length() * factor));
     dir.setLength(nextLen);
     const nextPos = ctrl.target.clone().add(dir);
     flyTo([nextPos.x, Math.max(1.1, nextPos.y), nextPos.z], [
@@ -335,7 +462,6 @@ export function Interactive3DStorefront({
     onPointerCancel: () => setMoveFlag(key, false),
   });
 
-  // Resolve currently selected product / shelf / department items for the right panel.
   const selectedPos = React.useMemo(() => {
     if (selection?.type !== "product" || !snapshot) return null;
     return (
@@ -394,6 +520,11 @@ export function Interactive3DStorefront({
   const selectedProductCatalog = selectedPos?.product
     ? catalogById?.get(selectedPos.product.id)
     : undefined;
+  const selectedProductImage =
+    selectedPos?.product?.imageUrl ?? selectedProductCatalog?.imageUrl ?? null;
+  const selectedProductDesc =
+    selectedPos?.product?.description || selectedProductCatalog?.description || "";
+  const selectedPackOptions = selectedPos?.product?.packOptions ?? [];
 
   const renderBasketControl = (pos: TwinShelfPositionNode) => {
     if (!pos.product) return null;
@@ -418,7 +549,7 @@ export function Interactive3DStorefront({
             type="button"
             disabled={inBasket >= available}
             onClick={() =>
-              onAddItem({
+              handlePickAdd({
                 productId: pos.product!.id,
                 name: pos.product!.name,
                 price: pos.product!.price,
@@ -440,7 +571,7 @@ export function Interactive3DStorefront({
         size="sm"
         disabled={available <= 0}
         onClick={() =>
-          onAddItem({
+          handlePickAdd({
             productId: pos.product!.id,
             name: pos.product!.name,
             price: pos.product!.price,
@@ -463,8 +594,8 @@ export function Interactive3DStorefront({
           : "overflow-hidden rounded-lg border border-border bg-white shadow-card"
       }
     >
-      {/* Top Toolbar: Camera Mode + Department Aisles + Zoom/Refresh */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-white px-3 py-2.5 sm:px-4">
+      {/* Top Toolbar: Camera Mode + In-3D Spotlight Search + Route / Quality / Fullscreen */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-white px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center gap-2">
           <div
             role="group"
@@ -508,33 +639,144 @@ export function Interactive3DStorefront({
             </button>
           </div>
 
-          <div className="hidden items-center gap-1 sm:flex">
-            {!is2D && (
-              <>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => handleZoom(0.75)}
-                  title="Zoom in"
-                >
-                  +
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => handleZoom(1.32)}
-                  title="Zoom out"
-                >
-                  −
-                </Button>
-              </>
-            )}
-          </div>
+          {!is2D && (
+            <div className="hidden items-center gap-1 sm:flex">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-xs"
+                onClick={() => handleZoom(0.75)}
+                title="Zoom in"
+              >
+                +
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-xs"
+                onClick={() => handleZoom(1.32)}
+                title="Zoom out"
+              >
+                −
+              </Button>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* In-3D Live Product Search & Spotlight */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchMatches.length > 0) jumpToSearchMatch(0);
+          }}
+          className="flex min-w-[200px] flex-1 items-center gap-1.5 sm:max-w-xs"
+        >
+          <Input
+            value={shelfSearch}
+            onChange={(e) => {
+              setShelfSearch(e.target.value);
+              setSearchCursor(0);
+            }}
+            placeholder="Find on 3D shelves (e.g. milk, rice)…"
+            className="h-7 text-xs"
+            aria-label="Spotlight products on 3D shelves"
+          />
+          {searchQueryClean && (
+            <>
+              <span className="shrink-0 font-mono text-[11px] text-muted tabular-nums">
+                {searchMatches.length > 0
+                  ? `${(searchCursor % searchMatches.length) + 1}/${searchMatches.length}`
+                  : "0"}
+              </span>
+              {searchMatches.length > 0 && (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => jumpToSearchMatch(searchCursor - 1)}
+                    aria-label="Previous match"
+                  >
+                    ‹
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => jumpToSearchMatch(searchCursor + 1)}
+                    aria-label="Next match"
+                  >
+                    ›
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-1.5 text-xs"
+                onClick={() => setShelfSearch("")}
+                aria-label="Clear spotlight search"
+              >
+                ✕
+              </Button>
+            </>
+          )}
+        </form>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!is2D && basketStops.length > 0 && (
+            <Button
+              size="sm"
+              variant={showRoute ? "default" : "secondary"}
+              className="h-7 text-xs"
+              onClick={() => setShowRoute((v) => !v)}
+            >
+              {showRoute ? "Hide route" : "Show route"}
+            </Button>
+          )}
+          {!is2D && (
+            <Button
+              size="sm"
+              variant={quality === "high" ? "default" : "secondary"}
+              className="hidden h-7 text-xs md:inline-flex"
+              onClick={() =>
+                setQuality((q) =>
+                  q === "high" ? "balanced" : q === "balanced" ? "low" : "high",
+                )
+              }
+              title="Cycle graphics quality (HD PBR + N8AO + Bloom / Balanced / Lite)"
+            >
+              {quality === "high"
+                ? "HD PBR"
+                : quality === "balanced"
+                  ? "Balanced"
+                  : "Lite"}
+            </Button>
+          )}
+          {!is2D && (
+            <Button
+              size="sm"
+              variant={showMinimap ? "default" : "secondary"}
+              className="h-7 text-xs"
+              onClick={() => setShowMinimap((v) => !v)}
+            >
+              {showMinimap ? "Hide map" : "Radar"}
+            </Button>
+          )}
+          {onOpenBasket && basketCount > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs"
+              onClick={onOpenBasket}
+              title="Open basket & Express POS Pickup QR"
+            >
+              Pickup QR ({basketCount})
+            </Button>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -542,7 +784,7 @@ export function Interactive3DStorefront({
             isLoading={refreshing}
             onClick={onRefresh}
           >
-            Refresh stock
+            Sync
           </Button>
           {!fullHeight && (
             <Link href="/store-3d">
@@ -595,7 +837,7 @@ export function Interactive3DStorefront({
         className={
           fullHeight
             ? "flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row"
-            : "flex flex-col lg:h-[580px] lg:flex-row"
+            : "flex flex-col lg:h-[600px] lg:flex-row"
         }
       >
         {/* Movable 3D Canvas */}
@@ -603,7 +845,7 @@ export function Interactive3DStorefront({
           className={
             fullHeight
               ? "relative min-h-[380px] flex-1 bg-canvas"
-              : "relative h-[420px] sm:h-[500px] lg:h-full lg:flex-1 bg-canvas"
+              : "relative h-[430px] sm:h-[520px] lg:h-full lg:flex-1 bg-canvas"
           }
         >
           {loading && !snapshot ? (
@@ -636,8 +878,8 @@ export function Interactive3DStorefront({
                 warehouseRacks={[]}
                 viewMode="realistic"
                 sceneScope="supermarket"
-                quality="balanced"
-                showCeiling={false}
+                quality={quality}
+                showCeiling={viewPreset === "walk"}
                 selection={selection}
                 cameraGoal={cameraGoal}
                 recentlyRestockedPositionIds={EMPTY_SET}
@@ -651,22 +893,37 @@ export function Interactive3DStorefront({
                 }}
                 movementRef={movementRef}
                 movementBounds={RETAIL_WALK_BOUNDS}
+                enableShelfCollision
+                onCameraPoseChange={setCameraPose}
+                onWalkToFloorPoint={handleWalkToFloorPoint}
                 shopperMode
                 basketQuantities={basketQuantities}
+                searchMatchedProductIds={searchMatchedProductIds}
+                searchActive={Boolean(searchQueryClean)}
+                lastPickedEvent={lastPickedEvent}
+                shoppingPathPoints={shoppingPathPoints}
               />
             </WebGLErrorBoundary>
           )}
 
-          {/* Top-Left Minimal Live Store Indicator */}
+          {/* Top-Left Live Sync & Active Shelf Status */}
           {snapshot && (
             <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap items-center gap-2">
               <div className="pointer-events-auto flex items-center gap-2 rounded-md border border-border bg-white/95 px-2.5 py-1 text-[11px] text-muted shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    realtimeConnected ? "bg-success" : "bg-warning"
+                  }`}
+                />
+                <span className="font-medium text-foreground">
+                  {realtimeConnected ? "Live" : "Syncing"}
+                </span>
+                <span className="text-border">·</span>
                 <span>
                   <strong className="font-semibold text-foreground tabular-nums">
                     {snapshot.summary.totalShelfUnits}
                   </strong>{" "}
-                  units live on shelves
+                  on shelves
                 </span>
                 {selectedShelf && (
                   <>
@@ -680,7 +937,20 @@ export function Interactive3DStorefront({
             </div>
           )}
 
-          {/* Bottom-Left Tactile Move Pad (Works with Mouse, Touch & WASD/Arrows) */}
+          {/* Top-Right Corner 2D Radar Minimap */}
+          {!is2D && snapshot && showMinimap && (
+            <div className="pointer-events-none absolute right-3 top-3 z-10">
+              <StoreMinimap
+                pose={cameraPose}
+                basketShelfCodes={basketShelfCodes}
+                searchShelfCodes={searchShelfCodes}
+                pathPoints={shoppingPathPoints}
+                onWalkToPoint={handleWalkToFloorPoint}
+              />
+            </div>
+          )}
+
+          {/* Bottom-Left Tactile Move Pad & Step-Inside Shortcut */}
           {!is2D && snapshot && (
             <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex items-end justify-between gap-2">
               <div className="pointer-events-auto flex items-center gap-2 rounded-md border border-border bg-white/95 p-1.5 shadow-sm">
@@ -743,9 +1013,9 @@ export function Interactive3DStorefront({
                     →
                   </button>
                 </div>
-                <p className="hidden max-w-[165px] pr-1 text-[11px] leading-snug text-muted sm:block">
-                  Drag to look · <strong className="font-medium text-foreground">WASD</strong> or
-                  pad to move · Click any product on a shelf
+                <p className="hidden max-w-[180px] pr-1 text-[11px] leading-snug text-muted sm:block">
+                  Click floor to walk · <strong className="font-medium text-foreground">WASD</strong> or
+                  pad to move · Click any product or ESL price tag
                 </p>
               </div>
 
@@ -766,7 +1036,7 @@ export function Interactive3DStorefront({
         </div>
 
         {/* Right Panel: Live Shelf Picker */}
-        <aside className="flex w-full shrink-0 flex-col border-t border-border bg-white lg:w-[340px] lg:border-l lg:border-t-0">
+        <aside className="flex w-full shrink-0 flex-col border-t border-border bg-white lg:w-[350px] lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold text-foreground">
@@ -796,22 +1066,27 @@ export function Interactive3DStorefront({
                 All shelves
               </Button>
             ) : onOpenBasket && basketCount > 0 ? (
-              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onOpenBasket}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={onOpenBasket}
+              >
                 Basket ({basketCount})
               </Button>
             ) : null}
           </div>
 
-          <div className="max-h-[340px] flex-1 overflow-y-auto p-4 lg:max-h-none">
-            {/* 1. Selected Product Detail + Siblings on Same Shelf */}
+          <div className="max-h-[360px] flex-1 overflow-y-auto p-4 lg:max-h-none">
+            {/* 1. Selected Product Detail + Pack Variants + Siblings on Same Shelf */}
             {selectedPos?.product ? (
               <div className="space-y-4">
                 <div className="flex gap-3">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle p-1.5">
-                    {selectedProductCatalog?.imageUrl ? (
+                    {selectedProductImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={selectedProductCatalog.imageUrl}
+                        src={selectedProductImage}
                         alt={selectedPos.product.name}
                         className="max-h-full max-w-full object-contain"
                       />
@@ -830,7 +1105,7 @@ export function Interactive3DStorefront({
                     <h3 className="text-sm font-semibold leading-snug text-foreground">
                       {selectedPos.product.name}
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-base font-semibold tabular-nums text-foreground">
                         {formatMoney(selectedPos.product.price)}
                       </span>
@@ -851,9 +1126,9 @@ export function Interactive3DStorefront({
                   </div>
                 </div>
 
-                {selectedProductCatalog?.description && (
+                {selectedProductDesc && (
                   <p className="text-xs leading-relaxed text-muted">
-                    {selectedProductCatalog.description}
+                    {selectedProductDesc}
                   </p>
                 )}
 
@@ -868,6 +1143,66 @@ export function Interactive3DStorefront({
                   </div>
                   {renderBasketControl(selectedPos)}
                 </div>
+
+                {/* Pack / Carton Variants from ProductBarcode */}
+                {selectedPackOptions.length > 1 && selectedPos.quantity > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted">
+                        Pack &amp; carton variants
+                      </p>
+                      <span className="font-mono text-[10px] text-muted">
+                        {Math.max(
+                          0,
+                          selectedPos.quantity -
+                            (basketQuantities[selectedPos.product.id] ?? 0),
+                        )}{" "}
+                        left on shelf
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {selectedPackOptions.map((pack) => {
+                        const inBasket =
+                          basketQuantities[selectedPos.product!.id] ?? 0;
+                        const remaining = Math.max(
+                          0,
+                          selectedPos.quantity - inBasket,
+                        );
+                        const disabled = pack.quantityMultiplier > remaining;
+                        return (
+                          <button
+                            key={pack.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() =>
+                              handlePickAdd({
+                                productId: selectedPos.product!.id,
+                                name: selectedPos.product!.name,
+                                price: selectedPos.product!.price,
+                                maxQuantity: selectedPos.quantity,
+                                categoryName: selectedPos.product!.categoryName,
+                                quantity: pack.quantityMultiplier,
+                              })
+                            }
+                            className="rounded-md border border-border bg-white px-2.5 py-2 text-left transition-colors hover:border-primary hover:bg-primary-soft/40 disabled:opacity-45 cursor-pointer"
+                          >
+                            <p className="text-xs font-semibold text-foreground">
+                              + {pack.label}
+                            </p>
+                            <p className="text-[11px] font-medium text-primary tabular-nums">
+                              {formatMoney(pack.packPrice)}
+                            </p>
+                            {pack.barcode && (
+                              <p className="mt-0.5 truncate font-mono text-[9px] text-muted">
+                                {pack.barcode}
+                              </p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {selectedShelf && (
                   <div className="space-y-2 border-t border-border pt-3">
@@ -971,8 +1306,8 @@ export function Interactive3DStorefront({
                 ) : (
                   <>
                     <p className="text-xs text-muted">
-                      Click any product below or tap directly on a 3D shelf to
-                      inspect and add it to your basket.
+                      Click any item below, tap a product on a 3D shelf, or
+                      click the floor to walk down any aisle.
                     </p>
                     <div className="space-y-2">
                       {allPlacedPositions.slice(0, 24).map(({ shelf, pos }) => (
@@ -1011,7 +1346,7 @@ export function Interactive3DStorefront({
           {onOpenBasket && basketCount > 0 && (
             <div className="border-t border-border bg-surface-subtle px-4 py-3">
               <Button size="sm" className="w-full" onClick={onOpenBasket}>
-                View basket ({basketCount}{" "}
+                View basket &amp; pickup QR ({basketCount}{" "}
                 {basketCount === 1 ? "item" : "items"})
               </Button>
             </div>

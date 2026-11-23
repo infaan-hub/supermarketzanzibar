@@ -6,55 +6,79 @@ import * as THREE from "three";
 const LIGHT_POSITIONS: Array<[number, number, number]> = [];
 for (let x = -14; x <= 14; x += 7) {
   for (let z = -10; z <= 10; z += 5) {
-    LIGHT_POSITIONS.push([x, 4.95, z]);
+    LIGHT_POSITIONS.push([x, 4.94, z]);
   }
 }
 
 export function Ceiling({ visible = true }: { visible?: boolean }) {
-  const instancedRef = React.useRef<THREE.InstancedMesh>(null);
+  const housingRef = React.useRef<THREE.InstancedMesh>(null);
+  const diffuserRef = React.useRef<THREE.InstancedMesh>(null);
 
   React.useEffect(() => {
-    const mesh = instancedRef.current;
-    if (!mesh) return;
+    const housing = housingRef.current;
+    const diffuser = diffuserRef.current;
+    if (!housing || !diffuser) return;
     const dummy = new THREE.Object3D();
     LIGHT_POSITIONS.forEach(([x, y, z], idx) => {
-      dummy.position.set(x, y, z);
+      dummy.position.set(x, y + 0.03, z);
       dummy.updateMatrix();
-      mesh.setMatrixAt(idx, dummy.matrix);
+      housing.setMatrixAt(idx, dummy.matrix);
+
+      dummy.position.set(x, y - 0.015, z);
+      dummy.updateMatrix();
+      diffuser.setMatrixAt(idx, dummy.matrix);
     });
-    mesh.instanceMatrix.needsUpdate = true;
+    housing.instanceMatrix.needsUpdate = true;
+    diffuser.instanceMatrix.needsUpdate = true;
   }, [visible]);
 
   if (!visible) return null;
 
   return (
     <group name="Supermarket_Ceiling_Group">
-      {/* Exposed architectural trusses — open enough for top-down inspection */}
-      {[-10, -4, 2, 8].map((z) => (
-        <mesh key={z} position={[0, 5.1, z]}>
-          <boxGeometry args={[38, 0.22, 0.24]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.55} roughness={0.45} />
+      {/* Architectural high-bay steel primary & secondary roof trusses */}
+      {[-12, -6, 0, 6, 12].map((z) => (
+        <mesh key={`truss-z-${z}`} position={[0, 5.1, z]}>
+          <boxGeometry args={[38, 0.2, 0.22]} />
+          <meshStandardMaterial color="#94a3b8" metalness={0.62} roughness={0.38} />
         </mesh>
       ))}
-      {[-12, 0, 12].map((x) => (
-        <mesh key={x} position={[x, 5.1, 0]}>
-          <boxGeometry args={[0.24, 0.22, 28]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.55} roughness={0.45} />
+      {[-14, -7, 0, 7, 14].map((x) => (
+        <mesh key={`truss-x-${x}`} position={[x, 5.12, 0]}>
+          <boxGeometry args={[0.2, 0.18, 28]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.58} roughness={0.42} />
         </mesh>
       ))}
 
-      {/* Instanced LED luminaire strips */}
+      {/* Subtle acoustic ceiling deck slab above trusses (seen when looking up in Walk aisles mode) */}
+      <mesh position={[0, 5.24, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[38, 28]} />
+        <meshStandardMaterial color="#e9f0f0" roughness={0.88} metalness={0.05} />
+      </mesh>
+
+      {/* Instanced anodized aluminum linear luminaire housings */}
       <instancedMesh
-        ref={instancedRef}
+        ref={housingRef}
+        args={[undefined, undefined, LIGHT_POSITIONS.length]}
+        name="Instanced_Ceiling_Light_Housings"
+      >
+        <boxGeometry args={[2.8, 0.06, 0.34]} />
+        <meshStandardMaterial color="#475569" metalness={0.72} roughness={0.28} />
+      </instancedMesh>
+
+      {/* Instanced high-output LED luminaire diffusers (emissive > 1.05 catches restrained Bloom) */}
+      <instancedMesh
+        ref={diffuserRef}
         args={[undefined, undefined, LIGHT_POSITIONS.length]}
         name="Instanced_Ceiling_Lights"
       >
-        <boxGeometry args={[2.6, 0.08, 0.28]} />
+        <boxGeometry args={[2.68, 0.035, 0.24]} />
         <meshStandardMaterial
           color="#ffffff"
-          emissive="#e6fffb"
-          emissiveIntensity={0.85}
-          roughness={0.2}
+          emissive="#f4fffd"
+          emissiveIntensity={1.25}
+          roughness={0.15}
+          toneMapped={false}
         />
       </instancedMesh>
     </group>

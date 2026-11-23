@@ -736,33 +736,385 @@ export function findRackByCode(code: string): WarehouseRackSpec | undefined {
   );
 }
 
+export interface ShelfSlotLocalLayout {
+  /** Local position [x, y, z] of the front-center of the product slot (y = top of shelf deck). */
+  localPosition: Vec3;
+  /** Local Y rotation so the product front faces directly outward into the aisle. */
+  localRotationY: number;
+  /** Forward presentation tilt in radians (e.g. 18° = 0.314 rad on tilted produce timber crates). */
+  tiltX: number;
+  /** Unit outward normal [nx, 0, nz] in shelf-local coordinates pointing into the shopper aisle. */
+  localNormal: Vec3;
+  /** Local position of the Electronic Shelf Label (ESL) mounted on the front lip of this tier. */
+  eslLocalPosition: Vec3;
+  /** Which side of a double-sided gondola this slot belongs to (+1 = +X/+Z front, -1 = -X back). */
+  sideSign: 1 | -1;
+  tier: number;
+  slotInTier: number;
+  isDoubleSided: boolean;
+}
+
+/** Realistic number of individual hinged glass doors for a chiller/refrigerator span. */
+export function chillerDoorCountForFixture(
+  fixture: Pick<ShelfFixtureSpec, "size">,
+): number {
+  const [w, , d] = fixture.size;
+  const span = Math.max(w, d) - 0.16;
+  return Math.max(2, Math.min(8, Math.round(span / 0.88)));
+}
+
+/** Map a product slot index on a chiller to the specific hinged door index covering it. */
+export function shelfSlotDoorIndex(
+  fixture: Pick<ShelfFixtureSpec, "size" | "slotsPerTier" | "tiers" | "kind">,
+  slotIndex: number,
+): number {
+  const doorCount = chillerDoorCountForFixture(fixture);
+  const [w, , d] = fixture.size;
+  const isZLong = d >= w;
+  const span = (isZLong ? d : w) - 0.16;
+  const layout = shelfSlotLocalLayout(fixture, slotIndex);
+  // In door-group local coordinates, Z-long chillers are rotated by -PI/2 around Y,
+  // which maps shelf-local Z -> door-local +X (or -X depending on axis).
+  // Specifically: rotationY(-PI/2) maps (x', 0, z') -> (-z', 0, x'), so door-local x' = shelf-local z!
+  const alongDoorAxis = isZLong ? layout.localPosition[2] : layout.localPosition[0];
+  const normalized = (alongDoorAxis + span / 2) / Math.max(0.01, span);
+  return Math.max(0, Math.min(doorCount - 1, Math.floor(normalized * doorCount)));
+}
+
+/**
+ * Deterministic local layout for a product slot on any shelf fixture.
+ * Double-sided Z-long gondolas orient even slots toward +X and odd slots toward -X;
+ * single-sided wall/island fixtures orient all slots outward along local +Z.
+ */
+export function shelfSlotLocalLayout(
+  fixture: Pick<ShelfFixtureSpec, "size" | "tiers" | "slotsPerTier" | "kind">,
+  slotIndex: number,
+): ShelfSlotLocalLayout {
+  const [w, h, d] = fixture.size;
+  const tiers = Math.max(1, fixture.tiers);
+  const slotsPerTier = Math.max(1, fixture.slotsPerTier);
+  const isZLong = d >= w;
+  const isDoubleSided =
+    isZLong && fixture.kind !== "refrigerator" && fixture.kind !== "meat_counter";
+  const isProduce = fixture.kind === "produce_island";
+  // Authentic 18-degree tilted timber produce crate slant (0.314 rad)
+  const tiltX = isProduce ? 0.314 : 0;
+
+  const tier = Math.floor(slotIndex / slotsPerTier) % tiers;
+  const slotInTier = slotIndex % slotsPerTier;
+  const span = isZLong ? d * 0.78 : w * 0.78;
+  const frac = slotsPerTier > 1 ? slotInTier / (slotsPerTier - 1) - 0.5 : 0;
+  const along = frac * span;
+
+  // Shelf deck top surface Y matches Shelf.tsx deck center + half thickness (0.024).
+  const deckCenterY = 0.26 + tier * ((h - 0.48) / tiers);
+  const deckTopY = deckCenterY + 0.024;
+
+  if (isZLong) {
+    // Refrigerated Z-long cooler (`FR-BEV-01`) faces the west beverage aisle (-X).
+    const sideSign: 1 | -1 = isDoubleSided
+      ? slotIndex % 2 === 0
+        ? 1
+        : -1
+      : -1;
+    const frontFace = sideSign * (w * 0.34);
+    const eslX = sideSign * (w * 0.488);
+    return {
+      localPosition: [frontFace, deckTopY, along],
+      localRotationY: sideSign > 0 ? Math.PI / 2 : -Math.PI / 2,
+      tiltX: 0,
+      localNormal: [sideSign, 0, 0],
+      eslLocalPosition: [eslX, deckCenterY - 0.005, along],
+      sideSign,
+      tier,
+      slotInTier,
+      isDoubleSided,
+    };
+  }
+
+  const frontFace = isProduce ? d * 0.18 : d * 0.32;
+  const eslZ = d * 0.488;
+  // On 18°-tilted produce crates, drop front deck Y slightly to match the sloped lip.
+  const produceLipDrop = isProduce ? Math.sin(tiltX) * (d * 0.46) : 0;
+  const productRestY = isProduce
+    ? deckTopY - Math.sin(tiltX) * (frontFace * 0.85) + 0.025
+    : deckTopY;
+
+  return {
+    localPosition: [along, productRestY, frontFace],
+    localRotationY: 0,
+    tiltX,
+    localNormal: [0, 0, 1],
+    eslLocalPosition: [along, deckCenterY - produceLipDrop - 0.004, eslZ],
+    sideSign: 1,
+    tier,
+    slotInTier,
+    isDoubleSided: false,
+  };
+}
+
+/** Transform a local point on a fixture into world coordinates. */
+export function fixtureLocalToWorld(
+  fixture: Pick<ShelfFixtureSpec, "position" | "rotationY">,
+  local: Vec3,
+): Vec3 {
+  const [fx, fy, fz] = fixture.position;
+  const [lx, ly, lz] = local;
+  const cos = Math.cos(fixture.rotationY);
+  const sin = Math.sin(fixture.rotationY);
+  return [
+    fx + lx * cos + lz * sin,
+    fy + ly,
+    fz - lx * sin + lz * cos,
+  ];
+}
+
+/** Transform a local horizontal normal into a unit world normal. */
+export function fixtureLocalNormalToWorld(
+  rotationY: number,
+  localNormal: Vec3,
+): Vec3 {
+  const [nx, , nz] = localNormal;
+  const cos = Math.cos(rotationY);
+  const sin = Math.sin(rotationY);
+  return [nx * cos + nz * sin, 0, -nx * sin + nz * cos];
+}
+
 /** Deterministic world coordinate of a slot on a shelf fixture. */
 export function shelfSlotWorldPosition(
   fixture: ShelfFixtureSpec,
   positionIndex: number,
 ): Vec3 {
-  const [fx, fy, fz] = fixture.position;
-  const [w, h, d] = fixture.size;
-  const tier = Math.floor(positionIndex / fixture.slotsPerTier) % fixture.tiers;
-  const slot = positionIndex % fixture.slotsPerTier;
+  const layout = shelfSlotLocalLayout(fixture, positionIndex);
+  return fixtureLocalToWorld(fixture, layout.localPosition);
+}
 
-  const isZLong = d >= w;
-  const span = isZLong ? d * 0.76 : w * 0.76;
-  const frac =
-    fixture.slotsPerTier > 1 ? slot / (fixture.slotsPerTier - 1) - 0.5 : 0;
-  const along = frac * span;
-  const tierY = fy + 0.36 + tier * ((h - 0.52) / Math.max(1, fixture.tiers));
+/**
+ * Aisle-side aware camera framing for a specific product slot.
+ * Always places the shopper camera directly in front of the product's outward
+ * aisle face (so clicking a slot on either side of a double-sided gondola never
+ * views it from behind the shelf).
+ */
+export function shelfSlotWorldCamera(
+  fixture: ShelfFixtureSpec,
+  positionIndex: number,
+  distance = 2.05,
+): { position: Vec3; target: Vec3; worldNormal: Vec3 } {
+  const layout = shelfSlotLocalLayout(fixture, positionIndex);
+  const slotPos = fixtureLocalToWorld(fixture, layout.localPosition);
+  const worldNormal = fixtureLocalNormalToWorld(
+    fixture.rotationY,
+    layout.localNormal,
+  );
+  const target: Vec3 = [slotPos[0], slotPos[1] + 0.14, slotPos[2]];
+  const camY = Math.min(2.05, Math.max(1.25, slotPos[1] + 0.32));
 
-  const cos = Math.cos(fixture.rotationY);
-  const sin = Math.sin(fixture.rotationY);
-  const localX = isZLong ? 0 : along;
-  const localZ = isZLong ? along : 0;
+  // Ensure camera lands cleanly in the open aisle without clipping into an opposite shelf.
+  let safeDist = distance;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const cx = target[0] + worldNormal[0] * safeDist;
+    const cz = target[2] + worldNormal[2] * safeDist;
+    if (!isPointInsideObstacle(cx, cz, 0.32)) {
+      return { position: [cx, camY, cz], target, worldNormal };
+    }
+    safeDist = Math.max(1.35, safeDist - 0.22);
+  }
 
-  return [
-    fx + localX * cos + localZ * sin,
-    tierY,
-    fz - localX * sin + localZ * cos,
+  const position: Vec3 = [
+    target[0] + worldNormal[0] * safeDist,
+    camY,
+    target[2] + worldNormal[2] * safeDist,
   ];
+  return { position, target, worldNormal };
+}
+
+/** Aisle-side aware camera framing for inspecting a whole shelf fixture. */
+export function shelfFixtureWorldCamera(
+  fixture: ShelfFixtureSpec,
+  preferredSide: 1 | -1 = 1,
+): { position: Vec3; target: Vec3 } {
+  const [w, h, d] = fixture.size;
+  const isZLong = d >= w;
+  const localNormal: Vec3 = isZLong
+    ? [fixture.kind === "refrigerator" ? -1 : preferredSide, 0, 0]
+    : [0, 0, 1];
+  const worldNormal = fixtureLocalNormalToWorld(fixture.rotationY, localNormal);
+  const dist = Math.max(3.4, Math.max(w, d) * 0.52);
+  const target: Vec3 = [
+    fixture.position[0],
+    fixture.position[1] + h * 0.52,
+    fixture.position[2],
+  ];
+  const position: Vec3 = [
+    target[0] + worldNormal[0] * dist,
+    Math.min(2.6, Math.max(1.65, h * 0.88)),
+    target[2] + worldNormal[2] * dist,
+  ];
+  return { position, target };
+}
+
+export interface ObstacleBox2D {
+  id: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/** World-space 2D AABB obstacles for retail shelves, checkouts, and service desks. */
+export const RETAIL_COLLISION_BOXES: ObstacleBox2D[] = [
+  ...SHELF_FIXTURES.map((f) => {
+    const [w, , d] = f.size;
+    const cos = Math.abs(Math.cos(f.rotationY));
+    const sin = Math.abs(Math.sin(f.rotationY));
+    const halfX = (w * cos + d * sin) / 2;
+    const halfZ = (w * sin + d * cos) / 2;
+    return {
+      id: f.code,
+      minX: f.position[0] - halfX,
+      maxX: f.position[0] + halfX,
+      minZ: f.position[2] - halfZ,
+      maxZ: f.position[2] + halfZ,
+    };
+  }),
+  ...CHECKOUT_LANES.map((lane) => ({
+    id: lane.code,
+    minX: lane.position[0] - lane.size[0] / 2,
+    maxX: lane.position[0] + lane.size[0] / 2,
+    minZ: lane.position[2] - lane.size[2] / 2,
+    maxZ: lane.position[2] + lane.size[2] / 2,
+  })),
+  // Customer reception kiosk & service desk
+  { id: "REC-DESK", minX: -8.65, maxX: -5.75, minZ: 11.5, maxZ: 12.5 },
+  { id: "SVC-DESK", minX: -17.05, maxX: -12.55, minZ: 10.8, maxZ: 12.0 },
+];
+
+export function isPointInsideObstacle(
+  x: number,
+  z: number,
+  radius: number,
+  obstacles: readonly ObstacleBox2D[] = RETAIL_COLLISION_BOXES,
+): boolean {
+  for (const box of obstacles) {
+    if (
+      x > box.minX - radius &&
+      x < box.maxX + radius &&
+      z > box.minZ - radius &&
+      z < box.maxZ + radius
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Axis-separated AABB collision resolver with smooth aisle wall sliding.
+ * Prevents the shopper camera from clipping into shelves or counters while
+ * letting diagonal walking glide smoothly along aisle edges.
+ */
+export function resolveWalkCollision(
+  prevX: number,
+  prevZ: number,
+  desiredX: number,
+  desiredZ: number,
+  radius = 0.48,
+  bounds: Bounds2D = {
+    minX: BUILDING_DIMENSIONS.retail.bounds.minX + 1.0,
+    maxX: BUILDING_DIMENSIONS.retail.bounds.maxX - 1.0,
+    minZ: BUILDING_DIMENSIONS.retail.bounds.minZ + 1.0,
+    maxZ: BUILDING_DIMENSIONS.retail.bounds.maxZ + 2.0,
+  },
+  obstacles: readonly ObstacleBox2D[] = RETAIL_COLLISION_BOXES,
+): [number, number] {
+  const clampedX = Math.min(bounds.maxX, Math.max(bounds.minX, desiredX));
+  const clampedZ = Math.min(bounds.maxZ, Math.max(bounds.minZ, desiredZ));
+
+  // If moving inside free space (or moving out of an obstacle), accept directly.
+  if (!isPointInsideObstacle(clampedX, clampedZ, radius, obstacles)) {
+    return [clampedX, clampedZ];
+  }
+
+  // Try sliding along X only.
+  const canSlideX = !isPointInsideObstacle(clampedX, prevZ, radius, obstacles);
+  // Try sliding along Z only.
+  const canSlideZ = !isPointInsideObstacle(prevX, clampedZ, radius, obstacles);
+
+  if (canSlideX && !canSlideZ) return [clampedX, prevZ];
+  if (canSlideZ && !canSlideX) return [prevX, clampedZ];
+  if (canSlideX && canSlideZ) {
+    const dx = Math.abs(clampedX - prevX);
+    const dz = Math.abs(clampedZ - prevZ);
+    return dx >= dz ? [clampedX, prevZ] : [prevX, clampedZ];
+  }
+
+  // If the camera started overlapping (e.g. after a zoom-out), allow escape away from center.
+  if (isPointInsideObstacle(prevX, prevZ, radius, obstacles)) {
+    return [clampedX, clampedZ];
+  }
+
+  return [prevX, prevZ];
+}
+
+/**
+ * Build an ordered aisle-friendly shopping path (Entrance -> shelf stops -> Checkout)
+ * for all unique shelf codes containing items in the customer's basket.
+ */
+export function buildShoppingPathPoints(
+  shelfStops: Array<{ shelfCode: string; slotIndex?: number }>,
+): Vec3[] {
+  if (shelfStops.length === 0) return [];
+
+  const uniqueMap = new Map<string, Vec3>();
+  for (const stop of shelfStops) {
+    if (uniqueMap.has(stop.shelfCode)) continue;
+    const fixture = findFixtureByCode(stop.shelfCode);
+    if (!fixture) continue;
+    const cam = shelfSlotWorldCamera(fixture, stop.slotIndex ?? 0, 1.35);
+    const [safeX, safeZ] = resolveWalkCollision(
+      cam.position[0],
+      cam.position[2],
+      cam.position[0],
+      cam.position[2],
+      0.32,
+    );
+    uniqueMap.set(stop.shelfCode, [safeX, 0.045, safeZ]);
+  }
+
+  const remaining = Array.from(uniqueMap.values());
+  if (remaining.length === 0) return [];
+
+  const entrance: Vec3 = [0, 0.045, 11.4];
+  const checkout: Vec3 = [-0.6, 0.045, 7.6];
+  const ordered: Vec3[] = [entrance];
+
+  let cur = entrance;
+  while (remaining.length > 0) {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const dx = remaining[i][0] - cur[0];
+      const dz = remaining[i][2] - cur[2];
+      const dist = dx * dx + dz * dz;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    const [next] = remaining.splice(bestIdx, 1);
+    // Insert a corridor hinge waypoint at Z = 5.4 or Z = -4.9 when crossing aisles.
+    if (Math.abs(next[0] - cur[0]) > 2.4 && cur[2] < 5.2 && next[2] < 5.2) {
+      const corridorZ = cur[2] + next[2] > -2 ? 5.25 : -4.85;
+      ordered.push([cur[0], 0.045, corridorZ]);
+      ordered.push([next[0], 0.045, corridorZ]);
+    }
+    ordered.push(next);
+    cur = next;
+  }
+
+  ordered.push([cur[0], 0.045, 5.4]);
+  ordered.push(checkout);
+  return ordered;
 }
 
 /** Deterministic world coordinate of a pallet slot inside a warehouse rack. */

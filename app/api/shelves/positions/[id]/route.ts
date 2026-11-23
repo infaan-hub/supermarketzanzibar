@@ -162,6 +162,17 @@ export async function PATCH(
       shelfCode: updated.shelf.shelfCode,
       positionId: updated.id,
       productId: updated.productId?.toString(),
+      quantity: updated.quantity,
+      updates: updated.productId
+        ? [
+            {
+              productId: updated.productId.toString(),
+              shelfCode: updated.shelf.shelfCode,
+              positionId: updated.id,
+              quantity: updated.quantity,
+            },
+          ]
+        : undefined,
       summary: `Updated shelf position ${updated.shelf.shelfCode}/${updated.positionCode}`,
     });
 

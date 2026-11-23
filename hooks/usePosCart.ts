@@ -7,8 +7,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { lookupBarcode, submitCheckout } from "@/lib/api";
+import { fetchProductDetail, lookupBarcode, submitCheckout } from "@/lib/api";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { decodePickupCode, isPickupCode } from "@/lib/storefront/pickup-code";
 
 export interface CartItem {
   key: string;
@@ -251,6 +252,62 @@ export function usePosCart() {
       setScanSuccess(null);
 
       try {
+        // Express Storefront 3D Pickup QR Code (`SZPICK1:12x2,45x1`):
+        // loads all picked products directly using authoritative live DB prices.
+        if (isPickupCode(barcode)) {
+          const entries = decodePickupCode(barcode);
+          if (entries.length === 0) {
+            setScanError("Pickup basket code is empty or invalid.");
+            return false;
+          }
+          let loadedUnits = 0;
+          let loadedLines = 0;
+          for (const entry of entries) {
+            try {
+              const product = await fetchProductDetail(entry.productId);
+              if (!product || !product.isActive) continue;
+              const key = `${product.id}:each`;
+              const unitPrice = Number(product.price);
+              setCart((prev) => {
+                const existing = prev.find((i) => i.key === key);
+                if (existing) {
+                  return prev.map((i) =>
+                    i.key === key
+                      ? { ...i, quantity: i.quantity + entry.quantity }
+                      : i,
+                  );
+                }
+                return [
+                  ...prev,
+                  {
+                    key,
+                    productId: product.id,
+                    productName: product.name,
+                    price: unitPrice,
+                    quantity: entry.quantity,
+                    quantityMultiplier: 1,
+                    unitId: null,
+                    barcode: product.barcode ?? null,
+                  },
+                ];
+              });
+              loadedLines += 1;
+              loadedUnits += entry.quantity;
+            } catch {
+              // Skip unavailable product IDs without blocking the rest of the basket.
+            }
+          }
+          if (loadedLines === 0) {
+            setScanError("No active products matched this pickup basket code.");
+            return false;
+          }
+          playBeep();
+          setScanSuccess(
+            `Loaded 3D Pickup Basket (${loadedLines} ${loadedLines === 1 ? "item" : "items"}, ${loadedUnits} units).`,
+          );
+          return true;
+        }
+
         const result = await lookupBarcode(barcode);
 
         if (!result.inStock) {

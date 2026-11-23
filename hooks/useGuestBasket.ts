@@ -56,8 +56,10 @@ export function useGuestBasket() {
       price: number;
       maxQuantity: number;
       categoryName: string | null;
+      quantity?: number;
     }) => {
       if (item.maxQuantity <= 0) return;
+      const step = Math.max(1, Math.floor(item.quantity ?? 1));
       setCart((prev) => {
         const existing = prev.find((i) => i.productId === item.productId);
         const next = existing
@@ -65,7 +67,7 @@ export function useGuestBasket() {
               i.productId === item.productId
                 ? {
                     ...i,
-                    quantity: Math.min(item.maxQuantity, i.quantity + 1),
+                    quantity: Math.min(item.maxQuantity, i.quantity + step),
                   }
                 : i,
             )
@@ -75,7 +77,7 @@ export function useGuestBasket() {
                 productId: item.productId,
                 name: item.name,
                 price: item.price,
-                quantity: 1,
+                quantity: Math.min(item.maxQuantity, step),
                 categoryName: item.categoryName,
               },
             ];

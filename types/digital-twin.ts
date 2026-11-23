@@ -37,6 +37,14 @@ export interface TwinDepartmentNode {
   expiredCount: number;
 }
 
+export interface ProductPackOption {
+  id: string;
+  label: string;
+  barcode: string;
+  quantityMultiplier: number;
+  packPrice: number;
+}
+
 export interface TwinShelfPositionNode {
   id: string;
   shelfId: string;
@@ -63,6 +71,9 @@ export interface TwinShelfPositionNode {
     totalStock: number;
     assetKey: string;
     assetPath: string;
+    imageUrl?: string | null;
+    description?: string;
+    packOptions?: ProductPackOption[];
   } | null;
 }
 
@@ -201,6 +212,13 @@ export interface TwinLocateResult {
   }>;
 }
 
+export interface PublicShelfStockUpdate {
+  productId: string;
+  shelfCode?: string;
+  positionId?: string;
+  quantity: number;
+}
+
 export interface RealtimeInventoryEvent {
   type:
     | "connected"
@@ -217,6 +235,8 @@ export interface RealtimeInventoryEvent {
   shelfCode?: string;
   positionId?: string;
   warehouseLocationId?: string;
+  quantity?: number;
   delta?: number;
+  updates?: PublicShelfStockUpdate[];
   summary?: string;
 }

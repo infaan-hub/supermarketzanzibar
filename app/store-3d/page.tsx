@@ -7,6 +7,11 @@ import {
 } from "@/components/storefront/guest-storefront";
 import { Interactive3DStorefront } from "@/components/storefront/interactive-3d-storefront";
 import { useGuestBasket } from "@/hooks/useGuestBasket";
+import {
+  applyPublicShelfEventToSnapshot,
+  usePublicStorefrontRealtime,
+  type PublicShelfEvent,
+} from "@/hooks/usePublicStorefrontRealtime";
 import { fetchPublicCatalog, fetchPublicDigitalTwin } from "@/lib/api";
 import type { PublicCatalogProduct } from "@/types/api";
 import type { DigitalTwinSnapshot } from "@/types/digital-twin";
@@ -48,12 +53,31 @@ export default function PublicStore3DPage() {
     }
   }, []);
 
+  const reconcileTimerRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    return () => {
+      if (reconcileTimerRef.current) window.clearTimeout(reconcileTimerRef.current);
+    };
+  }, []);
+
+  const { connected: realtimeConnected } = usePublicStorefrontRealtime(
+    React.useCallback(
+      (event: PublicShelfEvent) => {
+        setSnapshot((prev) => applyPublicShelfEventToSnapshot(prev, event));
+        if (reconcileTimerRef.current) {
+          window.clearTimeout(reconcileTimerRef.current);
+        }
+        reconcileTimerRef.current = window.setTimeout(() => {
+          void loadStore(true);
+        }, 450);
+      },
+      [loadStore],
+    ),
+    true,
+  );
+
   React.useEffect(() => {
     void loadStore(false);
-    const interval = window.setInterval(() => {
-      void loadStore(true);
-    }, 30_000);
-    return () => window.clearInterval(interval);
   }, [loadStore]);
 
   return (
@@ -70,6 +94,7 @@ export default function PublicStore3DPage() {
         error={error}
         onRefresh={() => void loadStore(true)}
         refreshing={refreshing}
+        realtimeConnected={realtimeConnected}
         catalogById={catalogById}
         basketQuantities={basket.basketQuantities}
         basketCount={basket.count}

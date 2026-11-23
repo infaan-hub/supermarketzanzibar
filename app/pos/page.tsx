@@ -196,7 +196,7 @@ export default function PosPage() {
                   ref={cart.scanInputRef}
                   value={cart.scanValue}
                   onChange={(e) => cart.setScanValue(e.target.value)}
-                  placeholder="Scan or type a Code 128 label and press Enter…"
+                  placeholder="Scan product barcode or Express Pickup QR (SZPICK1:…) and press Enter…"
                   autoComplete="off"
                   spellCheck={false}
                   autoFocus
