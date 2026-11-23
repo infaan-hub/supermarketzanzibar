@@ -803,7 +803,7 @@ export function getProductLabelTexture({
   imageUrl?: string | null;
   description?: string | null;
 }): THREE.CanvasTexture | null {
-  const key = `front1024|${productId}|${name}|${priceText}|${imageUrl ?? ""}|${(description ?? "").slice(0, 40)}`;
+  const key = `front1024|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 40)}`;
   const existing = productLabelCache.get(key);
   if (existing) return existing;
 
@@ -1016,7 +1016,9 @@ export function getProductLabelTexture({
   // Asynchronously paint real uploaded product image onto front face when available.
   if (imageUrl && typeof Image !== "undefined") {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => {
       paintFront(img);
       tex.needsUpdate = true;
@@ -1060,7 +1062,7 @@ export function getProductBackLabelTexture({
   imageUrl?: string | null;
   description?: string | null;
 }): THREE.CanvasTexture | null {
-  const key = `back1024|${productId}|${name}|${priceText}|${sku ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 60)}`;
+  const key = `back1024|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${sku ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 60)}`;
   const existing = productBackLabelCache.get(key);
   if (existing) return existing;
 
@@ -1250,7 +1252,9 @@ export function getProductBackLabelTexture({
 
   if (imageUrl && typeof Image !== "undefined") {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => {
       paintBack(img);
       tex.needsUpdate = true;

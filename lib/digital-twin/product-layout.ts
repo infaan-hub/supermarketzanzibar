@@ -1,6 +1,8 @@
 // Pure product facing & 4-row single-product column planogram helpers for Supermarket Zanzibar 3D.
 // Framework-free TypeScript so both R3F components and Vitest suites can import directly.
 
+import { getAssetEntry } from "@/lib/digital-twin/asset-manifest";
+
 export const DEFAULT_ROWS_PER_COLUMN = 4;
 export const DEFAULT_UNITS_PER_ROW = 6;
 
@@ -31,13 +33,30 @@ export interface ColumnRowPlan {
 }
 
 const CYLINDRICAL_ASSET_RE =
-  /(soda-can|soda-bottle|water-bottle|oil-bottle|canned-food|shampoo-bottle)/i;
+  /(soda-can|energy-can|soda-bottle|water-bottle|glass-bottle|oil-bottle|canned-food|glass-jar|yogurt-cup|ice-cream-tub|shampoo-bottle|lotion-pump|cream-jar|spray-bottle|electric-kettle)/i;
 const COMPACT_ASSET_RE =
-  /(soda-can|soda-bottle|water-bottle|juice-carton|milk-carton|canned-food|shampoo-bottle|soap-box)/i;
+  /(soda-can|energy-can|soda-bottle|water-bottle|glass-bottle|juice-carton|milk-carton|yogurt-cup|ice-cream-tub|canned-food|glass-jar|shampoo-bottle|lotion-pump|cream-jar|perfume-bottle|soap-box|spray-bottle|battery-pack)/i;
 
-/** Returns true for cylindrical bottles/cans that receive a curved label sleeve. */
+/** Returns true for cylindrical / curved bottles, cans, cups & jars that receive a curved label sleeve. */
 export function isCylindricalProductAsset(assetKey: string): boolean {
+  const entry = getAssetEntry(assetKey);
+  if (entry?.labelWrap) {
+    return (
+      entry.labelWrap.style === "cylinder" ||
+      entry.labelWrap.style === "tapered_cup" ||
+      entry.labelWrap.style === "jug"
+    );
+  }
   return CYLINDRICAL_ASSET_RE.test(assetKey);
+}
+
+/** Returns true for narrow/compact shapes that pack more facings cleanly across a shelf column. */
+export function isCompactProductAsset(assetKey: string): boolean {
+  const entry = getAssetEntry(assetKey);
+  if (entry && entry.compactOnShelf !== undefined) {
+    return entry.compactOnShelf;
+  }
+  return COMPACT_ASSET_RE.test(assetKey);
 }
 
 /** True when all 4 rows in a product column have reached planned capacity. */
@@ -139,8 +158,8 @@ export function computeSlotFacings({
 }): SlotFacingPlacement[] {
   if (quantity <= 0) return [];
 
-  const isCompact = COMPACT_ASSET_RE.test(assetKey);
-  const unitPitch = isCompact ? 0.145 : 0.24;
+  const isCompact = isCompactProductAsset(assetKey);
+  const unitPitch = isCompact ? 0.145 : 0.255;
 
   // Fill the planned column width cleanly edge-to-edge (with subtle divider clearance)
   const usableW = maxColumnWidth ? Math.max(0.28, maxColumnWidth - 0.16) : isCompact ? 0.48 : 0.52;

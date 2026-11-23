@@ -140,11 +140,20 @@ export function getTintedMaterial(
 
 /**
  * Shared-geometry, Box3-grounded 3D product unit with shape-aware
- * Ultra-HD 1024x1024 FRONT & BACK retail packaging wraps:
- * - Bottles & cans: smooth 40-segment front (~176 deg) & back (~176 deg) wraps
- *   with glossy satin clearcoat laminate.
- * - Cartons, boxes, bags & trays: expanded flush front face, full back-of-pack
- *   product info/image face, branded side spines, and top tray label.
+ * Ultra-HD 1024x1024 FRONT & BACK retail packaging wraps driven directly by
+ * each product asset's `labelWrap` spec across all 41 distinct 3D shapes:
+ * - Cans, bottles, jars, lotion pumps & shampoos: smooth 40-segment front/back
+ *   curved cylinder wraps with clearcoat laminate.
+ * - Yogurt cups & ice cream tubs: tapered conical wraps + circular lid medallion.
+ * - Oil jugs, spray bottles & electric kettles: handle-clear curved wraps.
+ * - Bread loaves & biscuit rolls: center belly-band keeping ends visible.
+ * - Fruit baskets, veg crates, banana bunches, cheese wedges & cake domes:
+ *   front/back fascia plaques keeping sculpted 3D food 100% unobstructed.
+ * - Meat/fish trays & pastry clamshells: butcher-scale top corner sticker +
+ *   front fascia keeping steaks, fish & croissants visible under clear film.
+ * - Battery blister cards: lower front card + full back card keeping 4 AA
+ *   copper-top batteries protruding cleanly in front.
+ * - Cartons, boxes, sacks, pouches & trays: fitted front, back & top wraps.
  */
 export function DetailedProductMesh({
   assetPath,
@@ -181,32 +190,42 @@ export function DetailedProductMesh({
     [assetPath, scene],
   );
 
-  const isCyl = isCylindricalProductAsset(assetKey);
-  const isLowTray =
-    !isCyl &&
-    normalized.size.y < Math.max(normalized.size.x, normalized.size.z) * 0.58;
+  const sx = normalized.size.x;
+  const sy = normalized.size.y;
+  const sz = normalized.size.z;
 
-  // Expanded, smooth 360-degree front + back wrap dimensions for bottles & cans
-  const cylRx = normalized.size.x * 0.5 + 0.0024;
-  const cylRz = normalized.size.z * 0.5 + 0.0024;
-  const cylBaseR = Math.max(0.02, cylRx);
-  const cylScaleZ = cylRz / cylBaseR;
-  const cylLabelH =
-    normalized.size.y * (assetKey.includes("can") ? 0.78 : 0.56);
-  const cylLabelY =
-    normalized.size.y * (assetKey.includes("can") ? 0.49 : 0.44);
+  const fallbackCyl = isCylindricalProductAsset(assetKey);
+  const fallbackLowTray = !fallbackCyl && sy < Math.max(sx, sz) * 0.58;
 
-  // Expanded full-coverage front, back & side dimensions for boxes/cartons/pouches
-  const boxLabelW = Math.max(0.056, normalized.size.x * 0.94);
-  const boxLabelH = Math.max(
-    0.032,
-    normalized.size.y * (assetKey.includes("milk") ? 0.76 : 0.88),
+  const wrap = entry?.labelWrap ?? {
+    style: fallbackCyl ? "cylinder" : fallbackLowTray ? "tray" : "box",
+    heightRatio: fallbackCyl ? 0.56 : 0.86,
+    yRatio: fallbackCyl ? 0.44 : 0.5,
+    widthRatio: 0.92,
+    radiusTopRatio: 1.0,
+    radiusBottomRatio: 1.0,
+    depthRatio: 1.0,
+    sideSpines: !fallbackLowTray,
+    topLabel: fallbackLowTray,
+  };
+
+  const xOff = (wrap.xOffsetRatio ?? 0) * sx;
+  const labelH = Math.max(0.022, sy * wrap.heightRatio);
+  const labelY = sy * wrap.yRatio;
+  const labelW = Math.max(0.042, sx * (wrap.widthRatio ?? 0.92));
+  const frontZ = sz * 0.5 * (wrap.depthRatio ?? 1.0) + 0.0026;
+  const sideX = sx * 0.5 + 0.0022;
+  const sideW = Math.max(0.026, sz * 0.9);
+
+  // Curved wrap radii (supports straight cylinders, tapered cups, and offset jugs/kettles)
+  const rTop = Math.max(0.018, sx * 0.5 * (wrap.radiusTopRatio ?? 1.0) + 0.0024);
+  const rBot = Math.max(
+    0.018,
+    sx * 0.5 * (wrap.radiusBottomRatio ?? wrap.radiusTopRatio ?? 1.0) + 0.0024,
   );
-  const boxLabelY =
-    normalized.size.y * (assetKey.includes("milk") ? 0.42 : 0.5);
-  const boxLabelZ = normalized.size.z * 0.5 + 0.0028;
-  const boxSideX = normalized.size.x * 0.5 + 0.0024;
-  const boxSideW = Math.max(0.03, normalized.size.z * 0.92);
+  const rZTarget = Math.max(0.018, sz * 0.5 * (wrap.depthRatio ?? 1.0) + 0.0024);
+  const maxR = Math.max(rTop, rBot);
+  const cylScaleZ = rZTarget / maxR;
 
   const effectiveBackTexture = backLabelTexture ?? frontLabelTexture;
 
@@ -238,126 +257,85 @@ export function DetailedProductMesh({
       </group>
 
       {/* Shape-aware live Ultra-HD FRONT & BACK packaging wraps */}
-      {showLabel &&
-        frontLabelTexture &&
-        (isCyl ? (
-          <group position={[0, cylLabelY, 0]} scale={[1, 1, cylScaleZ]}>
-            {/* Front curved HD label (~176 deg) */}
-            <mesh>
-              <cylinderGeometry
-                args={[
-                  cylBaseR,
-                  cylBaseR,
-                  cylLabelH,
-                  40,
-                  1,
-                  true,
-                  -Math.PI * 0.49,
-                  Math.PI * 0.98,
-                ]}
-              />
-              <meshPhysicalMaterial
-                map={frontLabelTexture}
-                roughness={0.24}
-                metalness={0.04}
-                clearcoat={0.34}
-                clearcoatRoughness={0.18}
-              />
-            </mesh>
-            {/* Back curved HD product-info label (~176 deg) */}
-            {effectiveBackTexture && (
-              <mesh>
-                <cylinderGeometry
-                  args={[
-                    cylBaseR,
-                    cylBaseR,
-                    cylLabelH,
-                    40,
-                    1,
-                    true,
-                    Math.PI * 0.51,
-                    Math.PI * 0.98,
-                  ]}
-                />
-                <meshPhysicalMaterial
-                  map={effectiveBackTexture}
-                  roughness={0.28}
-                  metalness={0.03}
-                  clearcoat={0.24}
-                  clearcoatRoughness={0.22}
-                />
-              </mesh>
-            )}
-          </group>
-        ) : (
-          <>
-            {/* Expanded Front HD Package Face */}
-            <mesh position={[0, boxLabelY, boxLabelZ]}>
-              <planeGeometry args={[boxLabelW, boxLabelH]} />
-              <meshPhysicalMaterial
-                map={frontLabelTexture}
-                roughness={0.28}
-                metalness={0.03}
-                clearcoat={0.26}
-                clearcoatRoughness={0.22}
-              />
-            </mesh>
-            {/* Expanded Back HD Package Face (Product Info, Photo & Barcode) */}
-            {effectiveBackTexture && (
-              <mesh
-                position={[0, boxLabelY, -boxLabelZ]}
-                rotation={[0, Math.PI, 0]}
-              >
-                <planeGeometry args={[boxLabelW, boxLabelH]} />
-                <meshPhysicalMaterial
-                  map={effectiveBackTexture}
-                  roughness={0.32}
-                  metalness={0.02}
-                  clearcoat={0.18}
-                  clearcoatRoughness={0.26}
-                />
-              </mesh>
-            )}
-            {/* Branded satin left & right package side spines */}
-            {!isLowTray && (
-              <>
-                <mesh
-                  position={[boxSideX, boxLabelY, 0]}
-                  rotation={[0, Math.PI / 2, 0]}
-                >
-                  <planeGeometry args={[boxSideW, boxLabelH]} />
+      {showLabel && frontLabelTexture && (
+        <>
+          {(wrap.style === "cylinder" ||
+            wrap.style === "tapered_cup" ||
+            wrap.style === "jug") && (
+            <group position={[xOff, 0, 0]}>
+              <group position={[0, labelY, 0]} scale={[1, 1, cylScaleZ]}>
+                {/* Front curved HD wrap (~176 deg) */}
+                <mesh>
+                  <cylinderGeometry
+                    args={[
+                      rTop,
+                      rBot,
+                      labelH,
+                      40,
+                      1,
+                      true,
+                      -Math.PI * 0.49,
+                      Math.PI * 0.98,
+                    ]}
+                  />
                   <meshPhysicalMaterial
-                    color={accentColor}
-                    roughness={0.34}
+                    map={frontLabelTexture}
+                    roughness={0.24}
                     metalness={0.04}
-                    clearcoat={0.2}
-                    clearcoatRoughness={0.25}
+                    clearcoat={0.34}
+                    clearcoatRoughness={0.18}
                   />
                 </mesh>
+                {/* Back curved HD product-info wrap (~176 deg) */}
+                {effectiveBackTexture && (
+                  <mesh>
+                    <cylinderGeometry
+                      args={[
+                        rTop,
+                        rBot,
+                        labelH,
+                        40,
+                        1,
+                        true,
+                        Math.PI * 0.51,
+                        Math.PI * 0.98,
+                      ]}
+                    />
+                    <meshPhysicalMaterial
+                      map={effectiveBackTexture}
+                      roughness={0.28}
+                      metalness={0.03}
+                      clearcoat={0.24}
+                      clearcoatRoughness={0.22}
+                    />
+                  </mesh>
+                )}
+              </group>
+              {/* Circular top foil / snap-lid medallion (yogurt cup, ice cream tub, cream jar) */}
+              {wrap.topLabel && (
                 <mesh
-                  position={[-boxSideX, boxLabelY, 0]}
-                  rotation={[0, -Math.PI / 2, 0]}
+                  position={[0, sy + 0.0022, 0]}
+                  rotation={[-Math.PI / 2, 0, 0]}
                 >
-                  <planeGeometry args={[boxSideW, boxLabelH]} />
+                  <circleGeometry args={[Math.min(rTop, rZTarget) * 0.86, 36]} />
                   <meshPhysicalMaterial
-                    color={accentColor}
-                    roughness={0.34}
+                    map={frontLabelTexture}
+                    roughness={0.24}
                     metalness={0.04}
-                    clearcoat={0.2}
-                    clearcoatRoughness={0.25}
+                    clearcoat={0.3}
+                    clearcoatRoughness={0.2}
                   />
                 </mesh>
-              </>
-            )}
-            {/* Top label decal for low trays / flat packs */}
-            {isLowTray && (
-              <mesh
-                position={[0, normalized.size.y + 0.0025, 0]}
-                rotation={[-Math.PI / 2, 0, 0]}
-              >
-                <planeGeometry
-                  args={[normalized.size.x * 0.9, normalized.size.z * 0.88]}
-                />
+              )}
+            </group>
+          )}
+
+          {(wrap.style === "box" ||
+            wrap.style === "pouch" ||
+            wrap.style === "produce_front") && (
+            <>
+              <mesh position={[xOff, labelY, frontZ]}>
+                <planeGeometry args={[labelW, labelH]} />
                 <meshPhysicalMaterial
                   map={frontLabelTexture}
                   roughness={0.28}
@@ -366,9 +344,218 @@ export function DetailedProductMesh({
                   clearcoatRoughness={0.22}
                 />
               </mesh>
-            )}
-          </>
-        ))}
+              {effectiveBackTexture && (
+                <mesh
+                  position={[xOff, labelY, -frontZ]}
+                  rotation={[0, Math.PI, 0]}
+                >
+                  <planeGeometry args={[labelW, labelH]} />
+                  <meshPhysicalMaterial
+                    map={effectiveBackTexture}
+                    roughness={0.32}
+                    metalness={0.02}
+                    clearcoat={0.18}
+                    clearcoatRoughness={0.26}
+                  />
+                </mesh>
+              )}
+              {wrap.style === "box" && wrap.sideSpines && (
+                <>
+                  <mesh
+                    position={[sideX, labelY, 0]}
+                    rotation={[0, Math.PI / 2, 0]}
+                  >
+                    <planeGeometry args={[sideW, labelH]} />
+                    <meshPhysicalMaterial
+                      color={accentColor}
+                      roughness={0.34}
+                      metalness={0.04}
+                      clearcoat={0.2}
+                      clearcoatRoughness={0.25}
+                    />
+                  </mesh>
+                  <mesh
+                    position={[-sideX, labelY, 0]}
+                    rotation={[0, -Math.PI / 2, 0]}
+                  >
+                    <planeGeometry args={[sideW, labelH]} />
+                    <meshPhysicalMaterial
+                      color={accentColor}
+                      roughness={0.34}
+                      metalness={0.04}
+                      clearcoat={0.2}
+                      clearcoatRoughness={0.25}
+                    />
+                  </mesh>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Bakery / Biscuit belly-band: wraps center front, top & back keeping loaf/roll ends visible */}
+          {wrap.style === "band" && (
+            <>
+              <mesh position={[xOff, labelY, frontZ]}>
+                <planeGeometry args={[labelW, labelH]} />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.3}
+                  metalness={0.02}
+                  clearcoat={0.22}
+                  clearcoatRoughness={0.24}
+                />
+              </mesh>
+              {effectiveBackTexture && (
+                <mesh
+                  position={[xOff, labelY, -frontZ]}
+                  rotation={[0, Math.PI, 0]}
+                >
+                  <planeGeometry args={[labelW, labelH]} />
+                  <meshPhysicalMaterial
+                    map={effectiveBackTexture}
+                    roughness={0.32}
+                    metalness={0.02}
+                    clearcoat={0.18}
+                    clearcoatRoughness={0.26}
+                  />
+                </mesh>
+              )}
+              <mesh
+                position={[xOff, sy + 0.0024, 0]}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <planeGeometry args={[labelW, sz * 0.88]} />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.3}
+                  metalness={0.02}
+                  clearcoat={0.22}
+                  clearcoatRoughness={0.24}
+                />
+              </mesh>
+            </>
+          )}
+
+          {/* Low trays / tubs / egg cartons: full top hero face + front & back side labels */}
+          {wrap.style === "tray" && (
+            <>
+              <mesh position={[xOff, labelY, frontZ]}>
+                <planeGeometry args={[labelW, labelH]} />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.28}
+                  metalness={0.03}
+                  clearcoat={0.26}
+                  clearcoatRoughness={0.22}
+                />
+              </mesh>
+              {effectiveBackTexture && (
+                <mesh
+                  position={[xOff, labelY, -frontZ]}
+                  rotation={[0, Math.PI, 0]}
+                >
+                  <planeGeometry args={[labelW, labelH]} />
+                  <meshPhysicalMaterial
+                    map={effectiveBackTexture}
+                    roughness={0.32}
+                    metalness={0.02}
+                    clearcoat={0.18}
+                    clearcoatRoughness={0.26}
+                  />
+                </mesh>
+              )}
+              {wrap.topLabel !== false && (
+                <mesh
+                  position={[xOff, sy + 0.0026, 0]}
+                  rotation={[-Math.PI / 2, 0, 0]}
+                >
+                  <planeGeometry args={[sx * 0.86, sz * 0.84]} />
+                  <meshPhysicalMaterial
+                    map={frontLabelTexture}
+                    roughness={0.28}
+                    metalness={0.03}
+                    clearcoat={0.26}
+                    clearcoatRoughness={0.22}
+                  />
+                </mesh>
+              )}
+            </>
+          )}
+
+          {/* Butcher / Seafood / Clamshell sticker: keeps 3D steaks, fish & croissants visible under film */}
+          {wrap.style === "tray_sticker" && (
+            <>
+              {/* Realistic butcher-scale corner sticker on right top of clear stretch-wrap */}
+              <mesh
+                position={[sx * 0.21, sy + 0.0026, sz * 0.06]}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <planeGeometry
+                  args={[sx * (wrap.widthRatio ?? 0.46), sz * (wrap.depthRatio ?? 0.58)]}
+                />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.28}
+                  metalness={0.02}
+                  clearcoat={0.24}
+                  clearcoatRoughness={0.22}
+                />
+              </mesh>
+              {/* Front fascia tag on tray edge */}
+              <mesh position={[0, labelY, sz * 0.5 + 0.0026]}>
+                <planeGeometry args={[sx * 0.78, labelH]} />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.3}
+                  metalness={0.02}
+                />
+              </mesh>
+              {/* Back-of-tray nutrition & batch info card */}
+              {effectiveBackTexture && (
+                <mesh
+                  position={[0, labelY, -(sz * 0.5 + 0.0026)]}
+                  rotation={[0, Math.PI, 0]}
+                >
+                  <planeGeometry args={[sx * 0.78, labelH]} />
+                  <meshPhysicalMaterial
+                    map={effectiveBackTexture}
+                    roughness={0.34}
+                    metalness={0.02}
+                  />
+                </mesh>
+              )}
+            </>
+          )}
+
+          {/* Hanging Blister Pack (e.g. AA Batteries): lower front card + full back card keeping batteries protruding */}
+          {wrap.style === "blister" && (
+            <>
+              <mesh position={[0, labelY, -sz * 0.14]}>
+                <planeGeometry args={[labelW, labelH]} />
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.26}
+                  metalness={0.04}
+                  clearcoat={0.28}
+                />
+              </mesh>
+              {effectiveBackTexture && (
+                <mesh
+                  position={[0, sy * 0.48, -(sz * 0.5 + 0.0024)]}
+                  rotation={[0, Math.PI, 0]}
+                >
+                  <planeGeometry args={[sx * 0.94, sy * 0.9]} />
+                  <meshPhysicalMaterial
+                    map={effectiveBackTexture}
+                    roughness={0.32}
+                    metalness={0.02}
+                  />
+                </mesh>
+              )}
+            </>
+          )}
+        </>
+      )}
     </group>
   );
 }

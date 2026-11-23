@@ -7,7 +7,7 @@
 import { prisma } from "@/lib/db";
 import { json, serverError } from "@/lib/http";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
-import { resolveProductAsset } from "@/lib/digital-twin/asset-manifest";
+import { resolveEffectiveProductAsset } from "@/lib/digital-twin/asset-manifest";
 import { classifyInventoryState } from "@/lib/digital-twin/inventory-state";
 import {
   PHYSICAL_AREAS,
@@ -158,6 +158,7 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       description: true,
       updatedAt: true,
       category: { select: { id: true, name: true } },
+      modelAsset: { select: { assetKey: true, version: true } },
       barcodes: {
         select: {
           id: true,
@@ -240,7 +241,12 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
 
     const slot = targetBucket.positions[targetBucket.cursor];
     targetBucket.cursor += 1;
-    const asset = resolveProductAsset(product.name, product.category?.name);
+    const asset = resolveEffectiveProductAsset({
+      name: product.name,
+      categoryName: product.category?.name ?? null,
+      storedAssetKey: product.modelAsset?.assetKey ?? null,
+      storedAssetVersion: product.modelAsset?.version ?? null,
+    }).entry;
     const totalQty = Math.max(0, product.quantity);
     const inFirstColumn = Math.min(totalQty, slot.maximumCapacity);
     const overflowQty = Math.max(0, totalQty - inFirstColumn);

@@ -17,11 +17,16 @@ import {
   requireStaff,
 } from "@/lib/auth/request";
 import { listProductBarcodes } from "@/services/barcode.service";
+import {
+  isValidProductAssetKey,
+  resolveEffectiveProductAsset,
+} from "@/lib/digital-twin/asset-manifest";
 import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 import {
   ShelfPlacementError,
   applyProductShelfPlacement,
   serializeShelfPositions,
+  upsertProductThreeDAsset,
   type ApplyShelfPlacementInput,
   type ShelfPositionWithHierarchy,
 } from "@/lib/product-placement";
@@ -54,10 +59,22 @@ export async function GET(
   try {
     await ensureDigitalTwinSchema().catch(() => undefined);
     const [product, barcodes, movements, shelfPositions] = await Promise.all([
-      prisma.product.findUnique({
-        where: { id: productId },
-        include: { category: true, supplier: true },
-      }),
+      prisma.product
+        .findUnique({
+          where: { id: productId },
+          include: {
+            category: true,
+            supplier: true,
+            modelAsset: { select: { assetKey: true, version: true } },
+          },
+        })
+        .catch((err) => {
+          if (!isMissingTwinTables(err)) throw err;
+          return prisma.product.findUnique({
+            where: { id: productId },
+            include: { category: true, supplier: true },
+          });
+        }),
       listProductBarcodes(productId),
       prisma.stockMovement.findMany({
         where: { productId },
@@ -89,6 +106,17 @@ export async function GET(
       return notFound("Product not found.");
     }
 
+    const storedModelAsset =
+      "modelAsset" in product
+        ? (product.modelAsset as { assetKey: string; version: string } | null)
+        : null;
+    const effectiveAsset = resolveEffectiveProductAsset({
+      name: product.name,
+      categoryName: product.category?.name ?? null,
+      storedAssetKey: storedModelAsset?.assetKey ?? null,
+      storedAssetVersion: storedModelAsset?.version ?? null,
+    });
+
     return json({
       id: product.id.toString(),
       name: product.name,
@@ -109,6 +137,8 @@ export async function GET(
           }
         : null,
       image_available: Boolean(product.imageData),
+      assetKey: effectiveAsset.entry.key,
+      assetAutoDetected: !effectiveAsset.isExplicit,
       shelfPlacements: serializeShelfPositions(shelfPositions),
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
@@ -225,23 +255,78 @@ export async function PATCH(
     }
   }
 
+  const hasAssetKeyField = body.assetKey !== undefined;
+  let explicitAssetKey: string | null = null;
+  if (hasAssetKeyField) {
+    const rawKey =
+      typeof body.assetKey === "string" ? body.assetKey.trim() : "";
+    if (rawKey && !isValidProductAssetKey(rawKey)) {
+      return validationError({
+        assetKey: ["Selected 3D product shape is not valid."],
+      });
+    }
+    explicitAssetKey = rawKey || null;
+  }
+
   const shelfPlacementInput: ApplyShelfPlacementInput | null =
     body.shelfPlacement && typeof body.shelfPlacement === "object"
       ? (body.shelfPlacement as ApplyShelfPlacementInput)
       : null;
 
   try {
-    if (shelfPlacementInput) {
+    if (shelfPlacementInput || hasAssetKeyField) {
       await ensureDigitalTwinSchema().catch(() => undefined);
     }
 
     const { updated, placementResult } = await prisma.$transaction(
       async (tx) => {
+        let upsertedAssetId: string | null = null;
+        if (hasAssetKeyField) {
+          if (explicitAssetKey) {
+            const upserted = await upsertProductThreeDAsset(
+              tx,
+              explicitAssetKey,
+            );
+            upsertedAssetId = upserted?.id ?? null;
+            if (upsertedAssetId) {
+              data.modelAsset = { connect: { id: upsertedAssetId } };
+            }
+          } else {
+            data.modelAsset = { disconnect: true };
+          }
+        }
+
         const nextProduct = await tx.product.update({
           where: { id: productId },
           data,
-          include: { category: true, supplier: true },
+          include: {
+            category: true,
+            supplier: true,
+            modelAsset: { select: { assetKey: true, version: true } },
+          },
         });
+
+        const nextEffective = resolveEffectiveProductAsset({
+          name: nextProduct.name,
+          categoryName: nextProduct.category?.name ?? null,
+          storedAssetKey: nextProduct.modelAsset?.assetKey ?? null,
+          storedAssetVersion: nextProduct.modelAsset?.version ?? null,
+        });
+
+        // Keep existing ThreeDObjectMapping records synced with the product's 3D shape.
+        if (hasAssetKeyField) {
+          const mappingAsset =
+            upsertedAssetId !== null
+              ? { id: upsertedAssetId }
+              : await upsertProductThreeDAsset(tx, nextEffective.entry.key);
+          await tx.threeDObjectMapping.updateMany({
+            where: {
+              linkedEntityType: "PRODUCT",
+              linkedEntityId: nextProduct.id.toString(),
+            },
+            data: { assetId: mappingAsset?.id ?? null },
+          });
+        }
 
         let result: Awaited<ReturnType<typeof applyProductShelfPlacement>> = {
           changed: false,
@@ -252,6 +337,7 @@ export async function PATCH(
             productName: nextProduct.name,
             categoryName: nextProduct.category?.name ?? null,
             productQuantity: nextProduct.quantity,
+            assetKey: nextEffective.entry.key,
             placement: shelfPlacementInput,
           });
         }
@@ -260,7 +346,7 @@ export async function PATCH(
       },
     );
 
-    if (placementResult.changed) {
+    if (placementResult.changed || hasAssetKeyField) {
       publishInventoryEvent({
         type: "shelf_updated",
         shelfId: placementResult.shelfId,
@@ -278,7 +364,9 @@ export async function PATCH(
               },
             ]
           : undefined,
-        summary: `Updated shelf placement for ${updated.name}`,
+        summary: placementResult.changed
+          ? `Updated shelf placement for ${updated.name}`
+          : `Updated 3D product shape for ${updated.name}`,
       });
     }
 
@@ -298,6 +386,13 @@ export async function PATCH(
         if (isMissingTwinTables(err)) return [];
         throw err;
       });
+
+    const updatedEffective = resolveEffectiveProductAsset({
+      name: updated.name,
+      categoryName: updated.category?.name ?? null,
+      storedAssetKey: updated.modelAsset?.assetKey ?? null,
+      storedAssetVersion: updated.modelAsset?.version ?? null,
+    });
 
     return json({
       id: updated.id.toString(),
@@ -319,6 +414,8 @@ export async function PATCH(
           }
         : null,
       image_available: Boolean(updated.imageData),
+      assetKey: updatedEffective.entry.key,
+      assetAutoDetected: !updatedEffective.isExplicit,
       shelfPlacements: serializeShelfPositions(shelfPositions),
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,

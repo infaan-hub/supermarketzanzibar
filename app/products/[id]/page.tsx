@@ -3,6 +3,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,10 +33,29 @@ import {
   updateProduct,
   uploadProductImage,
 } from "@/lib/api";
+import {
+  PRODUCT_ASSET_GROUPS,
+  resolveProductAsset,
+} from "@/lib/digital-twin/asset-manifest";
 import { useCategories } from "@/hooks/useCategories";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { formatBusinessDateTime, formatMoney } from "@/lib/format";
 import type { ProductDetail, ShelfRecord } from "@/types/api";
+
+const Product3DPreview = dynamic(
+  () =>
+    import("@/components/digital-twin/products/Product3DPreview").then(
+      (m) => m.Product3DPreview,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] items-center justify-center rounded-xl border border-border bg-surface-subtle text-xs text-muted">
+        Loading interactive 3D product preview…
+      </div>
+    ),
+  },
+);
 
 export default function ProductDetailPage({
   params,
@@ -64,6 +84,8 @@ export default function ProductDetailPage({
   const [categoryId, setCategoryId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [description, setDescription] = useState("");
+  const [assetKey, setAssetKey] = useState("");
+  const [assetDirty, setAssetDirty] = useState(false);
 
   // Shelf Department, Shelf, Column & Row placement state
   const [shelves, setShelves] = useState<ShelfRecord[]>([]);
@@ -74,10 +96,15 @@ export default function ProductDetailPage({
   const [originalPositionId, setOriginalPositionId] = useState("");
   const [placementDirty, setPlacementDirty] = useState(false);
 
-  // Product photo upload state
+  // Product photo preview-before-upload state
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [previewTab, setPreviewTab] = useState<"3d" | "photo">("3d");
   const [imageVersion, setImageVersion] = useState("");
   const [imgFailed, setImgFailed] = useState(false);
+  const [stagedImageFile, setStagedImageFile] = useState<File | null>(null);
+  const [stagedImagePreview, setStagedImagePreview] = useState<string | null>(
+    null,
+  );
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -108,6 +135,8 @@ export default function ProductDetailPage({
       setCategoryId(detail.category?.id ?? "");
       setSupplierId(detail.supplier?.id ?? "");
       setDescription(detail.description ?? "");
+      setAssetKey(detail.assetAutoDetected ? "" : (detail.assetKey ?? ""));
+      setAssetDirty(false);
       setImageVersion(detail.updatedAt || String(Date.now()));
       setImgFailed(false);
 
@@ -138,6 +167,50 @@ export default function ProductDetailPage({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return () => {
+      if (stagedImagePreview) URL.revokeObjectURL(stagedImagePreview);
+    };
+  }, [stagedImagePreview]);
+
+  const selectedCategoryName = useMemo(
+    () =>
+      (categoriesData?.categories ?? []).find((c) => c.id === categoryId)
+        ?.name ??
+      product?.category?.name ??
+      null,
+    [categoriesData, categoryId, product?.category?.name],
+  );
+
+  const autoDetectedShape = useMemo(
+    () =>
+      resolveProductAsset(name || product?.name || "Product", selectedCategoryName),
+    [name, product?.name, selectedCategoryName],
+  );
+
+  const clearStagedImage = useCallback(() => {
+    setStagedImageFile(null);
+    setStagedImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
+  const handleStageImage = (file: File | null) => {
+    if (stagedImagePreview) URL.revokeObjectURL(stagedImagePreview);
+    if (!file) {
+      setStagedImageFile(null);
+      setStagedImagePreview(null);
+      return;
+    }
+    setStagedImageFile(file);
+    setStagedImagePreview(URL.createObjectURL(file));
+    setSaveError(null);
+    setSaveMessage(
+      `Previewing "${file.name}" on the 3D shelf model. Inspect Front & Back, then click "Upload Photo Now" or "Save Changes".`,
+    );
+  };
 
   const shelfDepartments = useMemo(() => {
     const map = new Map<string, { id: string; code: string; name: string }>();
@@ -170,8 +243,9 @@ export default function ProductDetailPage({
       const res = await uploadProductImage(product.id, file);
       setImageVersion(res.updatedAt || String(Date.now()));
       setImgFailed(false);
+      clearStagedImage();
       await load();
-      setSaveMessage("Product image uploaded.");
+      setSaveMessage("Product image uploaded & synced to 3D shelves.");
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : "Unable to upload product image.",
@@ -218,6 +292,7 @@ export default function ProductDetailPage({
         categoryId: categoryId || null,
         supplierId: supplierId || null,
         description,
+        ...(assetDirty ? { assetKey: assetKey || null } : {}),
         ...(placementDirty
           ? {
               shelfPlacement: {
@@ -229,8 +304,22 @@ export default function ProductDetailPage({
             }
           : {}),
       });
+
+      let photoUploaded = false;
+      if (stagedImageFile) {
+        const res = await uploadProductImage(product.id, stagedImageFile);
+        setImageVersion(res.updatedAt || String(Date.now()));
+        setImgFailed(false);
+        clearStagedImage();
+        photoUploaded = true;
+      }
+
       await load();
-      setSaveMessage("Product information & shelf placement updated.");
+      setSaveMessage(
+        photoUploaded
+          ? "Product information, 3D shape, photo & shelf placement updated."
+          : "Product information, 3D shape & shelf placement updated.",
+      );
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : "Unable to save product.",
@@ -446,55 +535,56 @@ export default function ProductDetailPage({
                 </div>
               )}
 
-              {/* Expanded HD Product Photo Showcase */}
+              {/* Live 360° 3D Product Shape Preview + Expanded Photo Preview-Before-Upload */}
               <div className="space-y-3 rounded-lg border border-border bg-surface-subtle/60 p-3.5">
-                <div className="flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-white to-slate-50 p-3">
-                  {product.image_available && !imgFailed ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
-                      alt={product.name}
-                      onError={() => setImgFailed(true)}
-                      className="max-h-full max-w-full rounded object-contain"
-                    />
-                  ) : (
-                    <span className="px-3 text-center text-xs text-muted">
-                      No product photo uploaded yet
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      HD Product Image (Front &amp; Back of 3D Shelf Package)
-                    </p>
-                    <p className="text-xs text-muted">
-                      Shown expanded on product cards, storefront, and front &amp; back of 3D shelf packaging.
-                    </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={previewTab === "3d" ? "default" : "secondary"}
+                      className="h-7 text-xs"
+                      onClick={() => setPreviewTab("3d")}
+                    >
+                      3D Shelf Shape Preview
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={previewTab === "photo" ? "default" : "secondary"}
+                      className="h-7 text-xs"
+                      onClick={() => setPreviewTab("photo")}
+                    >
+                      Expanded 2D Photo
+                    </Button>
                   </div>
                   {canEdit && (
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <input
                         ref={photoInputRef}
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
                         onChange={(e) => {
-                          const f = e.target.files?.[0];
+                          const f = e.target.files?.[0] ?? null;
                           e.target.value = "";
-                          if (f) void handleImageUpload(f);
+                          if (f) handleStageImage(f);
                         }}
                       />
                       <Button
                         type="button"
                         size="sm"
                         variant="secondary"
-                        isLoading={uploadingImage}
+                        disabled={uploadingImage}
                         onClick={() => photoInputRef.current?.click()}
                       >
-                        {product.image_available ? "Change Photo" : "Upload Photo"}
+                        {stagedImageFile
+                          ? "Pick Different Photo"
+                          : product.image_available
+                            ? "Change Photo (Preview First)"
+                            : "Select Photo (Preview First)"}
                       </Button>
-                      {product.image_available && (
+                      {product.image_available && !stagedImageFile && (
                         <Button
                           type="button"
                           size="sm"
@@ -508,6 +598,129 @@ export default function ProductDetailPage({
                     </div>
                   )}
                 </div>
+
+                {previewTab === "3d" ? (
+                  <Product3DPreview
+                    name={name}
+                    categoryName={selectedCategoryName}
+                    price={price}
+                    barcode={product.barcode}
+                    description={description}
+                    imageUrl={
+                      stagedImagePreview ??
+                      (product.image_available && !imgFailed
+                        ? `/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`
+                        : null)
+                    }
+                    assetKey={assetKey || null}
+                    pendingUploadLabel={
+                      stagedImageFile
+                        ? "Photo Preview (Not Uploaded Yet)"
+                        : assetDirty
+                          ? "Unsaved 3D Shape"
+                          : null
+                    }
+                    heightClassName="h-[300px]"
+                  />
+                ) : (
+                  <div className="flex h-[300px] w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-gradient-to-b from-white to-slate-50 p-4">
+                    {stagedImagePreview ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={stagedImagePreview}
+                        alt="Staged product preview"
+                        className="max-h-full max-w-full rounded object-contain"
+                      />
+                    ) : product.image_available && !imgFailed ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
+                        alt={product.name}
+                        onError={() => setImgFailed(true)}
+                        className="max-h-full max-w-full rounded object-contain"
+                      />
+                    ) : (
+                      <span className="px-3 text-center text-xs text-muted">
+                        No product photo uploaded yet
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Pending Photo Preview-Before-Upload Confirmation Bar */}
+                {stagedImageFile && canEdit && (
+                  <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground">
+                        Previewing before upload: {stagedImageFile.name} (
+                        {Math.round(stagedImageFile.size / 1024)} KB)
+                      </p>
+                      <p className="text-[11px] text-muted">
+                        Spin the 3D product above to check Front &amp; Back before uploading.
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        isLoading={uploadingImage}
+                        onClick={() => void handleImageUpload(stagedImageFile)}
+                      >
+                        Upload Photo Now
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={uploadingImage}
+                        onClick={clearStagedImage}
+                      >
+                        Discard
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Product Type / 3D Shelf Shape Selector */}
+              <div className="space-y-1.5 rounded-lg border border-primary/20 bg-primary-soft/30 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Product Type / 3D Shelf Shape
+                  </label>
+                  <span className="text-[11px] font-medium text-primary">
+                    Live preview updates above
+                  </span>
+                </div>
+                <Select
+                  value={assetKey}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    setAssetKey(e.target.value);
+                    setAssetDirty(true);
+                  }}
+                  aria-label="Product Type 3D Shelf Shape"
+                >
+                  <option value="">
+                    Auto-detect from name &amp; category (Currently:{" "}
+                    {autoDetectedShape.name})
+                  </option>
+                  {PRODUCT_ASSET_GROUPS.map((group) => (
+                    <optgroup
+                      key={group.departmentCode}
+                      label={`${group.departmentLabel} (${group.departmentCode})`}
+                    >
+                      {group.assets.map((asset) => (
+                        <option key={asset.key} value={asset.key}>
+                          {asset.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </Select>
+                <p className="text-[11px] text-muted">
+                  Each product type renders as its real sculpted 3D object on supermarket shelves (bottles, cans, sacks, fruit baskets, banana bunches, milk cartons, egg cartons, cheese wedges, bread loaves, cake domes, butcher meat/fish trays, detergent jugs, spray bottles, kettles, batteries, and more).
+                </p>
               </div>
 
               <div className="space-y-1.5">

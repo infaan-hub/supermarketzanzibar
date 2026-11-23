@@ -8,7 +8,11 @@ import {
   computeColumnRowPlan,
   type ColumnRowPlan,
 } from "@/lib/digital-twin/product-layout";
-import { resolveProductAsset } from "@/lib/digital-twin/asset-manifest";
+import {
+  getAssetEntry,
+  isValidProductAssetKey,
+  resolveProductAsset,
+} from "@/lib/digital-twin/asset-manifest";
 import {
   findFixtureByCode,
   shelfSlotWorldPosition,
@@ -162,6 +166,54 @@ export interface ApplyShelfPlacementInput {
   rowNumber?: number | null;
 }
 
+/**
+ * Ensure a validated product GLB entry from `ASSET_MANIFEST` exists in the
+ * `ThreeDAsset` PostgreSQL table and return its record id.
+ */
+export async function upsertProductThreeDAsset(
+  tx: Prisma.TransactionClient,
+  assetKey: string,
+): Promise<{ id: string; assetKey: string } | null> {
+  if (!isValidProductAssetKey(assetKey)) return null;
+  const entry = getAssetEntry(assetKey);
+  if (!entry) return null;
+
+  const existing = await tx.threeDAsset.findUnique({
+    where: { assetKey: entry.key },
+    select: { id: true, assetKey: true, version: true },
+  });
+  if (existing) {
+    // Upgrade legacy v1.0.0 asset row to v2.0.0 when explicitly selected so
+    // explicit user choices are always distinguished from old auto-fallbacks.
+    if (existing.version !== entry.version) {
+      await tx.threeDAsset.update({
+        where: { id: existing.id },
+        data: {
+          assetName: entry.name,
+          filePath: entry.path,
+          version: entry.version,
+          metadata: { source: entry.source, defaultScale: entry.defaultScale },
+        },
+      });
+    }
+    return { id: existing.id, assetKey: existing.assetKey };
+  }
+
+  const created = await tx.threeDAsset.create({
+    data: {
+      assetKey: entry.key,
+      assetName: entry.name,
+      assetType: entry.category,
+      filePath: entry.path,
+      format: entry.format,
+      version: entry.version,
+      metadata: { source: entry.source, defaultScale: entry.defaultScale },
+    },
+    select: { id: true, assetKey: true },
+  });
+  return created;
+}
+
 export async function applyProductShelfPlacement(
   tx: Prisma.TransactionClient,
   args: {
@@ -169,6 +221,7 @@ export async function applyProductShelfPlacement(
     productName: string;
     categoryName: string | null;
     productQuantity: number;
+    assetKey?: string | null;
     placement: ApplyShelfPlacementInput;
   },
 ): Promise<{
@@ -348,11 +401,11 @@ export async function applyProductShelfPlacement(
 
   // Synchronize 3D object mapping for Digital Twin.
   const objName = `${updatedPos.shelf.shelfCode}_${updatedPos.positionCode}`;
-  const assetEntry = resolveProductAsset(productName, categoryName);
-  const asset = await tx.threeDAsset.findUnique({
-    where: { assetKey: assetEntry.key },
-    select: { id: true },
-  });
+  const assetEntry =
+    args.assetKey && isValidProductAssetKey(args.assetKey)
+      ? getAssetEntry(args.assetKey)!
+      : resolveProductAsset(productName, categoryName);
+  const asset = await upsertProductThreeDAsset(tx, assetEntry.key);
   const fixture = findFixtureByCode(updatedPos.shelf.shelfCode);
   const coords = fixture
     ? shelfSlotWorldPosition(fixture, updatedPos.slotIndex)

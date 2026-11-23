@@ -17,6 +17,7 @@ import {
 } from "@/lib/digital-twin/spatial-plan";
 import {
   ASSET_MANIFEST,
+  resolveEffectiveProductAsset,
   resolveProductAsset,
 } from "@/lib/digital-twin/asset-manifest";
 import { classifyInventoryState } from "@/lib/digital-twin/inventory-state";
@@ -323,15 +324,12 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
     const assetEntry = resolveProductAsset(product.name, product.category?.name);
     const modelAssetId = assetIdByKey.get(assetEntry.key) ?? null;
 
-    if (!product.modelAssetId || !product.sku) {
+    if (!product.sku) {
       productUpdates.push(
         prisma.product.update({
           where: { id: product.id },
           data: {
-            ...(product.modelAssetId ? {} : { modelAssetId }),
-            ...(product.sku
-              ? {}
-              : { sku: `SKU-${product.id.toString().padStart(5, "0")}` }),
+            sku: `SKU-${product.id.toString().padStart(5, "0")}`,
           },
         }),
       );
@@ -595,7 +593,12 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
       }
 
       const resolvedAsset = prod
-        ? resolveProductAsset(prod.name, prod.category?.name)
+        ? resolveEffectiveProductAsset({
+            name: prod.name,
+            categoryName: prod.category?.name ?? null,
+            storedAssetKey: prod.modelAsset?.assetKey ?? null,
+            storedAssetVersion: prod.modelAsset?.version ?? null,
+          }).entry
         : null;
 
       return {
@@ -623,14 +626,9 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
               price: Number(prod.price),
               costPrice: Number(prod.costPrice),
               totalStock: prod.quantity,
-              assetKey:
-                prod.modelAsset?.assetKey ??
-                resolvedAsset?.key ??
-                "products/groceries/cereal-box",
+              assetKey: resolvedAsset?.key ?? "products/groceries/cereal-box",
               assetPath:
-                prod.modelAsset?.filePath ??
-                resolvedAsset?.path ??
-                "/models/products/groceries/cereal-box.glb",
+                resolvedAsset?.path ?? "/models/products/groceries/cereal-box.glb",
               imageUrl:
                 prod.imageName || prod.imageData
                   ? `/api/products/${prod.id.toString()}/image?v=${prod.updatedAt.getTime()}`

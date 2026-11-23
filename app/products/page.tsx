@@ -7,6 +7,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,9 +28,29 @@ import {
   uploadProductImage,
 } from "@/lib/api";
 import { isProductRole, portalHref } from "@/lib/auth/roles";
+import {
+  PRODUCT_ASSET_GROUPS,
+  getAssetEntry,
+  resolveProductAsset,
+} from "@/lib/digital-twin/asset-manifest";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Product, ShelfRecord } from "@/types/api";
+
+const Product3DPreview = dynamic(
+  () =>
+    import("@/components/digital-twin/products/Product3DPreview").then(
+      (m) => m.Product3DPreview,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] items-center justify-center rounded-xl border border-border bg-surface-subtle text-xs text-muted">
+        Loading interactive 3D product preview…
+      </div>
+    ),
+  },
+);
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -49,6 +70,7 @@ export default function ProductsPage() {
   const [newSupplierId, setNewSupplierId] = useState("");
   const [newBarcode, setNewBarcode] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newAssetKey, setNewAssetKey] = useState("");
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
 
@@ -128,6 +150,17 @@ export default function ProductsPage() {
     [shelvesInDepartment, newShelfId],
   );
 
+  const selectedNewCategoryName = useMemo(
+    () => categories.find((c) => c.id === newCategoryId)?.name ?? null,
+    [categories, newCategoryId],
+  );
+
+  const autoDetectedNewShape = useMemo(
+    () =>
+      resolveProductAsset(newName || "Product", selectedNewCategoryName),
+    [newName, selectedNewCategoryName],
+  );
+
   const handleSelectNewImage = (file: File | null) => {
     if (newImagePreview) URL.revokeObjectURL(newImagePreview);
     if (!file) {
@@ -156,6 +189,7 @@ export default function ProductsPage() {
         supplierId: newSupplierId || null,
         sourceBarcode: newBarcode.trim() || undefined,
         description: newDescription.trim() || undefined,
+        assetKey: newAssetKey || null,
         shelfPlacement: hasShelfPlacement
           ? {
               shelfId: newShelfId,
@@ -191,6 +225,7 @@ export default function ProductsPage() {
       setNewSupplierId("");
       setNewBarcode("");
       setNewDescription("");
+      setNewAssetKey("");
       handleSelectNewImage(null);
       setNewDepartmentId("");
       setNewShelfId("");
@@ -338,126 +373,185 @@ export default function ProductsPage() {
       {showCreate && canManageProducts && (
         <Card>
           <CardHeader>
-            <CardTitle>Register New Product</CardTitle>
+            <CardTitle>Register New Product (With Live 3D Shape Preview)</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateProduct} className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  placeholder="Product name *"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  required
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Selling price (TSh) *"
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  required
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Cost price (TSh)"
-                  value={newCostPrice}
-                  onChange={(e) => setNewCostPrice(e.target.value)}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="Opening stock qty"
-                  value={newQuantity}
-                  onChange={(e) => setNewQuantity(e.target.value)}
-                />
-                <Select
-                  value={newCategoryId}
-                  onChange={(e) => setNewCategoryId(e.target.value)}
-                  aria-label="Product category"
-                >
-                  <option value="">Uncategorized</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  value={newSupplierId}
-                  onChange={(e) => setNewSupplierId(e.target.value)}
-                  aria-label="Product supplier"
-                >
-                  <option value="">No supplier</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.companyName}
-                    </option>
-                  ))}
-                </Select>
-                <Input
-                  placeholder="Scanned barcode (optional)"
-                  value={newBarcode}
-                  onChange={(e) => setNewBarcode(e.target.value)}
-                />
-                <Input
-                  placeholder="Short description (optional)"
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                />
-              </div>
-
-              {/* Product Image Picker */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-subtle p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-white">
-                    {newImagePreview ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={newImagePreview}
-                        alt="New product preview"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <PhotoPlaceholderIcon className="h-6 w-6 text-muted-foreground" />
-                    )}
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+                {/* Left: Product Fields, 3D Product Type Selector, Image Picker & Shelf Placement */}
+                <div className="space-y-4 lg:col-span-7">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Input
+                      placeholder="Product name *"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      required
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Selling price (TSh) *"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      required
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Cost price (TSh)"
+                      value={newCostPrice}
+                      onChange={(e) => setNewCostPrice(e.target.value)}
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="Opening stock qty"
+                      value={newQuantity}
+                      onChange={(e) => setNewQuantity(e.target.value)}
+                    />
+                    <Select
+                      value={newCategoryId}
+                      onChange={(e) => setNewCategoryId(e.target.value)}
+                      aria-label="Product category"
+                    >
+                      <option value="">Uncategorized</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      value={newSupplierId}
+                      onChange={(e) => setNewSupplierId(e.target.value)}
+                      aria-label="Product supplier"
+                    >
+                      <option value="">No supplier</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.companyName}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input
+                      placeholder="Scanned barcode (optional)"
+                      value={newBarcode}
+                      onChange={(e) => setNewBarcode(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Short description (optional)"
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                    />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-foreground">
-                      Product Image (shown on product cards &amp; 3D store)
+
+                  {/* Product Type / 3D Shelf Shape Selector */}
+                  <div className="space-y-1.5 rounded-lg border border-primary/20 bg-primary-soft/30 p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-foreground">
+                        Product Type / 3D Shelf Shape
+                      </label>
+                      <span className="text-[11px] text-primary">
+                        Every product type has its own real 3D shape on shelf
+                      </span>
+                    </div>
+                    <Select
+                      value={newAssetKey}
+                      onChange={(e) => setNewAssetKey(e.target.value)}
+                      aria-label="Product Type 3D Shelf Shape"
+                    >
+                      <option value="">
+                        Auto-detect from name &amp; category (Currently:{" "}
+                        {autoDetectedNewShape.name})
+                      </option>
+                      {PRODUCT_ASSET_GROUPS.map((group) => (
+                        <optgroup
+                          key={group.departmentCode}
+                          label={`${group.departmentLabel} (${group.departmentCode})`}
+                        >
+                          {group.assets.map((asset) => (
+                            <option key={asset.key} value={asset.key}>
+                              {asset.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </Select>
+                    <p className="text-[11px] text-muted">
+                      Choose the exact physical shape (bottle, can, fruit basket, banana bunch, bread loaf, cake dome, butcher meat tray, detergent jug, spray cleaner, kettle, egg carton, etc.) and inspect it live on the right before uploading.
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted">
-                      {newImageFile
-                        ? `${newImageFile.name} (${Math.round(newImageFile.size / 1024)} KB)`
-                        : "JPG, PNG, WebP, or GIF up to 5 MB."}
-                    </p>
+                  </div>
+
+                  {/* Product Image Picker (Stages Locally for Live 3D Preview Before Upload) */}
+                  <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-subtle p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-white">
+                        {newImagePreview ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={newImagePreview}
+                            alt="New product preview"
+                            className="h-full w-full object-contain p-1"
+                          />
+                        ) : (
+                          <PhotoPlaceholderIcon className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground">
+                          Product Image (previewed live on 3D shape before upload)
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted">
+                          {newImageFile
+                            ? `${newImageFile.name} (${Math.round(newImageFile.size / 1024)} KB) — ready to upload`
+                            : "JPG, PNG, WebP, or GIF up to 5 MB."}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex h-8 cursor-pointer items-center rounded-md border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted">
+                        {newImageFile ? "Change Image" : "Add Product Image"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="sr-only"
+                          onChange={(e) =>
+                            handleSelectNewImage(e.target.files?.[0] ?? null)
+                          }
+                        />
+                      </label>
+                      {newImageFile && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSelectNewImage(null)}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="inline-flex h-8 cursor-pointer items-center rounded-md border border-border bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted">
-                    {newImageFile ? "Change Image" : "Add Product Image"}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="sr-only"
-                      onChange={(e) =>
-                        handleSelectNewImage(e.target.files?.[0] ?? null)
-                      }
-                    />
-                  </label>
-                  {newImageFile && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSelectNewImage(null)}
-                    >
-                      Clear
-                    </Button>
-                  )}
+
+                {/* Right: Live 360° Interactive 3D Product Preview Before Upload */}
+                <div className="lg:col-span-5">
+                  <Product3DPreview
+                    name={newName}
+                    categoryName={selectedNewCategoryName}
+                    price={newPrice}
+                    barcode={newBarcode}
+                    description={newDescription}
+                    imageUrl={newImagePreview}
+                    assetKey={newAssetKey || null}
+                    pendingUploadLabel={
+                      newImageFile ? "Preview Before Upload" : null
+                    }
+                    heightClassName="h-[320px] lg:h-[340px]"
+                  />
                 </div>
               </div>
 
@@ -552,7 +646,9 @@ export default function ProductsPage() {
 
               <div className="flex justify-end">
                 <Button type="submit" isLoading={creating}>
-                  Save Product
+                  {newImageFile
+                    ? "Upload Photo & Save Product"
+                    : "Save Product"}
                 </Button>
               </div>
             </form>
@@ -665,6 +761,9 @@ function ProductCard({
   const showImage = product.image_available && !imgFailed;
   const primaryPlacement = product.shelfPlacements?.[0] ?? null;
   const extraPlacements = Math.max(0, (product.shelfPlacements?.length ?? 0) - 1);
+  const shapeEntry = product.assetKey
+    ? getAssetEntry(product.assetKey)
+    : resolveProductAsset(product.name, product.category?.name);
 
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
@@ -742,6 +841,15 @@ function ProductCard({
         {product.supplier && (
           <p className="mt-0.5 text-xs text-muted">
             Supplier: {product.supplier.companyName}
+          </p>
+        )}
+
+        {shapeEntry && (
+          <p className="mt-1 text-[11px] text-muted">
+            3D Shape:{" "}
+            <span className="font-medium text-foreground">
+              {shapeEntry.name}
+            </span>
           </p>
         )}
 

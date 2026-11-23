@@ -22,11 +22,16 @@ import {
   createProductBarcode,
   isMissingBarcodeTable,
 } from "@/services/barcode.service";
+import {
+  isValidProductAssetKey,
+  resolveEffectiveProductAsset,
+} from "@/lib/digital-twin/asset-manifest";
 import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
 import {
   ShelfPlacementError,
   applyProductShelfPlacement,
   serializeShelfPositions,
+  upsertProductThreeDAsset,
   type ApplyShelfPlacementInput,
   type ShelfPositionWithHierarchy,
 } from "@/lib/product-placement";
@@ -70,10 +75,18 @@ async function uniqueSlug(name: string, barcode: string): Promise<string> {
 type ProductWithRelations = NonNullable<
   Awaited<ReturnType<typeof getProductById>>
 > & {
+  modelAsset?: { assetKey: string; version: string } | null;
   shelfPositions?: ShelfPositionWithHierarchy[];
 };
 
 function serializeProduct(product: ProductWithRelations) {
+  const effectiveAsset = resolveEffectiveProductAsset({
+    name: product.name,
+    categoryName: product.category?.name ?? null,
+    storedAssetKey: product.modelAsset?.assetKey ?? null,
+    storedAssetVersion: product.modelAsset?.version ?? null,
+  });
+
   return {
     id: product.id.toString(),
     name: product.name,
@@ -94,6 +107,8 @@ function serializeProduct(product: ProductWithRelations) {
         }
       : null,
     image_available: Boolean(product.imageData),
+    assetKey: effectiveAsset.entry.key,
+    assetAutoDetected: !effectiveAsset.isExplicit,
     shelfPlacements: serializeShelfPositions(product.shelfPositions),
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
@@ -144,6 +159,7 @@ export async function GET(request: NextRequest) {
           include: {
             category: true,
             supplier: true,
+            modelAsset: { select: { assetKey: true, version: true } },
             shelfPositions: {
               include: {
                 shelf: {
@@ -296,12 +312,22 @@ export async function POST(request: NextRequest) {
     return validation("description", "Description must be 5,000 characters or fewer.");
   }
 
+  const rawAssetKey =
+    typeof input.assetKey === "string" ? input.assetKey.trim() : "";
+  if (rawAssetKey && !isValidProductAssetKey(rawAssetKey)) {
+    return validation("assetKey", "Selected 3D product shape is not valid.");
+  }
+  const explicitAssetKey = rawAssetKey || null;
+
   const shelfPlacementInput: ApplyShelfPlacementInput | null =
     input.shelfPlacement && typeof input.shelfPlacement === "object"
       ? (input.shelfPlacement as ApplyShelfPlacementInput)
       : null;
 
   try {
+    if (explicitAssetKey || shelfPlacementInput) {
+      await ensureDigitalTwinSchema().catch(() => undefined);
+    }
     let categoryNameForPlacement: string | null = null;
     if (categoryId !== null) {
       const category = await prisma.category.findUnique({
@@ -347,12 +373,22 @@ export async function POST(request: NextRequest) {
     const slug = await uniqueSlug(name, sourceBarcode || "product");
 
     const product = await prisma.$transaction(async (tx) => {
+      let modelAssetId: string | null = null;
+      if (explicitAssetKey) {
+        const upsertedAsset = await upsertProductThreeDAsset(
+          tx,
+          explicitAssetKey,
+        );
+        modelAssetId = upsertedAsset?.id ?? null;
+      }
+
       const inserted = await tx.product.create({
         data: {
           name,
           slug,
           categoryId,
           supplierId,
+          modelAssetId,
           price,
           costPrice,
           quantity,
@@ -395,6 +431,7 @@ export async function POST(request: NextRequest) {
           productName: createdProduct.name,
           categoryName: categoryNameForPlacement,
           productQuantity: createdProduct.quantity,
+          assetKey: explicitAssetKey,
           placement: shelfPlacementInput,
         });
       }
@@ -445,6 +482,7 @@ export async function POST(request: NextRequest) {
         include: {
           category: true,
           supplier: true,
+          modelAsset: { select: { assetKey: true, version: true } },
           shelfPositions: {
             include: {
               shelf: {

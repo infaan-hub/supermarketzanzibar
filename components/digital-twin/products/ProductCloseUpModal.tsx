@@ -13,6 +13,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getAssetEntry } from "@/lib/digital-twin/asset-manifest";
 import {
   categoryAccentPalette,
   getProductBackLabelTexture,
@@ -268,6 +269,7 @@ export function ProductCloseUpModal({
   const qty = effectiveQuantity ?? position.quantity;
   const rowPlan = computeColumnRowPlan(qty, position.maximumCapacity, 4);
   const filledRows = rowPlan.filter((r) => r.quantity > 0).length;
+  const shapeEntry = getAssetEntry(product.assetKey);
 
   const jumpToAngle = (angle: CloseUpAngle) => {
     setAutoSpin(false);
@@ -416,6 +418,9 @@ export function ProductCloseUpModal({
               <div className="flex flex-wrap items-center gap-1.5">
                 {product.categoryName && (
                   <Badge variant="secondary">{product.categoryName}</Badge>
+                )}
+                {shapeEntry && (
+                  <Badge variant="default">{shapeEntry.name}</Badge>
                 )}
                 <Badge
                   variant={

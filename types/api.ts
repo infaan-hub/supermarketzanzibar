@@ -100,6 +100,10 @@ export interface Product {
   category: ProductCategory | null;
   supplier: ProductSupplier | null;
   image_available: boolean;
+  /** Explicit or auto-resolved 3D product shape key from ASSET_MANIFEST. */
+  assetKey?: string | null;
+  /** True when the 3D shape is auto-detected from name & category rather than explicitly overridden. */
+  assetAutoDetected?: boolean;
   shelfPlacements?: ProductShelfPlacement[];
   createdAt: string;
   updatedAt?: string;
@@ -137,6 +141,8 @@ export interface CreateProductRequest {
   categoryId?: string | null;
   supplierId?: string | null;
   description?: string;
+  /** Optional explicit 3D product shape key (empty/null = auto-detect). */
+  assetKey?: string | null;
   shelfPlacement?: ProductShelfPlacementInput;
 }
 
@@ -148,6 +154,8 @@ export interface UpdateProductRequest {
   supplierId?: string | null;
   description?: string;
   isActive?: boolean;
+  /** Optional explicit 3D product shape key ("" or null clears override back to auto-detect). */
+  assetKey?: string | null;
   shelfPlacement?: ProductShelfPlacementInput;
 }
 
