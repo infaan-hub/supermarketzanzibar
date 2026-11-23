@@ -78,9 +78,9 @@ export function RecentSales({ sales }: { sales: DashboardRecentSale[] }) {
             <tbody>
               {sales.map((sale, idx) => {
                 const avatarColors = [
-                  "bg-[#eab308] text-[#18181b]",
+                  "bg-[#4CAF50] text-white",
                   "bg-[#38bdf8] text-[#0f172a]",
-                  "bg-[#ef4b42] text-white",
+                  "bg-[#43A047] text-white",
                   "bg-[#4ade80] text-[#0f172a]",
                 ];
                 return (
@@ -100,7 +100,7 @@ export function RecentSales({ sales }: { sales: DashboardRecentSale[] }) {
                         <div className="min-w-0">
                           <Link
                             href={`/sales/${sale.id}`}
-                            className="block truncate text-xs font-semibold text-white hover:text-[#ef4b42] sm:text-[13px]"
+                            className="block truncate text-xs font-semibold text-white hover:text-[#4CAF50] sm:text-[13px]"
                           >
                             {sale.customer}
                           </Link>
@@ -111,7 +111,7 @@ export function RecentSales({ sales }: { sales: DashboardRecentSale[] }) {
                       </div>
                     </td>
                     <td className="hidden px-3 py-2.5 font-mono text-xs text-[#d4d4d8] sm:table-cell">
-                      <Link href={`/sales/${sale.id}`} className="hover:text-[#ef4b42] hover:underline">
+                      <Link href={`/sales/${sale.id}`} className="hover:text-[#4CAF50] hover:underline">
                         #{String(sale.id).padStart(8, "0")}
                       </Link>
                     </td>

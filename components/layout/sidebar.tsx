@@ -165,16 +165,16 @@ export function Sidebar({
       aria-label="Main navigation"
     >
       <div className="flex h-full flex-col">
-        {/* Top Fiery Marketplace Emblem Header */}
+        {/* Top Supermarket Marketplace Emblem Header */}
         <div className="flex h-20 shrink-0 items-center gap-3 px-5">
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_6px_18px_rgba(239,75,66,0.45)]">
-            <FlameLogoIcon />
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#4CAF50] text-white shadow-[0_6px_18px_rgba(76,175,80,0.4)]">
+            <SupermarketLogoIcon />
           </div>
           <div className="min-w-0">
             <span className="block truncate font-display text-base font-extrabold tracking-tight text-white">
               Marketplace
             </span>
-            <span className="block truncate text-[11px] font-medium text-[#ef4b42]">
+            <span className="block truncate text-[11px] font-medium text-[#4CAF50]">
               {isAdmin
                 ? "Admin Portal"
                 : isSupplier
@@ -227,15 +227,15 @@ export function Sidebar({
                           className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                             active
-                              ? "bg-[#252528] text-[#ef4b42] shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
+                              ? "bg-[#252528] text-[#4CAF50] shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
                               : "text-white/90 group-hover:bg-white/10 group-hover:text-white",
                           )}
                         >
                           <span className="h-4 w-4">{item.icon}</span>
                         </span>
-                        {/* Glowing Coral-Red Dot on the Curved Rail Edge */}
+                        {/* Glowing #4CAF50 Dot on the Curved Rail Edge */}
                         {active && (
-                          <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#ef4b42] ring-2 ring-[#252528]" />
+                          <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#4CAF50] ring-2 ring-[#252528]" />
                         )}
                       </span>
 
@@ -244,7 +244,7 @@ export function Sidebar({
                         className={cn(
                           "ml-3.5 flex-1 truncate transition-colors",
                           active
-                            ? "font-semibold text-[#ef4b42]"
+                            ? "font-semibold text-[#4CAF50]"
                             : "text-[#a1a1aa] group-hover:text-white",
                         )}
                       >
@@ -256,7 +256,7 @@ export function Sidebar({
                           className={cn(
                             "mr-1 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
                             active
-                              ? "bg-[#ef4b42] text-white"
+                              ? "bg-[#4CAF50] text-white"
                               : "bg-[#38383f] text-white",
                           )}
                         >
@@ -274,10 +274,10 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => void logout()}
-                className="group relative flex w-full items-center py-1.5 text-[13px] font-medium text-[#a1a1aa] transition-colors hover:text-[#ef4b42] cursor-pointer"
+                className="group relative flex w-full items-center py-1.5 text-[13px] font-medium text-[#a1a1aa] transition-colors hover:text-[#4CAF50] cursor-pointer"
               >
                 <span className="flex w-[60px] shrink-0 items-center justify-center">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition-all group-hover:bg-white/10 group-hover:text-[#ef4b42]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition-all group-hover:bg-white/10 group-hover:text-[#4CAF50]">
                     <span className="h-4 w-4">
                       <LogoutIcon />
                     </span>
@@ -289,7 +289,7 @@ export function Sidebar({
           </nav>
         </div>
 
-        {/* Bottom Bronze Circular Utility Buttons + Active User Pill */}
+        {/* Bottom Circular Utility Buttons + Active User Pill */}
         <div className="shrink-0 space-y-2.5 border-t border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-3">
             <Link
@@ -300,7 +300,7 @@ export function Sidebar({
               }
               onClick={onNavigate}
               title={isAdmin ? "Store Settings" : "My Profile"}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
             >
               <span className="h-4.5 w-4.5">
                 <SettingsIcon />
@@ -310,7 +310,7 @@ export function Sidebar({
               href="/"
               onClick={onNavigate}
               title="Open Public Marketplace"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
             >
               <span className="h-4.5 w-4.5">
                 <BellIcon />
@@ -322,7 +322,7 @@ export function Sidebar({
                 onClick={onNavigate}
                 className="ml-auto flex min-w-0 items-center gap-2 rounded-full bg-[#1c1c1e] py-1 pr-3 pl-1.5 transition-colors hover:bg-[#323238]"
               >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ef4b42] text-[10px] font-bold text-white">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4CAF50] text-[10px] font-bold text-white">
                   {(user.full_name || user.username).slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
@@ -342,10 +342,12 @@ export function Sidebar({
   );
 }
 
-function FlameLogoIcon() {
+function SupermarketLogoIcon() {
   return (
-    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12.83 2.15c.39-.28.93.02.9.5-.12 1.84.88 3.24 2.16 4.54 1.56 1.59 3.11 3.33 3.11 6.06A7 7 0 0 1 12 20.25a7 7 0 0 1-7-7c0-2.55 1.38-4.78 2.95-6.25.4-.37 1.04-.04.98.5-.12 1.07.31 1.98.96 2.5.24.19.6.03.61-.28.05-2.88 1.56-5.68 3.33-7.57Zm-.85 10.6c-.98.95-1.73 2.04-1.73 3.25a2.25 2.25 0 0 0 4.5 0c0-1.36-.85-2.4-1.89-3.28a.62.62 0 0 0-.88.03Z" />
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
     </svg>
   );
 }

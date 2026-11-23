@@ -97,7 +97,7 @@ export function Header({
               <strong className="font-semibold text-white">
                 {displayStore}
               </strong>{" "}
-              · {activeSection} — Search products, categories, or dishes…
+              · {activeSection} — Search products, categories, or shelves…
             </span>
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#48484f] text-white">
               <SearchIcon />
@@ -116,7 +116,7 @@ export function Header({
           {isPosRole(user?.role) && (
             <Link
               href={portalHref(user?.role, "/pos")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ef4b42] px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#dc3a31]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#4CAF50] px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#43A047]"
             >
               <span>Cart / POS</span>
               {cartCount > 0 && (
@@ -139,11 +139,11 @@ export function Header({
               <p className="text-xs font-semibold text-white">
                 {user?.full_name || user?.username || displayStore}
               </p>
-              <p className="text-[10px] text-[#ef4b42]">
+              <p className="text-[10px] text-[#4CAF50]">
                 {user ? roleLabel(user.role) : displayStore}
               </p>
             </div>
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ef4b42] text-[11px] font-bold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4CAF50] text-[11px] font-bold text-white">
               {initials}
             </div>
           </Link>

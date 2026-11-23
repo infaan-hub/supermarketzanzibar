@@ -2,36 +2,36 @@
 @import "tailwindcss";
 
 @theme {
-  /* Marketplace — Dark Charcoal & Fiery Coral-Red Design System.
+  /* Marketplace — Dark Charcoal & #4CAF50 Supermarket Design System.
      Obsidian matte canvas (#1c1c1e), elevated dark slate cards (#2a2a2e),
-     warm ember/coral brand accent (#ef4b42), circular medallions, floating
+     #4CAF50 green brand accent, circular medallions, floating
      product pedestals, perforated order tickets, and pill table headers. */
   --color-background: #2a2a2e;
   --color-canvas: #1c1c1e;
   --color-foreground: #f4f4f6;
 
-  --color-primary: #ef4b42;
-  --color-primary-hover: #dc3a31;
-  --color-primary-soft: rgba(239, 75, 66, 0.16);
+  --color-primary: #4CAF50;
+  --color-primary-hover: #43A047;
+  --color-primary-soft: rgba(76, 175, 80, 0.16);
 
   --color-muted: #9ca3af;
   --color-muted-foreground: #71717a;
 
   --color-border: #38383f;
   --color-border-hover: #52525b;
-  --color-ring: #ef4b42;
+  --color-ring: #4CAF50;
 
-  --color-accent: #ef4b42;
-  --color-accent-soft: rgba(239, 75, 66, 0.16);
+  --color-accent: #4CAF50;
+  --color-accent-soft: rgba(76, 175, 80, 0.16);
 
-  --color-success: #3fb950;
-  --color-success-soft: rgba(63, 185, 80, 0.18);
+  --color-success: #4CAF50;
+  --color-success-soft: rgba(76, 175, 80, 0.18);
 
-  --color-danger: #ef4b42;
-  --color-danger-soft: rgba(239, 75, 66, 0.18);
+  --color-danger: #e53935;
+  --color-danger-soft: rgba(229, 57, 53, 0.18);
 
-  --color-warning: #d99b43;
-  --color-warning-soft: rgba(217, 155, 67, 0.18);
+  --color-warning: #4CAF50;
+  --color-warning-soft: rgba(76, 175, 80, 0.18);
 
   --color-surface-subtle: #242429;
   --color-surface-muted: #34343b;
@@ -71,8 +71,8 @@ html {
 body {
   @apply bg-canvas text-foreground antialiased;
   background-image:
-    radial-gradient(circle at 92% 92%, rgba(165, 42, 36, 0.22), transparent 45%),
-    radial-gradient(circle at 8% 10%, rgba(239, 75, 66, 0.08), transparent 38%);
+    radial-gradient(circle at 92% 92%, rgba(76, 175, 80, 0.16), transparent 45%),
+    radial-gradient(circle at 8% 10%, rgba(76, 175, 80, 0.08), transparent 38%);
   background-attachment: fixed;
   min-width: 320px;
   min-height: 100dvh;
@@ -99,14 +99,14 @@ body {
     --tw-gradient-to: #222226 var(--tw-gradient-to-position) !important;
   }
   .bg-teal-50 {
-    background-color: rgba(239, 75, 66, 0.16) !important;
+    background-color: rgba(76, 175, 80, 0.16) !important;
   }
   .text-teal-900,
   .text-teal-700 {
-    color: #ff7b72 !important;
+    color: #4CAF50 !important;
   }
   .border-teal-300 {
-    border-color: rgba(239, 75, 66, 0.45) !important;
+    border-color: rgba(76, 175, 80, 0.45) !important;
   }
 }
 

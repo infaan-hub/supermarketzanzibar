@@ -56,7 +56,7 @@ export function DashboardHeader({
             Marketplace Overview
           </h1>
           <p className="text-sm text-muted">
-            <span className="font-semibold text-[#ef4b42]">
+            <span className="font-semibold text-[#4CAF50]">
               {greetingFor(generatedAt)}
               {userName ? `, ${userName}` : ""} ·{" "}
             </span>
@@ -92,7 +92,7 @@ export function DashboardHeader({
                   type="button"
                   className={
                     active
-                      ? "h-7 rounded-full bg-[#ef4b42] px-3 text-xs font-semibold text-white shadow-sm cursor-pointer"
+                      ? "h-7 rounded-full bg-[#4CAF50] px-3 text-xs font-semibold text-white shadow-sm cursor-pointer"
                       : "h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:text-white cursor-pointer"
                   }
                   aria-pressed={active}

@@ -16,15 +16,15 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
           "inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-[11px] font-semibold leading-4",
           {
             default:
-              "border-primary/35 bg-primary-soft text-[#ff7b72]",
+              "border-[#4CAF50]/35 bg-[#4CAF50]/15 text-[#4CAF50]",
             secondary:
               "border-white/10 bg-[#38383f] text-foreground",
             success:
-              "border-transparent bg-[#3fb950] text-white shadow-sm",
+              "border-transparent bg-[#4CAF50] text-white shadow-sm",
             danger:
-              "border-transparent bg-[#ef4b42] text-white shadow-sm",
+              "border-transparent bg-[#e53935] text-white shadow-sm",
             warning:
-              "border-transparent bg-[#d99b43] text-white shadow-sm",
+              "border-transparent bg-[#4CAF50] text-white shadow-sm",
           }[variant],
           className,
         )}

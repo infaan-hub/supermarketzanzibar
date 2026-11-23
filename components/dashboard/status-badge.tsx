@@ -2,9 +2,9 @@ import { cn } from "@/lib/utils";
 import type { StatusTone } from "@/lib/format";
 
 const toneStyles: Record<StatusTone, string> = {
-  success: "border-transparent bg-[#3fb950] text-white shadow-sm",
-  warning: "border-transparent bg-[#d99b43] text-white shadow-sm",
-  danger: "border-transparent bg-[#ef4b42] text-white shadow-sm",
+  success: "border-transparent bg-[#4CAF50] text-white shadow-sm",
+  warning: "border-transparent bg-[#4CAF50]/80 text-white shadow-sm",
+  danger: "border-transparent bg-[#e53935] text-white shadow-sm",
   secondary: "border-white/10 bg-[#3a3a40] text-[#e4e4e7]",
 };
 

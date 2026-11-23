@@ -54,7 +54,7 @@ export function PanelHeader({
         </h2>
         {description ? (
           <p className="mt-0.5 text-xs text-muted">
-            <span className="font-semibold text-[#ef4b42]">Live · </span>
+            <span className="font-semibold text-[#4CAF50]">Live · </span>
             {description}
           </p>
         ) : null}
@@ -78,10 +78,10 @@ export function PanelLink({
   return (
     <Link
       href={portalHref(user?.role, href)}
-      className="group inline-flex items-center gap-2 text-xs font-semibold text-white transition-colors hover:text-[#ef4b42]"
+      className="group inline-flex items-center gap-2 text-xs font-semibold text-white transition-colors hover:text-[#4CAF50]"
     >
       <span>{children}</span>
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
         <ArrowRightIcon className="h-3.5 w-3.5" />
       </span>
     </Link>

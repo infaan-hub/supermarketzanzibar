@@ -167,8 +167,6 @@ export default function PosPage() {
     );
   }
 
-  const emojis = ["🍔", "🍕", "🍣", "🥗", "🥤", "🥐", "🥩", "🧀", "🧴", "⚡"];
-
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.58fr)_390px] xl:items-start">
@@ -267,7 +265,7 @@ export default function PosPage() {
               {cart.scanError && (
                 <div
                   role="alert"
-                  className="rounded-xl border border-danger/30 bg-danger/15 px-3.5 py-2 text-xs text-[#ff7b72]"
+                  className="rounded-xl border border-danger/30 bg-danger/15 px-3.5 py-2 text-xs text-danger"
                 >
                   {cart.scanError}
                 </div>
@@ -275,7 +273,7 @@ export default function PosPage() {
               {cart.scanSuccess && (
                 <div
                   role="status"
-                  className="rounded-xl border border-success/30 bg-success/15 px-3.5 py-2 text-xs text-[#4ade80]"
+                  className="rounded-xl border border-[#4CAF50]/30 bg-[#4CAF50]/15 px-3.5 py-2 text-xs text-[#4CAF50]"
                 >
                   {cart.scanSuccess}
                 </div>
@@ -292,7 +290,7 @@ export default function PosPage() {
                     Categories
                   </h2>
                   <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#ef4b42]">
+                    <span className="font-semibold text-[#4CAF50]">
                       {categories.length}+ New
                     </span>{" "}
                     Categories added this week
@@ -300,10 +298,10 @@ export default function PosPage() {
                 </div>
                 <Link
                   href={portalHref(user?.role, "/categories")}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42]"
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50]"
                 >
                   <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white group-hover:bg-[#ef4b42]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white group-hover:bg-[#4CAF50]">
                     ›
                   </span>
                 </Link>
@@ -317,19 +315,19 @@ export default function PosPage() {
                 >
                   <span
                     className={cn(
-                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-xl shadow-lg transition-all",
+                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                       selectedCategory === ""
-                        ? "ring-2 ring-[#ef4b42] scale-105"
+                        ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                         : "opacity-85 hover:opacity-100 hover:scale-105",
                     )}
                   >
-                    🔥
+                    <SupermarketGridIcon className="h-6 w-6" />
                   </span>
                   <span
                     className={cn(
                       "text-[11px] font-semibold",
                       selectedCategory === ""
-                        ? "text-[#ef4b42]"
+                        ? "text-[#4CAF50]"
                         : "text-[#d4d4d8]",
                     )}
                   >
@@ -349,9 +347,9 @@ export default function PosPage() {
                     >
                       <span
                         className={cn(
-                          "flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                          "flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                           active
-                            ? "ring-2 ring-[#ef4b42] scale-105"
+                            ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                             : "opacity-85 hover:opacity-100 hover:scale-105",
                         )}
                       >
@@ -363,13 +361,13 @@ export default function PosPage() {
                             className="h-11 w-11 rounded-full object-cover"
                           />
                         ) : (
-                          <span>{emojis[idx % emojis.length]}</span>
+                          <SupermarketCategoryIcon index={idx} className="h-6 w-6" />
                         )}
                       </span>
                       <span
                         className={cn(
                           "max-w-[82px] truncate text-[11px] font-semibold",
-                          active ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                          active ? "text-[#4CAF50]" : "text-[#d4d4d8]",
                         )}
                       >
                         {cat.name}
@@ -389,7 +387,7 @@ export default function PosPage() {
                   Popular Products
                 </h2>
                 <p className="text-xs text-muted">
-                  <span className="font-semibold text-[#ef4b42]">
+                  <span className="font-semibold text-[#4CAF50]">
                     {filteredProducts.length}+ New
                   </span>{" "}
                   items ready for instant checkout
@@ -397,10 +395,10 @@ export default function PosPage() {
               </div>
               <Link
                 href={portalHref(user?.role, "/products")}
-                className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42]"
+                className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50]"
               >
                 <span>View More</span>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white group-hover:bg-[#ef4b42]">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white group-hover:bg-[#4CAF50]">
                   ›
                 </span>
               </Link>
@@ -478,7 +476,7 @@ export default function PosPage() {
                         "group relative flex flex-col rounded-[26px] border border-white/[0.07] bg-[#2a2a2e] px-4 pt-16 pb-4 text-center shadow-[0_16px_34px_-12px_rgba(0,0,0,0.65)] transition-all duration-200",
                         out
                           ? "opacity-55 cursor-not-allowed"
-                          : "cursor-pointer hover:-translate-y-1 hover:border-[#ef4b42]/45",
+                          : "cursor-pointer hover:-translate-y-1 hover:border-[#4CAF50]/45",
                       )}
                     >
                       {/* Floating Pop-Out Top Product Image */}
@@ -491,13 +489,16 @@ export default function PosPage() {
                             className="max-h-24 max-w-24 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
                           />
                         ) : (
-                          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#624f42] via-[#483b34] to-[#2b2624] text-2xl shadow-[0_12px_20px_rgba(0,0,0,0.6)]">
-                            {emojis[idx % emojis.length]}
+                          <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-[0_12px_20px_rgba(0,0,0,0.6)]">
+                            <PhotoPlaceholderIcon className="h-6 w-6 text-[#4CAF50]" />
+                            <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
+                              {p.name.slice(0, 2).toUpperCase()}
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      <h3 className="line-clamp-1 font-display text-sm font-bold text-white group-hover:text-[#ef4b42]">
+                      <h3 className="line-clamp-1 font-display text-sm font-bold text-white group-hover:text-[#4CAF50]">
                         {p.name}
                       </h3>
                       <p className="mt-0.5 text-[10px] font-medium text-[#71717a]">
@@ -509,7 +510,7 @@ export default function PosPage() {
 
                       <div className="mt-3 flex items-end justify-between border-t border-white/[0.06] pt-2.5 text-[11px]">
                         <div className="flex items-center gap-1 font-bold text-white">
-                          <span className="text-[#facc15]">★</span>
+                          <span className="text-[#4CAF50]">★</span>
                           <span>{rating}</span>
                         </div>
                         <div className="text-right leading-tight">
@@ -540,13 +541,13 @@ export default function PosPage() {
               <button
                 type="button"
                 onClick={() => setShowCustomerDetails((v) => !v)}
-                className="text-[11px] font-semibold text-[#ffd1cc] hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-[#4CAF50] hover:underline cursor-pointer"
               >
                 {showCustomerDetails ? "Hide" : "Edit Customer"}
               </button>
             </div>
             <p className="mt-2 flex items-center gap-2 text-xs text-white/95">
-              <span>📍</span>
+              <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
               <span className="truncate">
                 {cart.customer.address ||
                   cart.customer.fullName ||
@@ -554,7 +555,7 @@ export default function PosPage() {
               </span>
             </p>
             <p className="mt-1 flex items-center gap-2 text-[11px] text-white/80">
-              <span>🕒</span>
+              <ClockIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
               <span>20 min · Express Marketplace Checkout</span>
             </p>
 
@@ -605,12 +606,12 @@ export default function PosPage() {
           {/* Cart Title + Order ID */}
           <div className="mt-5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🛒</span>
+              <CartIcon className="h-4.5 w-4.5 text-[#4CAF50]" />
               <h2 className="font-display text-base font-bold text-white">
                 Cart
               </h2>
               {cart.itemCount > 0 && (
-                <span className="rounded-full bg-[#ef4b42] px-2 py-0.5 text-[10px] font-bold text-white">
+                <span className="rounded-full bg-[#4CAF50] px-2 py-0.5 text-[10px] font-bold text-white">
                   {cart.itemCount}
                 </span>
               )}
@@ -624,7 +625,7 @@ export default function PosPage() {
                   type="button"
                   onClick={cart.clearCart}
                   disabled={cart.checkingOut}
-                  className="text-[11px] font-semibold text-[#ff9b95] hover:underline cursor-pointer"
+                  className="text-[11px] font-semibold text-[#4CAF50] hover:underline cursor-pointer"
                 >
                   Clear
                 </button>
@@ -632,13 +633,13 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Segmented Pill Toggle: Delivery | Dine in | Takeaway */}
+          {/* Segmented Pill Toggle: Delivery | In-Store | Pickup */}
           <div className="mt-3.5 grid grid-cols-3 rounded-full border border-white/15 bg-[#2e2e33] p-1 text-xs">
             {(
               [
                 ["delivery", "Delivery"],
-                ["dine_in", "Dine in"],
-                ["takeaway", "Takeaway"],
+                ["dine_in", "In-Store"],
+                ["takeaway", "Pickup"],
               ] as const
             ).map(([key, label]) => {
               const active = fulfillmentMode === key;
@@ -650,7 +651,7 @@ export default function PosPage() {
                   className={cn(
                     "h-8 rounded-full font-semibold transition-all cursor-pointer",
                     active
-                      ? "bg-[#ef4b42] text-white shadow-sm"
+                      ? "bg-[#4CAF50] text-white shadow-sm"
                       : "text-white/75 hover:text-white",
                   )}
                 >
@@ -673,7 +674,7 @@ export default function PosPage() {
                   key={item.key}
                   className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 last:border-b-0"
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] to-[#2e2a28] text-lg shadow">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#38383f] to-[#222226] text-xs font-bold text-white shadow">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/products/${item.productId}/image`}
@@ -724,7 +725,7 @@ export default function PosPage() {
                       type="button"
                       onClick={() => cart.removeFromCart(item.key)}
                       title={`Remove ${item.productName}`}
-                      className="flex h-7 w-11 items-center justify-center rounded-full bg-white text-xs font-bold text-[#18181b] shadow hover:bg-[#ef4b42] hover:text-white cursor-pointer"
+                      className="flex h-7 w-11 items-center justify-center rounded-full bg-white text-xs font-bold text-[#18181b] shadow hover:bg-[#4CAF50] hover:text-white cursor-pointer"
                     >
                       ✕
                     </button>
@@ -850,5 +851,107 @@ export default function PosPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function SupermarketGridIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function SupermarketCategoryIcon({ index, className }: { index: number; className?: string }) {
+  const variant = index % 6;
+  if (variant === 0) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    );
+  }
+  if (variant === 1) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    );
+  }
+  if (variant === 2) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    );
+  }
+  if (variant === 3) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 4v16M20 4v16M4 8h16M4 14h16M4 20h16" />
+      </svg>
+    );
+  }
+  if (variant === 4) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+      <path d="M3 7l9 5 9-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
+}
+
+function PhotoPlaceholderIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </svg>
+  );
+}
+
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function CartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
   );
 }

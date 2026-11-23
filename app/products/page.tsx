@@ -720,7 +720,7 @@ export default function ProductsPage() {
                 Categories
               </h2>
               <p className="text-xs text-muted">
-                <span className="font-semibold text-[#ef4b42]">
+                <span className="font-semibold text-[#4CAF50]">
                   {categories.length}+ New
                 </span>{" "}
                 Categories available in Marketplace
@@ -728,10 +728,10 @@ export default function ProductsPage() {
             </div>
             <Link
               href={portalHref(user?.role, "/categories")}
-              className="group inline-flex items-center gap-2 text-xs font-semibold text-white transition-colors hover:text-[#ef4b42]"
+              className="group inline-flex items-center gap-2 text-xs font-semibold text-white transition-colors hover:text-[#4CAF50]"
             >
               <span>View More</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
                 ›
               </span>
             </Link>
@@ -745,18 +745,18 @@ export default function ProductsPage() {
             >
               <span
                 className={cn(
-                  "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-xl shadow-lg transition-all",
+                  "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                   categoryId === ""
-                    ? "ring-2 ring-[#ef4b42] scale-105"
+                    ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                     : "opacity-85 hover:opacity-100 hover:scale-105",
                 )}
               >
-                🔥
+                <SupermarketGridIcon className="h-6 w-6" />
               </span>
               <span
                 className={cn(
                   "max-w-[76px] truncate text-[11px] font-semibold",
-                  categoryId === "" ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                  categoryId === "" ? "text-[#4CAF50]" : "text-[#d4d4d8]",
                 )}
               >
                 All Items
@@ -764,7 +764,6 @@ export default function ProductsPage() {
             </button>
             {categories.map((cat, idx) => {
               const active = categoryId === cat.id;
-              const emojis = ["🍔", "🍕", "🥗", "🥤", "🥐", "🥩", "🧀", "🧴", "🧹", "⚡"];
               return (
                 <button
                   key={cat.id}
@@ -774,9 +773,9 @@ export default function ProductsPage() {
                 >
                   <span
                     className={cn(
-                      "flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                      "flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                       active
-                        ? "ring-2 ring-[#ef4b42] scale-105"
+                        ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                         : "opacity-85 hover:opacity-100 hover:scale-105",
                     )}
                   >
@@ -788,13 +787,13 @@ export default function ProductsPage() {
                         className="h-11 w-11 rounded-full object-cover"
                       />
                     ) : (
-                      <span>{emojis[idx % emojis.length]}</span>
+                      <SupermarketCategoryIcon index={idx} className="h-6 w-6" />
                     )}
                   </span>
                   <span
                     className={cn(
                       "max-w-[82px] truncate text-[11px] font-semibold",
-                      active ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                      active ? "text-[#4CAF50]" : "text-[#d4d4d8]",
                     )}
                   >
                     {cat.name}
@@ -813,7 +812,7 @@ export default function ProductsPage() {
             Popular Products
           </h2>
           <p className="text-xs text-muted">
-            <span className="font-semibold text-[#ef4b42]">
+            <span className="font-semibold text-[#4CAF50]">
               {filteredProducts.length}+ New
             </span>{" "}
             products stocked across Marketplace shelves
@@ -913,8 +912,8 @@ function ProductCard({
             className="max-h-28 max-w-28 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
           />
         ) : (
-          <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#624f42] via-[#483b34] to-[#2b2624] text-white shadow-[0_14px_24px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:scale-105">
-            <PhotoPlaceholderIcon className="h-7 w-7 text-[#f5d0c8]" />
+          <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-[0_14px_24px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:scale-105">
+            <PhotoPlaceholderIcon className="h-7 w-7 text-[#4CAF50]" />
             <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
               {product.name.slice(0, 2).toUpperCase()}
             </span>
@@ -945,7 +944,7 @@ function ProductCard({
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-full bg-[#38383f] px-2.5 py-0.5 text-[10px] font-semibold text-white transition-colors hover:bg-[#ef4b42] disabled:opacity-60 cursor-pointer"
+              className="rounded-full bg-[#38383f] px-2.5 py-0.5 text-[10px] font-semibold text-white transition-colors hover:bg-[#4CAF50] disabled:opacity-60 cursor-pointer"
             >
               {uploading ? "…" : showImage ? "Photo" : "+ Photo"}
             </button>
@@ -955,7 +954,7 @@ function ProductCard({
 
       {/* Centered Product Title, "Starting From" & Bold White Price */}
       <Link href={detailHref} className="block">
-        <h3 className="line-clamp-1 font-display text-base font-bold text-white transition-colors group-hover:text-[#ef4b42]">
+        <h3 className="line-clamp-1 font-display text-base font-bold text-white transition-colors group-hover:text-[#4CAF50]">
           {product.name}
         </h3>
       </Link>
@@ -977,8 +976,8 @@ function ProductCard({
         )}
 
         {primaryPlacement && (
-          <div className="truncate rounded-full border border-[#ef4b42]/25 bg-[#ef4b42]/10 px-2.5 py-1 text-center text-[10px] text-white">
-            <span className="font-semibold text-[#ff7b72]">
+          <div className="truncate rounded-full border border-[#4CAF50]/25 bg-[#4CAF50]/10 px-2.5 py-1 text-center text-[10px] text-white">
+            <span className="font-semibold text-[#4CAF50]">
               {primaryPlacement.departmentCode}
             </span>{" "}
             · {primaryPlacement.shelfCode} · Col {primaryPlacement.columnNumber} ·{" "}
@@ -996,7 +995,7 @@ function ProductCard({
               href={`/api/barcodes/label?value=${encodeURIComponent(product.barcode)}`}
               target="_blank"
               rel="noreferrer"
-              className="shrink-0 text-[10px] font-semibold text-[#ef4b42] hover:underline"
+              className="shrink-0 text-[10px] font-semibold text-[#4CAF50] hover:underline"
               title="Print Code 128 label"
             >
               Label
@@ -1009,12 +1008,12 @@ function ProductCard({
       <div className="mt-auto flex items-end justify-between border-t border-white/[0.06] pt-3 text-xs">
         <div className="flex flex-col items-start gap-0.5">
           <div className="flex items-center gap-1 font-bold text-white">
-            <span className="text-sm text-[#facc15]">★</span>
+            <span className="text-sm text-[#4CAF50]">★</span>
             <span>{rating}</span>
           </div>
           <Link
             href={detailHref}
-            className="text-[11px] font-semibold text-[#ef4b42] hover:underline"
+            className="text-[11px] font-semibold text-[#4CAF50] hover:underline"
           >
             Manage →
           </Link>
@@ -1025,9 +1024,9 @@ function ProductCard({
             className={cn(
               "block font-mono text-xs font-bold tabular-nums",
               isOut || isLow
-                ? "text-[#ef4b42]"
+                ? "text-[#e53935]"
                 : isRunningLow
-                  ? "text-[#d99b43]"
+                  ? "text-[#4CAF50]"
                   : "text-[#a1a1aa]",
             )}
           >
@@ -1037,6 +1036,70 @@ function ProductCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function SupermarketGridIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function SupermarketCategoryIcon({ index, className }: { index: number; className?: string }) {
+  const variant = index % 6;
+  if (variant === 0) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    );
+  }
+  if (variant === 1) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    );
+  }
+  if (variant === 2) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    );
+  }
+  if (variant === 3) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 4v16M20 4v16M4 8h16M4 14h16M4 20h16" />
+      </svg>
+    );
+  }
+  if (variant === 4) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+      <path d="M3 7l9 5 9-5" />
+      <path d="M12 22V12" />
+    </svg>
   );
 }
 

@@ -37,14 +37,14 @@ export function StorefrontHeader({
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_6px_16px_rgba(239,75,66,0.45)]">
-              <FlameIcon />
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4CAF50] text-white shadow-[0_6px_16px_rgba(76,175,80,0.4)]">
+              <SupermarketLogoIcon className="h-5 w-5" />
             </span>
             <div>
               <span className="block font-display text-base font-extrabold tracking-tight text-white">
                 Marketplace
               </span>
-              <span className="block text-[10px] font-medium text-[#ef4b42]">
+              <span className="block text-[10px] font-medium text-[#4CAF50]">
                 Live 3D &amp; Express Order
               </span>
             </div>
@@ -56,7 +56,7 @@ export function StorefrontHeader({
               className={cn(
                 "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
                 activePage === "shop"
-                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  ? "bg-[#4CAF50] text-white shadow-sm"
                   : "text-muted hover:bg-white/[0.06] hover:text-white",
               )}
             >
@@ -67,7 +67,7 @@ export function StorefrontHeader({
               className={cn(
                 "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
                 activePage === "3d"
-                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  ? "bg-[#4CAF50] text-white shadow-sm"
                   : "text-muted hover:bg-white/[0.06] hover:text-white",
               )}
             >
@@ -84,9 +84,10 @@ export function StorefrontHeader({
               onClick={onOpenCart}
               aria-label="Open shopping cart"
             >
-              <span>🛒 Cart</span>
+              <CartIcon className="h-3.5 w-3.5 text-[#4CAF50]" />
+              <span>Cart</span>
               {cartCount > 0 && (
-                <span className="rounded-full bg-[#ef4b42] px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
+                <span className="rounded-full bg-[#4CAF50] px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
                   {cartCount}
                 </span>
               )}
@@ -213,13 +214,13 @@ function MarketplaceOrderTicket({
           DELIVERY ADDRESS
         </p>
         <p className="mt-2 flex items-center gap-2 text-xs text-white/95">
-          <span>📍</span>
+          <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
           <span className="truncate">
             Po. 1478, Street No. 52, Stone Town, Zanzibar
           </span>
         </p>
         <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/80">
-          <span>🕒</span>
+          <ClockIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
           <span>20 min</span>
         </p>
       </div>
@@ -227,10 +228,10 @@ function MarketplaceOrderTicket({
       {/* Cart Header & Order ID */}
       <div className="mt-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🛒</span>
+          <CartIcon className="h-4.5 w-4.5 text-[#4CAF50]" />
           <h2 className="font-display text-base font-bold text-white">Cart</h2>
           {count > 0 && (
-            <span className="rounded-full bg-[#ef4b42] px-2 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded-full bg-[#4CAF50] px-2 py-0.5 text-[10px] font-bold text-white">
               {count}
             </span>
           )}
@@ -243,7 +244,7 @@ function MarketplaceOrderTicket({
             <button
               type="button"
               onClick={onClear}
-              className="text-[11px] font-semibold text-[#ff9b95] hover:underline cursor-pointer"
+              className="text-[11px] font-semibold text-[#4CAF50] hover:underline cursor-pointer"
             >
               Clear
             </button>
@@ -251,13 +252,13 @@ function MarketplaceOrderTicket({
         </div>
       </div>
 
-      {/* Segmented Pill Toggle: Delivery | Dine in | Takeaway */}
+      {/* Segmented Pill Toggle: Delivery | In-Store | Pickup */}
       <div className="mt-3.5 grid grid-cols-3 rounded-full border border-white/15 bg-[#2e2e33] p-1 text-xs">
         {(
           [
             ["delivery", "Delivery"],
-            ["dine_in", "Dine in"],
-            ["takeaway", "Takeaway"],
+            ["dine_in", "In-Store"],
+            ["takeaway", "Pickup"],
           ] as const
         ).map(([key, label]) => {
           const active = mode === key;
@@ -269,7 +270,7 @@ function MarketplaceOrderTicket({
               className={cn(
                 "h-8 rounded-full font-semibold transition-all cursor-pointer",
                 active
-                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  ? "bg-[#4CAF50] text-white shadow-sm"
                   : "text-white/75 hover:text-white",
               )}
             >
@@ -320,7 +321,7 @@ function MarketplaceOrderTicket({
               key={item.productId}
               className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 last:border-b-0"
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] to-[#2e2a28] text-sm font-bold text-white shadow">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#38383f] to-[#222226] text-xs font-bold text-white shadow">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/public/products/${item.productId}/image`}
@@ -367,7 +368,7 @@ function MarketplaceOrderTicket({
                 type="button"
                 onClick={() => setShowQr((v) => !v)}
                 title="Show Express Pickup QR"
-                className="flex h-7 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-[#18181b] shadow transition-colors hover:bg-[#ef4b42] hover:text-white cursor-pointer"
+                className="flex h-7 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-[#18181b] shadow transition-colors hover:bg-[#4CAF50] hover:text-white cursor-pointer"
               >
                 ✎
               </button>
@@ -578,7 +579,6 @@ export function GuestStorefront() {
     [catalog],
   );
   const products = React.useMemo(() => catalog?.products ?? [], [catalog]);
-  const emojis = ["🍔", "🍕", "🍣", "🥗", "🥤", "🥐", "🍰", "🥩", "🧀", "🧴"];
 
   // Build live Order Reports rows from active basket + top catalog products
   const orderReportRows = React.useMemo(() => {
@@ -624,16 +624,16 @@ export function GuestStorefront() {
       <div className="mx-auto flex min-h-dvh max-w-[1600px]">
         {/* LEFT: Iconic Curved-Rail Marketplace Sidebar */}
         <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.06] bg-[#252528] lg:flex">
-          {/* Fiery Emblem Header */}
+          {/* Supermarket Emblem Header */}
           <div className="flex h-24 items-center gap-3 px-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_8px_20px_rgba(239,75,66,0.45)]">
-              <FlameIcon />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#4CAF50] text-white shadow-[0_8px_20px_rgba(76,175,80,0.4)]">
+              <SupermarketLogoIcon className="h-6 w-6" />
             </div>
             <div>
               <span className="block font-display text-lg font-extrabold tracking-tight text-white">
                 Marketplace
               </span>
-              <span className="block text-[11px] font-medium text-[#ef4b42]">
+              <span className="block text-[11px] font-medium text-[#4CAF50]">
                 Fresh &amp; 3D Store
               </span>
             </div>
@@ -724,21 +724,21 @@ export function GuestStorefront() {
                         className={cn(
                           "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                           active
-                            ? "bg-[#252528] text-[#ef4b42] shadow-md"
+                            ? "bg-[#252528] text-[#4CAF50] shadow-md"
                             : "text-white/90 group-hover:bg-white/10",
                         )}
                       >
                         {item.icon}
                       </span>
                       {active && (
-                        <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#ef4b42] ring-2 ring-[#252528]" />
+                        <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#4CAF50] ring-2 ring-[#252528]" />
                       )}
                     </span>
                     <span
                       className={cn(
                         "ml-4 truncate",
                         active
-                          ? "font-bold text-[#ef4b42]"
+                          ? "font-bold text-[#4CAF50]"
                           : "text-[#a1a1aa] group-hover:text-white",
                       )}
                     >
@@ -771,21 +771,21 @@ export function GuestStorefront() {
             </nav>
           </div>
 
-          {/* Bottom Circular Bronze Buttons matching reference */}
+          {/* Bottom Circular Utility Buttons matching reference */}
           <div className="flex items-center gap-3 px-6 py-5">
             <Link
               href={portalUrl}
               title="Settings & Portal"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
             >
-              ⚙
+              <SettingsIcon className="h-4.5 w-4.5" />
             </Link>
             <Link
               href="/store-3d"
               title="Full-Screen 3D Store"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
             >
-              🔔
+              <BellIcon className="h-4.5 w-4.5" />
             </Link>
           </div>
         </aside>
@@ -800,7 +800,7 @@ export function GuestStorefront() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search Marketplace products, categories, cuisine, or dish…"
+                  placeholder="Search Marketplace products, categories, or shelf aisle…"
                   aria-label="Search Marketplace products"
                   className="h-11 w-full rounded-full border-white/10 bg-[#141416] pr-12 pl-5 text-sm text-white placeholder:text-[#71717a]"
                 />
@@ -866,7 +866,7 @@ export function GuestStorefront() {
                     Categories
                   </h2>
                   <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#ef4b42]">
+                    <span className="font-semibold text-[#4CAF50]">
                       {Math.max(10, categories.length)}+ New
                     </span>{" "}
                     Categories added this week
@@ -875,10 +875,10 @@ export function GuestStorefront() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("")}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42] cursor-pointer"
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50] cursor-pointer"
                 >
                   <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
                     ›
                   </span>
                 </button>
@@ -892,19 +892,19 @@ export function GuestStorefront() {
                 >
                   <span
                     className={cn(
-                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                       selectedCategory === ""
-                        ? "ring-2 ring-[#ef4b42] scale-105"
+                        ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                         : "opacity-85 hover:opacity-100 hover:scale-105",
                     )}
                   >
-                    🍔
+                    <SupermarketGridIcon className="h-6 w-6" />
                   </span>
                   <span
                     className={cn(
                       "text-[11px] font-semibold",
                       selectedCategory === ""
-                        ? "text-[#ef4b42]"
+                        ? "text-[#4CAF50]"
                         : "text-[#d4d4d8]",
                     )}
                   >
@@ -924,18 +924,18 @@ export function GuestStorefront() {
                     >
                       <span
                         className={cn(
-                          "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                          "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
                           active
-                            ? "ring-2 ring-[#ef4b42] scale-105"
+                            ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
                             : "opacity-85 hover:opacity-100 hover:scale-105",
                         )}
                       >
-                        {emojis[(idx + 1) % emojis.length]}
+                        <SupermarketCategoryIcon index={idx} className="h-6 w-6" />
                       </span>
                       <span
                         className={cn(
                           "max-w-[82px] truncate text-[11px] font-semibold",
-                          active ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                          active ? "text-[#4CAF50]" : "text-[#d4d4d8]",
                         )}
                       >
                         {cat.name}
@@ -946,7 +946,7 @@ export function GuestStorefront() {
               </div>
             </section>
 
-            {/* POPULAR PRODUCTS SECTION matching reference ("Popular Dishes") */}
+            {/* POPULAR PRODUCTS SECTION matching reference */}
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -954,7 +954,7 @@ export function GuestStorefront() {
                     Popular Products
                   </h2>
                   <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#ef4b42]">
+                    <span className="font-semibold text-[#4CAF50]">
                       {Math.max(20, products.length)}+ New
                     </span>{" "}
                     products added this week
@@ -963,17 +963,17 @@ export function GuestStorefront() {
                 <button
                   type="button"
                   onClick={() => setShow3D(true)}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42] cursor-pointer"
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50] cursor-pointer"
                 >
                   <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
                     ›
                   </span>
                 </button>
               </div>
 
               {error && (
-                <div className="rounded-2xl border border-danger/30 bg-danger/15 px-4 py-3 text-xs text-[#ff7b72]">
+                <div className="rounded-2xl border border-danger/30 bg-danger/15 px-4 py-3 text-xs text-danger">
                   {error}
                 </div>
               )}
@@ -1009,7 +1009,7 @@ export function GuestStorefront() {
                     return (
                       <article
                         key={product.id}
-                        className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-18 pb-4 text-center shadow-[0_18px_36px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-[#ef4b42]/40"
+                        className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-18 pb-4 text-center shadow-[0_18px_36px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-[#4CAF50]/40"
                       >
                         {/* Floating Pop-Out Top Product Image */}
                         <div className="absolute -top-11 left-1/2 flex h-26 w-26 -translate-x-1/2 items-center justify-center">
@@ -1021,8 +1021,11 @@ export function GuestStorefront() {
                               className="max-h-26 max-w-26 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
                             />
                           ) : (
-                            <div className="flex h-22 w-22 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#624f42] via-[#483b34] to-[#2b2624] text-3xl shadow-[0_14px_24px_rgba(0,0,0,0.65)]">
-                              {emojis[idx % emojis.length]}
+                            <div className="flex h-22 w-22 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-[0_14px_24px_rgba(0,0,0,0.65)]">
+                              <PhotoPlaceholderIcon className="h-6 w-6 text-[#4CAF50]" />
+                              <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
+                                {product.name.slice(0, 2).toUpperCase()}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -1032,13 +1035,13 @@ export function GuestStorefront() {
                           <button
                             type="button"
                             onClick={() => handleViewOnShelf(product.id)}
-                            className="absolute top-3 right-3 rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[10px] font-semibold text-[#ff9b95] hover:bg-[#ef4b42] hover:text-white cursor-pointer"
+                            className="absolute top-3 right-3 rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[10px] font-semibold text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white cursor-pointer"
                           >
                             3D Shelf
                           </button>
                         )}
 
-                        <h3 className="line-clamp-1 font-display text-base font-bold text-white group-hover:text-[#ef4b42]">
+                        <h3 className="line-clamp-1 font-display text-base font-bold text-white group-hover:text-[#4CAF50]">
                           {product.name}
                         </h3>
                         <p className="mt-0.5 text-[11px] font-medium text-[#71717a]">
@@ -1061,7 +1064,7 @@ export function GuestStorefront() {
                                     product.availableQuantity,
                                   )
                                 }
-                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#38383f] text-xs font-bold text-white hover:bg-[#ef4b42] cursor-pointer"
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#38383f] text-xs font-bold text-white hover:bg-[#4CAF50] cursor-pointer"
                               >
                                 −
                               </button>
@@ -1080,7 +1083,7 @@ export function GuestStorefront() {
                                       product.category?.name ?? null,
                                   })
                                 }
-                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ef4b42] text-xs font-bold text-white hover:bg-[#dc3a31] cursor-pointer"
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4CAF50] text-xs font-bold text-white hover:bg-[#43A047] cursor-pointer"
                               >
                                 +
                               </button>
@@ -1107,7 +1110,7 @@ export function GuestStorefront() {
                         {/* Bottom Footer Row matching reference: Star rating left, Total Sale right */}
                         <div className="mt-3.5 flex items-end justify-between border-t border-white/[0.06] pt-2.5 text-xs">
                           <div className="flex items-center gap-1 font-bold text-white">
-                            <span className="text-sm text-[#facc15]">★</span>
+                            <span className="text-sm text-[#4CAF50]">★</span>
                             <span>{rating}</span>
                           </div>
                           <div className="text-right leading-tight">
@@ -1134,7 +1137,7 @@ export function GuestStorefront() {
                     Order Reports
                   </h2>
                   <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#ef4b42]">
+                    <span className="font-semibold text-[#4CAF50]">
                       Wow!! 100+ New
                     </span>{" "}
                     order got this week
@@ -1142,10 +1145,10 @@ export function GuestStorefront() {
                 </div>
                 <Link
                   href={portalUrl}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42]"
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50]"
                 >
                   <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
                     ›
                   </span>
                 </Link>
@@ -1176,7 +1179,7 @@ export function GuestStorefront() {
                     {orderReportRows.map((row, idx) => {
                       const avatarBg =
                         idx % 2 === 0
-                          ? "bg-[#facc15] text-[#18181b]"
+                          ? "bg-[#4CAF50] text-white"
                           : "bg-[#38bdf8] text-[#0f172a]";
                       return (
                         <tr
@@ -1214,8 +1217,8 @@ export function GuestStorefront() {
                               className={cn(
                                 "inline-flex items-center justify-center rounded-full px-3.5 py-1 text-[11px] font-semibold text-white shadow-sm",
                                 row.completed
-                                  ? "bg-[#3fb950]"
-                                  : "bg-[#d99b43]",
+                                  ? "bg-[#4CAF50]"
+                                  : "bg-[#4CAF50]/70",
                               )}
                             >
                               {row.completed ? "Completed" : "Pending"}
@@ -1258,10 +1261,132 @@ export function GuestStorefront() {
   );
 }
 
-function FlameIcon() {
+function SupermarketLogoIcon({ className }: { className?: string }) {
   return (
-    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12.83 2.15c.39-.28.93.02.9.5-.12 1.84.88 3.24 2.16 4.54 1.56 1.59 3.11 3.33 3.11 6.06A7 7 0 0 1 12 20.25a7 7 0 0 1-7-7c0-2.55 1.38-4.78 2.95-6.25.4-.37 1.04-.04.98.5-.12 1.07.31 1.98.96 2.5.24.19.6.03.61-.28.05-2.88 1.56-5.68 3.33-7.57Zm-.85 10.6c-.98.95-1.73 2.04-1.73 3.25a2.25 2.25 0 0 0 4.5 0c0-1.36-.85-2.4-1.89-3.28a.62.62 0 0 0-.88.03Z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function SupermarketGridIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function SupermarketCategoryIcon({ index, className }: { index: number; className?: string }) {
+  const variant = index % 6;
+  if (variant === 0) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    );
+  }
+  if (variant === 1) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    );
+  }
+  if (variant === 2) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    );
+  }
+  if (variant === 3) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 4v16M20 4v16M4 8h16M4 14h16M4 20h16" />
+      </svg>
+    );
+  }
+  if (variant === 4) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+      <path d="M3 7l9 5 9-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
+}
+
+function PhotoPlaceholderIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </svg>
+  );
+}
+
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function CartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </svg>
+  );
+}
+
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
     </svg>
   );
 }
