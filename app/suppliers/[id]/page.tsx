@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isManagerRole, portalHref } from "@/lib/auth/roles";
 import { fetchSupplierDetail, updateSupplier } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { SupplierDetail } from "@/types/api";
@@ -32,6 +32,8 @@ export default function SupplierDetailPage({
   const { id } = use(params);
   const { user } = useAuth();
   const canEdit = isManagerRole(user?.role);
+  const suppliersHref = portalHref(user?.role, "/suppliers");
+  const goodsReceivedHref = portalHref(user?.role, "/goods-received");
 
   const [supplier, setSupplier] = useState<SupplierDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ export default function SupplierDetailPage({
           description={error ?? "Unable to load supplier."}
           action={
             <Link
-              href="/suppliers"
+              href={suppliersHref}
               className="inline-flex h-10 items-center rounded bg-primary-hover px-4 text-sm font-medium text-white"
             >
               Back to Suppliers
@@ -129,7 +131,7 @@ export default function SupplierDetailPage({
       <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
-            href="/suppliers"
+            href={suppliersHref}
             className="text-xs font-medium text-muted hover:text-foreground hover:underline"
           >
             ← All suppliers
@@ -151,7 +153,7 @@ export default function SupplierDetailPage({
             {formatDate(supplier.createdAt)}
           </p>
         </div>
-        <Link href="/goods-received">
+        <Link href={goodsReceivedHref}>
           <Button size="sm">Receive Stock (GRN)</Button>
         </Link>
       </div>

@@ -416,7 +416,7 @@ export default function WarehousePage() {
           ) : filteredLocations.length === 0 ? (
             <p className="p-6 text-sm text-muted">
               No warehouse locations found yet. Open the{" "}
-              <Link href="/digital-twin" className="font-semibold text-teal-700 underline">
+              <Link href={href("/digital-twin")} className="font-semibold text-teal-700 underline">
                 3D Digital Twin
               </Link>{" "}
               and click Initialize 3D Store to populate Zones A–D.

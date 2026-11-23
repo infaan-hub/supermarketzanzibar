@@ -25,9 +25,11 @@ import {
 import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import { VisualItemCameraCounter } from "@/components/visual-item-camera-counter";
 import { BatchesAndAdjustments } from "@/components/stock/batches-and-adjustments";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useCategories } from "@/hooks/useCategories";
 import { useStock } from "@/hooks/useStock";
 import { adjustStockByBarcode, createProduct } from "@/lib/api";
+import { portalHref } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
 type MovementMode = "IN" | "OUT";
@@ -80,6 +82,7 @@ function Feedback({
 }
 
 export default function StockPage() {
+  const { user } = useAuth();
   const { data, loading, refreshing, error, refresh } = useStock();
   const { data: categoriesData } = useCategories();
 
@@ -242,7 +245,7 @@ export default function StockPage() {
             <Badge variant={lowCount ? "warning" : "success"}>
               {lowCount} low stock
             </Badge>
-            <Link href="/stock/movements">
+            <Link href={portalHref(user?.role, "/stock/movements")}>
               <Button size="sm" variant="secondary">
                 Stock History →
               </Button>

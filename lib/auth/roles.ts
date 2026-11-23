@@ -6,10 +6,10 @@
 //   `/login`, `/register`, `/unauthorized`.
 // - Admin (`admin`): ALL management pages live under `/admin/*`, including user
 //   registration for `manager`, `marketmaster`, and other roles.
-// - Manager (`manager`): manages all operational activities — inventory, stock,
-//   products, receiving goods, supplier orders, shelves, warehouse, POS, reports.
-// - MarketMaster (`marketmaster`): manages POS (checkout, sales, payments,
-//   customers) and all products (catalogue, categories, barcodes).
+// - Manager (`manager`): ALL manager pages live under `/manager/*` — inventory,
+//   stock, products, receiving goods, supplier orders, shelves, warehouse, POS, reports.
+// - MarketMaster (`marketmaster`): ALL MarketMaster pages live under `/market/*` —
+//   POS (checkout, sales, payments, customers) and all products (catalogue, categories, barcodes).
 // - Viewer (`viewer`): read-only exploration of overview, 3D store & warehouse.
 // - Supplier (`supplier`): dedicated self-service portal under `/supplier/*`.
 
@@ -25,6 +25,7 @@ export const ALL_ROLES = [
 export type AppRole = (typeof ALL_ROLES)[number];
 
 export const ADMIN_ROLES: readonly string[] = ["admin"];
+export const MANAGER_PORTAL_ROLES: readonly string[] = ["manager"];
 export const MARKET_ROLES: readonly string[] = ["marketmaster"];
 export const MANAGER_ROLES: readonly string[] = ["admin", "manager"];
 export const INVENTORY_ROLES: readonly string[] = [
@@ -86,6 +87,10 @@ export function isAdminRole(role: string | null | undefined): boolean {
 
 export function isMarketMasterRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === "marketmaster";
+}
+
+export function isManagerOnlyRole(role: string | null | undefined): boolean {
+  return normalizeRole(role) === "manager";
 }
 
 export function isManagerRole(role: string | null | undefined): boolean {
@@ -150,6 +155,7 @@ export function isAuthUtilityPath(pathname: string): boolean {
 export function defaultHomeForRole(role: string | null | undefined): string {
   const normalized = normalizeRole(role);
   if (normalized === "admin") return "/admin";
+  if (normalized === "manager") return "/manager";
   if (normalized === "marketmaster") return "/market";
   if (normalized === "supplier") return "/supplier";
   if (EXPLORE_ROLES.includes(normalized)) return "/dashboard";
@@ -159,6 +165,7 @@ export function defaultHomeForRole(role: string | null | undefined): string {
 /**
  * Rewrite an operational route path into the active role's portal namespace.
  * - `admin`: `/dashboard` -> `/admin`, `/pos` -> `/admin/pos`, `/users` -> `/admin/users`
+ * - `manager`: `/dashboard` -> `/manager`, `/stock` -> `/manager/stock`, `/products` -> `/manager/products`
  * - `marketmaster`: `/dashboard` -> `/market`, `/products` -> `/market/products`, `/pos` -> `/market/pos`
  * - other roles: keep root operational routes as-is (e.g. `/dashboard`, `/pos`, `/supplier`)
  */
@@ -176,8 +183,12 @@ export function portalHref(
     path.startsWith("/unauthorized") ||
     path === "/admin" ||
     path.startsWith("/admin/") ||
+    path === "/manager" ||
+    path.startsWith("/manager/") ||
     path === "/market" ||
-    path.startsWith("/market/")
+    path.startsWith("/market/") ||
+    path === "/supplier" ||
+    path.startsWith("/supplier/")
   ) {
     return path;
   }
@@ -188,6 +199,14 @@ export function portalHref(
       return `/admin${path.slice("/dashboard".length)}`;
     }
     return `/admin${path}`;
+  }
+
+  if (isManagerOnlyRole(role)) {
+    if (path === "/dashboard") return "/manager";
+    if (path.startsWith("/dashboard?")) {
+      return `/manager${path.slice("/dashboard".length)}`;
+    }
+    return `/manager${path}`;
   }
 
   if (isMarketMasterRole(role)) {
@@ -206,7 +225,7 @@ export function portalHref(
  * `/dashboard`, `/pos`, `/users`, `/settings`, `/digital-twin`), return its
  * canonical `/admin/...` path so all Admin pages consistently start with `/admin/`.
  * Returns `null` when no redirect is needed (e.g. public storefront `/` or `/store-3d`,
- * `/supplier*`, `/market*`, or already under `/admin`).
+ * `/supplier*`, `/manager*`, `/market*`, or already under `/admin`).
  */
 export function adminCanonicalRedirect(pathname: string): string | null {
   if (
@@ -215,6 +234,8 @@ export function adminCanonicalRedirect(pathname: string): string | null {
     pathname.startsWith("/store-3d/") ||
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/") ||
     pathname === "/market" ||
     pathname.startsWith("/market/") ||
     pathname === "/supplier" ||
@@ -227,6 +248,40 @@ export function adminCanonicalRedirect(pathname: string): string | null {
     return "/admin";
   }
   return `/admin${pathname}`;
+}
+
+/**
+ * If a Manager visits an allowed non-`/manager/*` operational route (like
+ * `/dashboard`, `/products`, `/stock`, `/shelves`, `/warehouse`, `/suppliers`,
+ * `/purchase-orders`, `/goods-received`, `/pos`, `/reports`, `/profile`),
+ * return its canonical `/manager/...` path so all Manager pages consistently
+ * live under `/manager/*`. Returns `null` when already under `/manager`, on
+ * public storefront routes, on `/supplier/*`, or on paths Manager cannot access.
+ */
+export function managerCanonicalRedirect(pathname: string): string | null {
+  if (
+    pathname === "/" ||
+    pathname === "/store-3d" ||
+    pathname.startsWith("/store-3d/") ||
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/market" ||
+    pathname.startsWith("/market/") ||
+    pathname === "/supplier" ||
+    pathname.startsWith("/supplier/") ||
+    isAuthUtilityPath(pathname)
+  ) {
+    return null;
+  }
+  if (!canAccessPath("manager", pathname)) {
+    return null;
+  }
+  if (pathname === "/dashboard" || pathname === "/dashboard/") {
+    return "/manager";
+  }
+  return `/manager${pathname}`;
 }
 
 /**
@@ -243,6 +298,8 @@ export function marketCanonicalRedirect(pathname: string): string | null {
     pathname.startsWith("/store-3d/") ||
     pathname === "/market" ||
     pathname.startsWith("/market/") ||
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/") ||
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
     pathname === "/supplier" ||
@@ -269,6 +326,11 @@ export function requiredRolesForPath(
   // All `/admin` & `/admin/*` pages belong exclusively to administrators.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return ADMIN_ROLES;
+  }
+
+  // All `/manager` & `/manager/*` pages belong exclusively to Manager.
+  if (pathname === "/manager" || pathname.startsWith("/manager/")) {
+    return MANAGER_PORTAL_ROLES;
   }
 
   // All `/market` & `/market/*` pages belong exclusively to MarketMaster.

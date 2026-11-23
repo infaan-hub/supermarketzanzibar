@@ -13,8 +13,10 @@ import {
   adminCanonicalRedirect,
   canAccessPath,
   isAdminRole,
+  isManagerOnlyRole,
   isMarketMasterRole,
   isPublicPath,
+  managerCanonicalRedirect,
   marketCanonicalRedirect,
 } from "@/lib/auth/roles";
 import {
@@ -107,6 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Keep all Manager pages strictly under `/manager/*` (preserving query params).
+    if (isManagerOnlyRole(user.role)) {
+      const managerTarget = managerCanonicalRedirect(pathname);
+      if (managerTarget) {
+        const search =
+          typeof window !== "undefined" ? window.location.search : "";
+        router.replace(`${managerTarget}${search}`);
+        return;
+      }
+    }
+
     // Keep all MarketMaster pages strictly under `/market/*` (preserving query params).
     if (isMarketMasterRole(user.role)) {
       const marketTarget = marketCanonicalRedirect(pathname);
@@ -164,6 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       !user ||
       !canAccessPath(user.role, pathname) ||
       (isAdminRole(user.role) && adminCanonicalRedirect(pathname) !== null) ||
+      (isManagerOnlyRole(user.role) &&
+        managerCanonicalRedirect(pathname) !== null) ||
       (isMarketMasterRole(user.role) &&
         marketCanonicalRedirect(pathname) !== null));
 

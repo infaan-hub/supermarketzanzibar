@@ -132,7 +132,7 @@ export default function DepartmentsPage() {
           <CardContent className="p-6 text-center">
             <p className="text-sm text-muted">
               No departments initialized yet. Launch the{" "}
-              <Link href="/digital-twin" className="font-semibold text-teal-700 underline">
+              <Link href={href("/digital-twin")} className="font-semibold text-teal-700 underline">
                 3D Digital Twin
               </Link>{" "}
               to initialize all 10 retail departments automatically.

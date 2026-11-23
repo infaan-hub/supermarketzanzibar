@@ -23,7 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/components/auth/auth-provider";
 import { fetchStockMovements } from "@/lib/api";
+import { portalHref } from "@/lib/auth/roles";
 import { formatBusinessDateTime } from "@/lib/format";
 import type { StockMovementRow, StockMovementsResponse } from "@/types/api";
 
@@ -55,6 +57,7 @@ function exportCsv(rows: StockMovementRow[]) {
 }
 
 function StockMovementsContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const initialProductId = searchParams.get("productId") ?? "";
 
@@ -104,7 +107,7 @@ function StockMovementsContent() {
         description="Chronological record of goods receipts, warehouse transfers, adjustments, and POS sales."
         actions={
           <>
-            <Link href="/stock">
+            <Link href={portalHref(user?.role, "/stock")}>
               <Button size="sm" variant="secondary">
                 ← Stock &amp; Counting
               </Button>

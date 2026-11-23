@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isManagerRole } from "@/lib/auth/roles";
+import { isManagerRole, portalHref } from "@/lib/auth/roles";
 import { createSupplier } from "@/lib/api";
 
 export default function SuppliersPage() {
@@ -202,7 +202,7 @@ export default function SuppliersPage() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/suppliers/${s.id}`}
+                      href={portalHref(user?.role, `/suppliers/${s.id}`)}
                       className="text-primary hover:underline"
                     >
                       {s.companyName}
@@ -227,7 +227,7 @@ export default function SuppliersPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/suppliers/${s.id}`}
+                      href={portalHref(user?.role, `/suppliers/${s.id}`)}
                       className="text-xs font-medium text-primary hover:underline"
                     >
                       View →

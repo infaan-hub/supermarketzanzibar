@@ -29,10 +29,10 @@ function LoginForm() {
     rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
 
   function resolveLanding(role: string): string {
-    if (safeNext) {
+    if (safeNext && canAccessPath(role, safeNext)) {
       const rolePath = portalHref(role, safeNext);
       if (canAccessPath(role, rolePath)) return rolePath;
-      if (canAccessPath(role, safeNext)) return safeNext;
+      return safeNext;
     }
     return defaultHomeForRole(role);
   }

@@ -7,12 +7,14 @@ import {
   isAdminRole,
   isExplorerRole,
   isInventoryRole,
+  isManagerOnlyRole,
   isManagerRole,
   isMarketMasterRole,
   isPosRole,
   isProductRole,
   isPublicPath,
   isStaffRole,
+  managerCanonicalRedirect,
   marketCanonicalRedirect,
   portalHref,
   roleDescription,
@@ -153,8 +155,8 @@ describe("RBAC path and role guards", () => {
 
   it("routes each role to its proper portal namespace and default landing page", () => {
     expect(defaultHomeForRole("admin")).toBe("/admin");
+    expect(defaultHomeForRole("manager")).toBe("/manager");
     expect(defaultHomeForRole("marketmaster")).toBe("/market");
-    expect(defaultHomeForRole("manager")).toBe("/dashboard");
     expect(defaultHomeForRole("supplier")).toBe("/supplier");
     expect(defaultHomeForRole("customer")).toBe("/");
 
@@ -164,6 +166,20 @@ describe("RBAC path and role guards", () => {
       "/admin/digital-twin?dept=BEV",
     );
     expect(portalHref("admin", "/")).toBe("/");
+
+    expect(portalHref("manager", "/dashboard")).toBe("/manager");
+    expect(portalHref("manager", "/stock")).toBe("/manager/stock");
+    expect(portalHref("manager", "/products")).toBe("/manager/products");
+    expect(portalHref("manager", "/suppliers")).toBe("/manager/suppliers");
+    expect(portalHref("manager", "/purchase-orders")).toBe(
+      "/manager/purchase-orders",
+    );
+    expect(portalHref("manager", "/goods-received")).toBe(
+      "/manager/goods-received",
+    );
+    expect(portalHref("manager", "/manager/stock")).toBe("/manager/stock");
+    expect(portalHref("manager", "/supplier")).toBe("/supplier");
+    expect(portalHref("manager", "/")).toBe("/");
 
     expect(portalHref("marketmaster", "/dashboard")).toBe("/market");
     expect(portalHref("marketmaster", "/products")).toBe("/market/products");
@@ -177,19 +193,51 @@ describe("RBAC path and role guards", () => {
     expect(adminCanonicalRedirect("/users")).toBe("/admin/users");
     expect(adminCanonicalRedirect("/pos")).toBe("/admin/pos");
     expect(adminCanonicalRedirect("/admin/users")).toBe(null);
+    expect(adminCanonicalRedirect("/manager/stock")).toBe(null);
     expect(adminCanonicalRedirect("/market/products")).toBe(null);
     expect(adminCanonicalRedirect("/")).toBe(null);
     expect(adminCanonicalRedirect("/store-3d")).toBe(null);
+
+    expect(managerCanonicalRedirect("/dashboard")).toBe("/manager");
+    expect(managerCanonicalRedirect("/stock")).toBe("/manager/stock");
+    expect(managerCanonicalRedirect("/products/42")).toBe("/manager/products/42");
+    expect(managerCanonicalRedirect("/suppliers")).toBe("/manager/suppliers");
+    expect(managerCanonicalRedirect("/purchase-orders")).toBe(
+      "/manager/purchase-orders",
+    );
+    expect(managerCanonicalRedirect("/goods-received")).toBe(
+      "/manager/goods-received",
+    );
+    expect(managerCanonicalRedirect("/manager/stock")).toBe(null);
+    expect(managerCanonicalRedirect("/admin/users")).toBe(null);
+    expect(managerCanonicalRedirect("/market/products")).toBe(null);
+    expect(managerCanonicalRedirect("/users")).toBe(null);
+    expect(managerCanonicalRedirect("/settings")).toBe(null);
+    expect(managerCanonicalRedirect("/supplier")).toBe(null);
+    expect(managerCanonicalRedirect("/")).toBe(null);
 
     expect(marketCanonicalRedirect("/dashboard")).toBe("/market");
     expect(marketCanonicalRedirect("/products")).toBe("/market/products");
     expect(marketCanonicalRedirect("/products/42")).toBe("/market/products/42");
     expect(marketCanonicalRedirect("/pos")).toBe("/market/pos");
     expect(marketCanonicalRedirect("/market/products")).toBe(null);
+    expect(marketCanonicalRedirect("/manager/stock")).toBe(null);
     expect(marketCanonicalRedirect("/admin/users")).toBe(null);
     expect(marketCanonicalRedirect("/users")).toBe(null);
     expect(marketCanonicalRedirect("/purchase-orders")).toBe(null);
     expect(marketCanonicalRedirect("/")).toBe(null);
+
+    // `/manager` and `/manager/*` are specialized strictly for Manager.
+    expect(canAccessPath("manager", "/manager")).toBe(true);
+    expect(canAccessPath("manager", "/manager/stock")).toBe(true);
+    expect(canAccessPath("manager", "/manager/products")).toBe(true);
+    expect(canAccessPath("manager", "/manager/purchase-orders")).toBe(true);
+    expect(canAccessPath("manager", "/manager/goods-received")).toBe(true);
+    expect(canAccessPath("admin", "/manager")).toBe(false);
+    expect(canAccessPath("admin", "/manager/stock")).toBe(false);
+    expect(canAccessPath("marketmaster", "/manager")).toBe(false);
+    expect(canAccessPath("marketmaster", "/manager/products")).toBe(false);
+    expect(canAccessPath("customer", "/manager")).toBe(false);
 
     // `/market` and `/market/*` are specialized strictly for MarketMaster.
     expect(canAccessPath("marketmaster", "/market")).toBe(true);
@@ -210,6 +258,9 @@ describe("RBAC path and role guards", () => {
 
   it("normalizes role helpers case-insensitively", () => {
     expect(isAdminRole("ADMIN")).toBe(true);
+    expect(isManagerOnlyRole("Manager")).toBe(true);
+    expect(isManagerOnlyRole("admin")).toBe(false);
+    expect(isManagerOnlyRole("marketmaster")).toBe(false);
     expect(isMarketMasterRole("MarketMaster")).toBe(true);
     expect(roleLabel("marketmaster")).toBe("MarketMaster");
     expect(roleLabel("manager")).toBe("Manager");

@@ -105,6 +105,7 @@ function isActive(item: NavItem, pathname: string) {
     item.exact ||
     item.href === "/" ||
     item.href === "/admin" ||
+    item.href === "/manager" ||
     item.href === "/market"
   ) {
     return pathname === item.href;
