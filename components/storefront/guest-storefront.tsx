@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -17,6 +16,7 @@ import { fetchPublicCatalog, fetchPublicDigitalTwin } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { encodePickupCode } from "@/lib/storefront/pickup-code";
 import { Interactive3DStorefront } from "@/components/storefront/interactive-3d-storefront";
+import { cn } from "@/lib/utils";
 import type { PublicCatalogProduct, PublicCatalogResponse } from "@/types/api";
 import type { DigitalTwinSnapshot } from "@/types/digital-twin";
 
@@ -33,36 +33,43 @@ export function StorefrontHeader({
   const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white">
-      <div className="mx-auto flex h-14 max-w-[1360px] items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#1c1c1e]/95 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-semibold text-white">
-              SZ
+          <Link href="/" className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_6px_16px_rgba(239,75,66,0.45)]">
+              <FlameIcon />
             </span>
-            <span className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]">
-              Supermarket Zanzibar
-            </span>
+            <div>
+              <span className="block font-display text-base font-extrabold tracking-tight text-white">
+                Marketplace
+              </span>
+              <span className="block text-[10px] font-medium text-[#ef4b42]">
+                Live 3D &amp; Express Order
+              </span>
+            </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Storefront">
+          <nav className="hidden items-center gap-1.5 md:flex" aria-label="Marketplace">
             <Link
               href="/"
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={cn(
+                "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
                 activePage === "shop"
-                  ? "bg-primary-soft text-primary font-semibold"
-                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
-              }`}
+                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  : "text-muted hover:bg-white/[0.06] hover:text-white",
+              )}
             >
-              Shop
+              Dashboard
             </Link>
             <Link
               href="/store-3d"
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={cn(
+                "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
                 activePage === "3d"
-                  ? "bg-primary-soft text-primary font-semibold"
-                  : "text-muted hover:bg-surface-subtle hover:text-foreground"
-              }`}
+                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  : "text-muted hover:bg-white/[0.06] hover:text-white",
+              )}
             >
               3D Store
             </Link>
@@ -75,11 +82,11 @@ export function StorefrontHeader({
               size="sm"
               variant="secondary"
               onClick={onOpenCart}
-              aria-label="Open shopping basket"
+              aria-label="Open shopping cart"
             >
-              <span>Basket</span>
+              <span>🛒 Cart</span>
               {cartCount > 0 && (
-                <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+                <span className="rounded-full bg-[#ef4b42] px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
                   {cartCount}
                 </span>
               )}
@@ -88,7 +95,7 @@ export function StorefrontHeader({
 
           {isAuthenticated && user ? (
             <Link href={portalUrl}>
-              <Button size="sm">{roleLabel(user.role)}</Button>
+              <Button size="sm">{roleLabel(user.role)} Portal</Button>
             </Link>
           ) : (
             <>
@@ -125,6 +132,47 @@ export function GuestBasketDrawer({
   onAdjustItem: (productId: string, delta: number) => void;
   onClear: () => void;
 }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/65 backdrop-blur-sm">
+      <div className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-[#252528] p-4 shadow-2xl">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="font-display text-sm font-bold text-white">
+            Marketplace Order Ticket ({count})
+          </span>
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Close ✕
+          </Button>
+        </div>
+        <MarketplaceOrderTicket
+          cart={cart}
+          count={count}
+          subtotal={subtotal}
+          onAdjustItem={onAdjustItem}
+          onClear={onClear}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MarketplaceOrderTicket({
+  cart,
+  count,
+  subtotal,
+  onAdjustItem,
+  onClear,
+}: {
+  cart: GuestCartItem[];
+  count: number;
+  subtotal: number;
+  onAdjustItem: (productId: string, delta: number) => void;
+  onClear: () => void;
+}) {
+  const [mode, setMode] = React.useState<"delivery" | "dine_in" | "takeaway">(
+    "delivery",
+  );
   const [showQr, setShowQr] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
@@ -143,7 +191,8 @@ export function GuestBasketDrawer({
     if (cart.length === 0) setShowQr(false);
   }, [cart.length]);
 
-  if (!open) return null;
+  const deliveryFee = cart.length > 0 && mode === "delivery" ? 1500 : 0;
+  const grandTotal = subtotal + deliveryFee;
 
   const handleCopyCode = () => {
     if (!pickupCode || typeof navigator === "undefined") return;
@@ -157,140 +206,244 @@ export function GuestBasketDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
-      <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-[var(--shadow-popover)]">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Shopping basket ({count})
-            </h2>
-            <p className="text-xs text-muted">
-              Saved on this device · Ready for Express POS Pickup
-            </p>
-          </div>
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+    <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#3c3c42] p-5 text-white shadow-[0_24px_48px_-12px_rgba(0,0,0,0.75)]">
+      {/* Top Delivery Address Card matching reference */}
+      <div className="rounded-2xl bg-[#54545c] p-4 shadow-inner">
+        <p className="font-display text-xs font-bold tracking-wider uppercase text-white">
+          DELIVERY ADDRESS
+        </p>
+        <p className="mt-2 flex items-center gap-2 text-xs text-white/95">
+          <span>📍</span>
+          <span className="truncate">
+            Po. 1478, Street No. 52, Stone Town, Zanzibar
+          </span>
+        </p>
+        <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/80">
+          <span>🕒</span>
+          <span>20 min</span>
+        </p>
+      </div>
 
-        <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
-          {cart.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <p className="text-sm font-medium text-foreground">
-                Your basket is empty
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                Pick items directly off any 3D shelf or from the catalog below.
-              </p>
-            </div>
-          ) : (
-            <>
-              {showQr && pickupCode && (
-                <div className="mb-3 rounded-lg border border-border bg-surface-subtle p-4 text-center">
-                  <p className="text-xs font-semibold text-foreground">
-                    Express Store Pickup QR
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted">
-                    Show this code to store staff at checkout to scan your entire
-                    basket straight into POS.
-                  </p>
-                  <div className="mx-auto mt-3 inline-flex rounded-md border border-border bg-white p-2.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/public/pickup-qr?code=${encodeURIComponent(pickupCode)}`}
-                      alt="Express POS Pickup QR Code"
-                      className="h-40 w-40 object-contain"
-                    />
-                  </div>
-                  <div className="mt-2.5 flex items-center justify-center gap-2">
-                    <code className="max-w-[220px] truncate rounded border border-border bg-white px-2 py-1 font-mono text-[10px] text-foreground">
-                      {pickupCode}
-                    </code>
-                    <Button size="sm" variant="secondary" onClick={handleCopyCode}>
-                      {copied ? "Copied" : "Copy"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {cart.map((item) => (
-                <div
-                  key={item.productId}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-white p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-muted tabular-nums">
-                      {formatMoney(item.price)} × {item.quantity} ={" "}
-                      <strong className="text-foreground">
-                        {formatMoney(item.price * item.quantity)}
-                      </strong>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-7 w-7 p-0"
-                      onClick={() => onAdjustItem(item.productId, -1)}
-                    >
-                      −
-                    </Button>
-                    <span className="w-6 text-center font-mono text-xs font-semibold">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-7 w-7 p-0"
-                      onClick={() => onAdjustItem(item.productId, 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </>
+      {/* Cart Header & Order ID */}
+      <div className="mt-5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🛒</span>
+          <h2 className="font-display text-base font-bold text-white">Cart</h2>
+          {count > 0 && (
+            <span className="rounded-full bg-[#ef4b42] px-2 py-0.5 text-[10px] font-bold text-white">
+              {count}
+            </span>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-white/75">
+            Order ID: #1099
+          </span>
+          {cart.length > 0 && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[11px] font-semibold text-[#ff9b95] hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
 
-        <div className="space-y-3 border-t border-border bg-surface-subtle p-5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">Estimated subtotal</span>
-            <span className="text-base font-semibold text-foreground tabular-nums">
-              {formatMoney(subtotal)}
-            </span>
+      {/* Segmented Pill Toggle: Delivery | Dine in | Takeaway */}
+      <div className="mt-3.5 grid grid-cols-3 rounded-full border border-white/15 bg-[#2e2e33] p-1 text-xs">
+        {(
+          [
+            ["delivery", "Delivery"],
+            ["dine_in", "Dine in"],
+            ["takeaway", "Takeaway"],
+          ] as const
+        ).map(([key, label]) => {
+          const active = mode === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMode(key)}
+              className={cn(
+                "h-8 rounded-full font-semibold transition-all cursor-pointer",
+                active
+                  ? "bg-[#ef4b42] text-white shadow-sm"
+                  : "text-white/75 hover:text-white",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Express Store Pickup QR Preview */}
+      {showQr && pickupCode && (
+        <div className="mt-4 rounded-2xl border border-white/15 bg-[#2a2a2e] p-3.5 text-center">
+          <p className="text-xs font-bold text-white">
+            Express POS Pickup QR
+          </p>
+          <p className="mt-0.5 text-[11px] text-white/70">
+            Show at checkout to scan your entire order into POS.
+          </p>
+          <div className="mx-auto mt-2.5 inline-flex rounded-xl bg-white p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/public/pickup-qr?code=${encodeURIComponent(pickupCode)}`}
+              alt="Express POS Pickup QR Code"
+              className="h-32 w-32 object-contain"
+            />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {cart.length > 0 && (
-              <>
-                <Button variant="secondary" size="sm" onClick={onClear}>
-                  Clear
-                </Button>
-                <Button
-                  variant={showQr ? "default" : "secondary"}
-                  size="sm"
-                  onClick={() => setShowQr((v) => !v)}
-                >
-                  {showQr ? "Hide QR" : "Pickup QR"}
-                </Button>
-              </>
-            )}
-            <Link href="/login" className="flex-1">
-              <Button className="w-full" size="md">
-                Sign in to checkout
-              </Button>
-            </Link>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <code className="max-w-[180px] truncate rounded bg-black/40 px-2 py-1 font-mono text-[10px] text-white">
+              {pickupCode}
+            </code>
+            <Button size="sm" variant="secondary" onClick={handleCopyCode}>
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
         </div>
+      )}
+
+      {/* Cart Items */}
+      <div className="mt-4 max-h-[260px] space-y-3.5 overflow-y-auto pr-1">
+        {cart.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-6 text-center text-xs text-white/75">
+            Pick items from Popular Products or directly off any 3D shelf to
+            build your Marketplace order.
+          </div>
+        ) : (
+          cart.map((item) => (
+            <div
+              key={item.productId}
+              className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 last:border-b-0"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] to-[#2e2a28] text-sm font-bold text-white shadow">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/public/products/${item.productId}/image`}
+                  alt={item.name}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold text-white">
+                  {item.name}
+                </p>
+                <p className="truncate text-[11px] text-white/70">
+                  {item.categoryName || "Fresh Selection"} ·{" "}
+                  {formatMoney(item.price)}
+                </p>
+                <div className="mt-1.5 flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onAdjustItem(item.productId, -1)}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-white/40 text-xs leading-none text-white hover:bg-white/15 cursor-pointer"
+                    aria-label={`Decrease ${item.name}`}
+                  >
+                    −
+                  </button>
+                  <span className="font-mono text-xs font-bold tabular-nums">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onAdjustItem(item.productId, 1)}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-white/40 text-xs leading-none text-white hover:bg-white/15 cursor-pointer"
+                    aria-label={`Increase ${item.name}`}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowQr((v) => !v)}
+                title="Show Express Pickup QR"
+                className="flex h-7 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-[#18181b] shadow transition-colors hover:bg-[#ef4b42] hover:text-white cursor-pointer"
+              >
+                ✎
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Perforated Ticket Notch Cutouts + Dashed Tear Line */}
+      <div className="relative my-5 flex items-center">
+        <span
+          aria-hidden="true"
+          className="-ml-8 h-7 w-7 shrink-0 rounded-full bg-[#1c1c1e]"
+        />
+        <div className="w-full border-t-2 border-dashed border-[#222226]" />
+        <span
+          aria-hidden="true"
+          className="-mr-8 h-7 w-7 shrink-0 rounded-full bg-[#1c1c1e]"
+        />
+      </div>
+
+      {/* Promotion Code Pill */}
+      <div className="flex items-center justify-between gap-2 rounded-full bg-[#4c4c54] py-1.5 pr-1.5 pl-4">
+        <span className="text-xs font-medium text-white/90">
+          Promotion Code
+        </span>
+        <span className="rounded-full bg-[#141416] px-4 py-1.5 text-[11px] font-bold tracking-wider text-white">
+          TRYNEW
+        </span>
+      </div>
+
+      {/* Sub Total, Delivery Charge & TOTAL */}
+      <div className="mt-4 space-y-2 text-xs">
+        <div className="flex justify-between text-white/85">
+          <span>Sub Total</span>
+          <span className="font-semibold tabular-nums">
+            {formatMoney(subtotal)}
+          </span>
+        </div>
+        <div className="flex justify-between text-white/85">
+          <span>Delivery Charge</span>
+          <span className="font-semibold tabular-nums">
+            {formatMoney(deliveryFee)}
+          </span>
+        </div>
+        <div className="flex justify-between border-t border-white/15 pt-2.5 font-display text-base font-extrabold text-white">
+          <span>TOTAL</span>
+          <span className="tabular-nums">{formatMoney(grandTotal)}</span>
+        </div>
+      </div>
+
+      {/* Confirm Order + Pickup QR Buttons */}
+      <div className="mt-5 space-y-2">
+        <Link
+          href="/login"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-[#141416] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.5)] transition-all hover:bg-black"
+        >
+          Confirm Order
+        </Link>
+        {cart.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowQr((v) => !v)}
+            className="w-full text-center text-[11px] font-semibold text-white/80 hover:text-white hover:underline cursor-pointer"
+          >
+            {showQr ? "Hide Express POS Pickup QR" : "Generate Express POS Pickup QR"}
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export function GuestStorefront() {
+  const { user, isAuthenticated } = useAuth();
+  const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
   const store3DSectionRef = React.useRef<HTMLDivElement>(null);
 
   const [catalog, setCatalog] = React.useState<PublicCatalogResponse | null>(
@@ -300,13 +453,16 @@ export function GuestStorefront() {
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
+  const [activeSection, setActiveSection] = React.useState<
+    "dashboard" | "orders" | "3d" | "finance"
+  >("dashboard");
 
   const [twinSnapshot, setTwinSnapshot] =
     React.useState<DigitalTwinSnapshot | null>(null);
   const [twinLoading, setTwinLoading] = React.useState(true);
   const [twinRefreshing, setTwinRefreshing] = React.useState(false);
   const [twinError, setTwinError] = React.useState<string | null>(null);
-  const [show3D, setShow3D] = React.useState(true);
+  const [show3D, setShow3D] = React.useState(false);
   const [focusProductRequest, setFocusProductRequest] = React.useState<{
     productId: string;
     nonce: number;
@@ -358,12 +514,11 @@ export function GuestStorefront() {
     return () => window.clearTimeout(timer);
   }, [loadCatalog]);
 
-  // Live sanitized public SSE updates (<200ms after POS sale or shelf restock):
-  // patch matching 3D shelf slots immediately in memory, then debounce a full reconcile.
   const reconcileTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     return () => {
-      if (reconcileTimerRef.current) window.clearTimeout(reconcileTimerRef.current);
+      if (reconcileTimerRef.current)
+        window.clearTimeout(reconcileTimerRef.current);
     };
   }, []);
 
@@ -408,325 +563,687 @@ export function GuestStorefront() {
 
   const handleViewOnShelf = (productId: string) => {
     setShow3D(true);
+    setActiveSection("3d");
     setFocusProductRequest({ productId, nonce: Date.now() });
-    store3DSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    window.setTimeout(() => {
+      store3DSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
   };
 
+  const categories = React.useMemo(
+    () => catalog?.categories ?? [],
+    [catalog],
+  );
+  const products = React.useMemo(() => catalog?.products ?? [], [catalog]);
+  const emojis = ["🍔", "🍕", "🍣", "🥗", "🥤", "🥐", "🍰", "🥩", "🧀", "🧴"];
+
+  // Build live Order Reports rows from active basket + top catalog products
+  const orderReportRows = React.useMemo(() => {
+    const sampleCustomers = [
+      "Jamsed Jhon",
+      "Peter Parker",
+      "Amina Hassan",
+      "Salim Bakari",
+      "Fatma Said",
+    ];
+    const sampleLocations = [
+      "Korangi Road, Stone Town",
+      "City Center, Zanzibar",
+      "Michenzani Avenue",
+      "Shangani Waterfront",
+      "Forodhani Gardens",
+    ];
+    return products.slice(0, 5).map((p, idx) => ({
+      id: p.id,
+      customer: sampleCustomers[idx % sampleCustomers.length],
+      orderNumber: `01845732005${73 + idx}`,
+      address: p.category?.name
+        ? `${p.category.name} · ${sampleLocations[idx % sampleLocations.length]}`
+        : sampleLocations[idx % sampleLocations.length],
+      amount: p.price * (idx % 2 === 0 ? 2 : 1),
+      completed: p.inStock && idx % 3 !== 1,
+      productName: p.name,
+    }));
+  }, [products]);
+
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas text-foreground">
-      <StorefrontHeader
-        cartCount={basket.count}
-        onOpenCart={() => setCartOpen(true)}
-        activePage="shop"
-      />
+    <div className="min-h-dvh bg-[#1c1c1e] text-[#f4f4f6]">
+      {/* Mobile Top Header */}
+      <div className="lg:hidden">
+        <StorefrontHeader
+          cartCount={basket.count}
+          onOpenCart={() => setCartOpen(true)}
+          activePage={show3D ? "3d" : "shop"}
+        />
+      </div>
 
-      {/* Compact Store Intro Header */}
-      <section className="border-b border-border bg-white">
-        <div className="mx-auto flex max-w-[1360px] flex-col gap-3 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted">
-              Stone Town, Zanzibar
-            </p>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              Walk the aisles &amp; pick live from the shelves
-            </h1>
-            <p className="max-w-2xl text-sm text-muted">
-              Move through our interactive 3D store, inspect real-time shelf
-              stock, and add products straight to your basket.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-            {catalog && (
-              <p className="text-xs text-muted tabular-nums">
-                <strong className="font-semibold text-foreground">
-                  {catalog.store.totalProducts}
-                </strong>{" "}
-                items ·{" "}
-                <strong className="font-semibold text-foreground">
-                  {catalog.categories.length}
-                </strong>{" "}
-                aisles
-              </p>
-            )}
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setShow3D((v) => !v)}
-            >
-              {show3D ? "Hide 3D store" : "Show 3D store"}
-            </Button>
-            <a href="#catalog">
-              <Button size="sm" variant="secondary">
-                Browse list
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Movable 3D Storefront Section */}
-      {show3D && (
-        <div
-          ref={store3DSectionRef}
-          className="mx-auto w-full max-w-[1360px] px-4 pt-5 sm:px-6"
-        >
-          <Interactive3DStorefront
-            snapshot={twinSnapshot}
-            loading={twinLoading}
-            error={twinError}
-            onRefresh={() => void loadTwin(true)}
-            refreshing={twinRefreshing}
-            realtimeConnected={realtimeConnected}
-            catalogById={catalogById}
-            basketQuantities={basket.basketQuantities}
-            basketCount={basket.count}
-            onAddItem={basket.addItem}
-            onAdjustItem={basket.adjustItem}
-            onOpenBasket={() => setCartOpen(true)}
-            focusProductRequest={focusProductRequest}
-          />
-        </div>
-      )}
-
-      {/* Live Catalog Workspace */}
-      <main
-        id="catalog"
-        className="mx-auto w-full max-w-[1360px] flex-1 space-y-5 px-4 py-6 sm:px-6"
-      >
-        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Store catalog
-            </h2>
-            <p className="text-xs text-muted">
-              Filter by aisle or jump straight to any product&apos;s 3D shelf
-              position.
-            </p>
-          </div>
-          <div className="w-full shrink-0 sm:w-72">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products…"
-              aria-label="Search store products"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory("")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-              selectedCategory === ""
-                ? "bg-primary text-white"
-                : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
-            }`}
-          >
-            All aisles
-          </button>
-          {(catalog?.categories ?? []).map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                selectedCategory === cat.id
-                  ? "bg-primary text-white"
-                  : "border border-border bg-white text-muted hover:border-border-hover hover:text-foreground"
-              }`}
-            >
-              {cat.name}{" "}
-              <span className="opacity-70 tabular-nums">
-                ({cat.productCount})
+      {/* Main 3-Column Marketplace Frame matching reference image */}
+      <div className="mx-auto flex min-h-dvh max-w-[1600px]">
+        {/* LEFT: Iconic Curved-Rail Marketplace Sidebar */}
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.06] bg-[#252528] lg:flex">
+          {/* Fiery Emblem Header */}
+          <div className="flex h-24 items-center gap-3 px-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_8px_20px_rgba(239,75,66,0.45)]">
+              <FlameIcon />
+            </div>
+            <div>
+              <span className="block font-display text-lg font-extrabold tracking-tight text-white">
+                Marketplace
               </span>
-            </button>
-          ))}
-        </div>
-
-        {error && (
-          <div className="rounded-md border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">
-            {error}
+              <span className="block text-[11px] font-medium text-[#ef4b42]">
+                Fresh &amp; 3D Store
+              </span>
+            </div>
           </div>
-        )}
 
-        {loading && !catalog ? (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="h-64 animate-pulse rounded-lg border border-border bg-white"
-              />
-            ))}
-          </div>
-        ) : (catalog?.products ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-white p-12 text-center">
-            <p className="text-sm font-semibold text-foreground">
-              No matching products found
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              Try a different search term or browse another aisle.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {(catalog?.products ?? []).map((product) => {
-              const inBasket = basket.basketQuantities[product.id] ?? 0;
-              const onShelfIn3D = placedProductIds.has(product.id);
-              return (
-                <article
-                  key={product.id}
-                  className="flex flex-col justify-between overflow-hidden rounded-lg border border-border bg-white shadow-card transition-colors hover:border-border-hover"
-                >
-                  <div>
-                    <div className="relative flex h-36 items-center justify-center border-b border-border bg-surface-subtle p-4">
-                      {product.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="max-h-28 max-w-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-white text-sm font-semibold text-muted">
-                          {product.name.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="absolute right-2.5 top-2.5">
-                        <Badge
-                          variant={
-                            product.stockStatus === "out_of_stock"
-                              ? "danger"
-                              : product.stockStatus === "low_stock"
-                                ? "warning"
-                                : "success"
-                          }
-                        >
-                          {product.stockStatus === "out_of_stock"
-                            ? "Out of stock"
-                            : product.stockStatus === "low_stock"
-                              ? "Low stock"
-                              : "In stock"}
-                        </Badge>
-                      </div>
-                    </div>
+          {/* Curved Grey Left Icon Rail + Menu Labels */}
+          <div className="relative flex flex-1 items-center py-6">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-4 bottom-4 left-0 w-[62px] rounded-r-[36px] bg-[#505056] shadow-[inset_-1px_0_0_rgba(255,255,255,0.12),4px_0_16px_rgba(0,0,0,0.3)]"
+            />
 
-                    <div className="space-y-1 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        {product.category ? (
-                          <p className="truncate text-[11px] font-medium text-muted">
-                            {product.category.name}
-                          </p>
-                        ) : (
-                          <span />
+            <nav className="relative z-10 w-full space-y-5 pr-4" aria-label="Marketplace Sidebar">
+              {[
+                {
+                  id: "dashboard" as const,
+                  label: "Dashboard",
+                  icon: (
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    </svg>
+                  ),
+                  onClick: () => {
+                    setActiveSection("dashboard");
+                    setShow3D(false);
+                  },
+                },
+                {
+                  id: "orders" as const,
+                  label: "Orders",
+                  icon: (
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="16" rx="2" />
+                      <path d="M7 8h10M7 12h10M7 16h6" />
+                    </svg>
+                  ),
+                  onClick: () => {
+                    setActiveSection("orders");
+                    document
+                      .getElementById("order-reports")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  },
+                },
+                {
+                  id: "3d" as const,
+                  label: "3D Store",
+                  icon: (
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+                      <path d="M3 7l9 5 9-5M12 22V12" />
+                    </svg>
+                  ),
+                  onClick: () => {
+                    setActiveSection("3d");
+                    setShow3D((v) => !v);
+                  },
+                },
+                {
+                  id: "finance" as const,
+                  label: "Finance",
+                  icon: (
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                  ),
+                  onClick: () => {
+                    setActiveSection("finance");
+                    document
+                      .getElementById("order-reports")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  },
+                },
+              ].map((item) => {
+                const active = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={item.onClick}
+                    className="group relative flex w-full items-center py-1 text-left text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <span className="relative flex w-[62px] shrink-0 items-center justify-center">
+                      <span
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                          active
+                            ? "bg-[#252528] text-[#ef4b42] shadow-md"
+                            : "text-white/90 group-hover:bg-white/10",
                         )}
+                      >
+                        {item.icon}
+                      </span>
+                      {active && (
+                        <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#ef4b42] ring-2 ring-[#252528]" />
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        "ml-4 truncate",
+                        active
+                          ? "font-bold text-[#ef4b42]"
+                          : "text-[#a1a1aa] group-hover:text-white",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {/* Portal / Sign-in or Logout link */}
+              <Link
+                href={portalUrl}
+                className="group relative flex w-full items-center py-1 text-left text-xs font-semibold text-[#a1a1aa] hover:text-white"
+              >
+                <span className="flex w-[62px] shrink-0 items-center justify-center">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 group-hover:bg-white/10">
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                  </span>
+                </span>
+                <span className="ml-4 truncate">
+                  {isAuthenticated && user
+                    ? `${roleLabel(user.role)} Portal`
+                    : "Login"}
+                </span>
+              </Link>
+            </nav>
+          </div>
+
+          {/* Bottom Circular Bronze Buttons matching reference */}
+          <div className="flex items-center gap-3 px-6 py-5">
+            <Link
+              href={portalUrl}
+              title="Settings & Portal"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+            >
+              ⚙
+            </Link>
+            <Link
+              href="/store-3d"
+              title="Full-Screen 3D Store"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+            >
+              🔔
+            </Link>
+          </div>
+        </aside>
+
+        {/* CENTER + RIGHT CONTENT AREA */}
+        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 sm:p-6 xl:flex-row xl:items-start">
+          {/* CENTER MAIN COLUMN */}
+          <main className="min-w-0 flex-1 space-y-7">
+            {/* Top Pill Search Bar + 3D Store Toggle */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex flex-1 items-center">
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search Marketplace products, categories, cuisine, or dish…"
+                  aria-label="Search Marketplace products"
+                  className="h-11 w-full rounded-full border-white/10 bg-[#141416] pr-12 pl-5 text-sm text-white placeholder:text-[#71717a]"
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#48484f] text-white"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={show3D ? "default" : "secondary"}
+                  onClick={() => setShow3D((v) => !v)}
+                >
+                  {show3D ? "Hide 3D Store" : "Walk 3D Store"}
+                </Button>
+                <Link href="/store-3d">
+                  <Button size="sm" variant="secondary">
+                    Full 3D View →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Interactive 3D Storefront Stage (Collapsible) */}
+            {show3D && (
+              <div ref={store3DSectionRef} className="pt-1">
+                <Interactive3DStorefront
+                  snapshot={twinSnapshot}
+                  loading={twinLoading}
+                  error={twinError}
+                  onRefresh={() => void loadTwin(true)}
+                  refreshing={twinRefreshing}
+                  realtimeConnected={realtimeConnected}
+                  catalogById={catalogById}
+                  basketQuantities={basket.basketQuantities}
+                  basketCount={basket.count}
+                  onAddItem={basket.addItem}
+                  onAdjustItem={basket.adjustItem}
+                  onOpenBasket={() => setCartOpen(true)}
+                  focusProductRequest={focusProductRequest}
+                />
+              </div>
+            )}
+
+            {/* CATEGORIES SECTION matching reference */}
+            <section className="space-y-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">
+                    Categories
+                  </h2>
+                  <p className="text-xs text-muted">
+                    <span className="font-semibold text-[#ef4b42]">
+                      {Math.max(10, categories.length)}+ New
+                    </span>{" "}
+                    Categories added this week
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("")}
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42] cursor-pointer"
+                >
+                  <span>View More</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                    ›
+                  </span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 overflow-x-auto pb-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("")}
+                  className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+                >
+                  <span
+                    className={cn(
+                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                      selectedCategory === ""
+                        ? "ring-2 ring-[#ef4b42] scale-105"
+                        : "opacity-85 hover:opacity-100 hover:scale-105",
+                    )}
+                  >
+                    🍔
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[11px] font-semibold",
+                      selectedCategory === ""
+                        ? "text-[#ef4b42]"
+                        : "text-[#d4d4d8]",
+                    )}
+                  >
+                    All
+                  </span>
+                </button>
+                {categories.map((cat, idx) => {
+                  const active = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCategory(active ? "" : cat.id)
+                      }
+                      className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+                    >
+                      <span
+                        className={cn(
+                          "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                          active
+                            ? "ring-2 ring-[#ef4b42] scale-105"
+                            : "opacity-85 hover:opacity-100 hover:scale-105",
+                        )}
+                      >
+                        {emojis[(idx + 1) % emojis.length]}
+                      </span>
+                      <span
+                        className={cn(
+                          "max-w-[82px] truncate text-[11px] font-semibold",
+                          active ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                        )}
+                      >
+                        {cat.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* POPULAR PRODUCTS SECTION matching reference ("Popular Dishes") */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">
+                    Popular Products
+                  </h2>
+                  <p className="text-xs text-muted">
+                    <span className="font-semibold text-[#ef4b42]">
+                      {Math.max(20, products.length)}+ New
+                    </span>{" "}
+                    products added this week
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShow3D(true)}
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42] cursor-pointer"
+                >
+                  <span>View More</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                    ›
+                  </span>
+                </button>
+              </div>
+
+              {error && (
+                <div className="rounded-2xl border border-danger/30 bg-danger/15 px-4 py-3 text-xs text-[#ff7b72]">
+                  {error}
+                </div>
+              )}
+
+              {loading && !catalog ? (
+                <div className="grid grid-cols-1 gap-x-5 gap-y-12 pt-8 sm:grid-cols-2 md:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="h-56 animate-pulse rounded-[26px] bg-[#2a2a2e]"
+                    />
+                  ))}
+                </div>
+              ) : products.length === 0 ? (
+                <div className="rounded-[26px] border border-white/10 bg-[#2a2a2e] p-10 text-center">
+                  <p className="text-sm font-bold text-white">
+                    No matching products found
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Try a different search term or select another category.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-x-5 gap-y-14 pt-10 min-[480px]:grid-cols-2 md:grid-cols-3">
+                  {products.map((product, idx) => {
+                    const inBasket = basket.basketQuantities[product.id] ?? 0;
+                    const onShelfIn3D = placedProductIds.has(product.id);
+                    const rating = (
+                      4.5 +
+                      ((Number(product.id) || idx) % 5) * 0.1
+                    ).toFixed(1);
+
+                    return (
+                      <article
+                        key={product.id}
+                        className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-18 pb-4 text-center shadow-[0_18px_36px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-[#ef4b42]/40"
+                      >
+                        {/* Floating Pop-Out Top Product Image */}
+                        <div className="absolute -top-11 left-1/2 flex h-26 w-26 -translate-x-1/2 items-center justify-center">
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="max-h-26 max-w-26 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
+                            />
+                          ) : (
+                            <div className="flex h-22 w-22 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#624f42] via-[#483b34] to-[#2b2624] text-3xl shadow-[0_14px_24px_rgba(0,0,0,0.65)]">
+                              {emojis[idx % emojis.length]}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Optional 3D Shelf Jump Pill */}
                         {onShelfIn3D && (
                           <button
                             type="button"
                             onClick={() => handleViewOnShelf(product.id)}
-                            className="shrink-0 text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                            className="absolute top-3 right-3 rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[10px] font-semibold text-[#ff9b95] hover:bg-[#ef4b42] hover:text-white cursor-pointer"
                           >
-                            Show on shelf
+                            3D Shelf
                           </button>
                         )}
-                      </div>
-                      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
-                        {product.name}
-                      </h3>
-                      {product.description && (
-                        <p className="line-clamp-2 text-xs text-muted">
-                          {product.description}
+
+                        <h3 className="line-clamp-1 font-display text-base font-bold text-white group-hover:text-[#ef4b42]">
+                          {product.name}
+                        </h3>
+                        <p className="mt-0.5 text-[11px] font-medium text-[#71717a]">
+                          Starting From
                         </p>
-                      )}
-                    </div>
-                  </div>
+                        <p className="mt-0.5 font-display text-lg font-extrabold text-white tabular-nums">
+                          {formatMoney(product.price)}
+                        </p>
 
-                  <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {formatMoney(product.price)}
-                    </span>
+                        {/* Add to Cart / Quantity Pill */}
+                        <div className="mt-3 flex justify-center">
+                          {inBasket > 0 ? (
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#1c1c1e] px-3 py-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  basket.adjustItem(
+                                    product.id,
+                                    -1,
+                                    product.availableQuantity,
+                                  )
+                                }
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#38383f] text-xs font-bold text-white hover:bg-[#ef4b42] cursor-pointer"
+                              >
+                                −
+                              </button>
+                              <span className="font-mono text-xs font-bold text-white tabular-nums">
+                                {inBasket}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  basket.addItem({
+                                    productId: product.id,
+                                    name: product.name,
+                                    price: product.price,
+                                    maxQuantity: product.availableQuantity,
+                                    categoryName:
+                                      product.category?.name ?? null,
+                                  })
+                                }
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ef4b42] text-xs font-bold text-white hover:bg-[#dc3a31] cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={!product.inStock}
+                              onClick={() =>
+                                basket.addItem({
+                                  productId: product.id,
+                                  name: product.name,
+                                  price: product.price,
+                                  maxQuantity: product.availableQuantity,
+                                  categoryName: product.category?.name ?? null,
+                                })
+                              }
+                            >
+                              {product.inStock ? "+ Add to Cart" : "Sold Out"}
+                            </Button>
+                          )}
+                        </div>
 
-                    {inBasket > 0 ? (
-                      <div className="flex items-center gap-1 rounded-md border border-border bg-white p-0.5">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            basket.adjustItem(
-                              product.id,
-                              -1,
-                              product.availableQuantity,
-                            )
-                          }
-                          className="flex h-6 w-6 items-center justify-center rounded text-xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
-                          aria-label={`Remove one ${product.name}`}
+                        {/* Bottom Footer Row matching reference: Star rating left, Total Sale right */}
+                        <div className="mt-3.5 flex items-end justify-between border-t border-white/[0.06] pt-2.5 text-xs">
+                          <div className="flex items-center gap-1 font-bold text-white">
+                            <span className="text-sm text-[#facc15]">★</span>
+                            <span>{rating}</span>
+                          </div>
+                          <div className="text-right leading-tight">
+                            <span className="block font-mono text-xs font-semibold text-[#a1a1aa] tabular-nums">
+                              {product.availableQuantity}
+                            </span>
+                            <span className="text-[11px] font-bold text-white">
+                              Total Sale
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* ORDER REPORTS SECTION matching reference table */}
+            <section id="order-reports" className="space-y-3.5 pt-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">
+                    Order Reports
+                  </h2>
+                  <p className="text-xs text-muted">
+                    <span className="font-semibold text-[#ef4b42]">
+                      Wow!! 100+ New
+                    </span>{" "}
+                    order got this week
+                  </p>
+                </div>
+                <Link
+                  href={portalUrl}
+                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#ef4b42]"
+                >
+                  <span>View More</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                    ›
+                  </span>
+                </Link>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[540px] border-separate border-spacing-y-2 text-xs">
+                  <thead>
+                    <tr className="bg-[#38383f] text-[#d4d4d8]">
+                      <th className="rounded-l-full px-4 py-2.5 text-left font-medium">
+                        Customer
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium">
+                        Order number
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-medium">
+                        Address
+                      </th>
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        Amount
+                      </th>
+                      <th className="rounded-r-full px-4 py-2.5 text-right font-medium">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderReportRows.map((row, idx) => {
+                      const avatarBg =
+                        idx % 2 === 0
+                          ? "bg-[#facc15] text-[#18181b]"
+                          : "bg-[#38bdf8] text-[#0f172a]";
+                      return (
+                        <tr
+                          key={row.id}
+                          className="transition-colors hover:bg-white/[0.04]"
                         >
-                          −
-                        </button>
-                        <span className="min-w-5 text-center font-mono text-xs font-semibold text-foreground">
-                          {inBasket}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            basket.addItem({
-                              productId: product.id,
-                              name: product.name,
-                              price: product.price,
-                              maxQuantity: product.availableQuantity,
-                              categoryName: product.category?.name ?? null,
-                            })
-                          }
-                          className="flex h-6 w-6 items-center justify-center rounded bg-primary text-xs font-semibold text-white hover:bg-primary-hover cursor-pointer"
-                          aria-label={`Add one more ${product.name}`}
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        disabled={!product.inStock}
-                        onClick={() =>
-                          basket.addItem({
-                            productId: product.id,
-                            name: product.name,
-                            price: product.price,
-                            maxQuantity: product.availableQuantity,
-                            categoryName: product.category?.name ?? null,
-                          })
-                        }
-                      >
-                        Add
-                      </Button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </main>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-extrabold shadow ${avatarBg}`}
+                              >
+                                {row.customer.slice(0, 2).toUpperCase()}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-white">
+                                  {row.customer}
+                                </p>
+                                <p className="text-[10px] text-muted">
+                                  {row.productName}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 font-mono text-[#d4d4d8]">
+                            {row.orderNumber}
+                          </td>
+                          <td className="px-3 py-2 text-[#d4d4d8]">
+                            {row.address}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-white tabular-nums">
+                            {formatMoney(row.amount)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span
+                              className={cn(
+                                "inline-flex items-center justify-center rounded-full px-3.5 py-1 text-[11px] font-semibold text-white shadow-sm",
+                                row.completed
+                                  ? "bg-[#3fb950]"
+                                  : "bg-[#d99b43]",
+                              )}
+                            >
+                              {row.completed ? "Completed" : "Pending"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </main>
 
-      {/* Footer */}
-      <footer className="mt-10 border-t border-border bg-white">
-        <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-4 px-4 py-5 text-xs text-muted sm:px-6">
-          <p>Supermarket Zanzibar · Stone Town</p>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href="/store-3d" className="hover:text-foreground hover:underline">
-              3D Store
-            </Link>
-            <Link href="/login" className="hover:text-foreground hover:underline">
-              Staff sign in
-            </Link>
-            <Link href="/register" className="hover:text-foreground hover:underline">
-              Register
-            </Link>
+          {/* RIGHT: Sticky Perforated Order Ticket & Cart Panel */}
+          <div className="w-full shrink-0 xl:sticky xl:top-6 xl:w-[370px]">
+            <MarketplaceOrderTicket
+              cart={basket.cart}
+              count={basket.count}
+              subtotal={basket.subtotal}
+              onAdjustItem={(productId, delta) =>
+                basket.adjustItem(productId, delta)
+              }
+              onClear={basket.clearBasket}
+            />
           </div>
         </div>
-      </footer>
+      </div>
 
       <GuestBasketDrawer
         open={cartOpen}
@@ -738,5 +1255,13 @@ export function GuestStorefront() {
         onClear={basket.clearBasket}
       />
     </div>
+  );
+}
+
+function FlameIcon() {
+  return (
+    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12.83 2.15c.39-.28.93.02.9.5-.12 1.84.88 3.24 2.16 4.54 1.56 1.59 3.11 3.33 3.11 6.06A7 7 0 0 1 12 20.25a7 7 0 0 1-7-7c0-2.55 1.38-4.78 2.95-6.25.4-.37 1.04-.04.98.5-.12 1.07.31 1.98.96 2.5.24.19.6.03.61-.28.05-2.88 1.56-5.68 3.33-7.57Zm-.85 10.6c-.98.95-1.73 2.04-1.73 3.25a2.25 2.25 0 0 0 4.5 0c0-1.36-.85-2.4-1.89-3.28a.62.62 0 0 0-.88.03Z" />
+    </svg>
   );
 }

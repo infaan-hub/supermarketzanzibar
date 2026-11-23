@@ -74,12 +74,12 @@ export function Header({
   const activeSection = pageLabelForPath(pathname);
 
   return (
-    <header className="app-header sticky top-0 z-30 shrink-0 border-b border-border bg-white print:hidden">
+    <header className="app-header sticky top-0 z-30 shrink-0 border-b border-white/[0.06] bg-[#1c1c1e]/95 backdrop-blur-md print:hidden">
       <div className="app-header-inner flex h-full min-w-0 items-center justify-between gap-3 px-3 sm:px-5 lg:px-6">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             type="button"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-subtle hover:text-foreground"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2a2a2e] text-muted transition-colors hover:bg-[#38383f] hover:text-white cursor-pointer"
             aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
             aria-expanded={sidebarOpen}
             aria-controls="app-sidebar"
@@ -88,31 +88,39 @@ export function Header({
             {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
 
-          <div className="flex min-w-0 items-center gap-2 text-sm">
-            <span className="hidden text-muted sm:inline">{displayStore}</span>
-            <span className="hidden text-border-hover sm:inline">/</span>
-            <span className="truncate font-semibold text-foreground">
-              {activeSection}
+          {/* Pill Search / Workspace Bar matching the top of the reference design */}
+          <Link
+            href={portalHref(user?.role, "/products")}
+            className="flex h-10 max-w-md flex-1 items-center justify-between gap-2 rounded-full border border-white/10 bg-[#141416] pl-4 pr-1.5 text-xs text-muted transition-colors hover:border-white/20"
+          >
+            <span className="truncate">
+              <strong className="font-semibold text-white">
+                {displayStore}
+              </strong>{" "}
+              · {activeSection} — Search products, categories, or dishes…
             </span>
-          </div>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#48484f] text-white">
+              <SearchIcon />
+            </span>
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">
           <Link
             href="/"
-            className="hidden h-8 items-center rounded-md border border-border bg-white px-2.5 text-xs font-medium text-muted transition-colors hover:border-border-hover hover:text-foreground sm:inline-flex"
+            className="hidden h-9 items-center rounded-full border border-white/10 bg-[#2a2a2e] px-3.5 text-xs font-semibold text-[#e4e4e7] transition-colors hover:border-white/20 hover:bg-[#38383f] sm:inline-flex"
           >
-            Storefront
+            Marketplace
           </Link>
 
           {isPosRole(user?.role) && (
             <Link
               href={portalHref(user?.role, "/pos")}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-subtle px-2.5 text-xs font-medium text-foreground transition-colors hover:border-border-hover hover:bg-surface-muted"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ef4b42] px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#dc3a31]"
             >
-              <span>POS</span>
+              <span>Cart / POS</span>
               {cartCount > 0 && (
-                <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+                <span className="rounded-full bg-black/30 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums">
                   {cartCount}
                 </span>
               )}
@@ -125,23 +133,32 @@ export function Header({
                 ? "/supplier/profile"
                 : portalHref(user?.role, "/profile")
             }
-            className="hidden items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-surface-subtle sm:flex"
+            className="hidden items-center gap-2.5 rounded-full border border-white/10 bg-[#2a2a2e] py-1 pr-2.5 pl-3 transition-colors hover:bg-[#38383f] sm:flex"
           >
             <div className="text-right leading-tight">
-              <p className="text-xs font-medium text-foreground">
+              <p className="text-xs font-semibold text-white">
                 {user?.full_name || user?.username || displayStore}
               </p>
-              <p className="text-[11px] text-muted">
+              <p className="text-[10px] text-[#ef4b42]">
                 {user ? roleLabel(user.role) : displayStore}
               </p>
             </div>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ef4b42] text-[11px] font-bold text-white">
               {initials}
             </div>
           </Link>
         </div>
       </div>
     </header>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
   );
 }
 

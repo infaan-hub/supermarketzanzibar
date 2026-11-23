@@ -85,11 +85,11 @@ function MetricCell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0 bg-white p-4">
+    <div className="min-w-0 rounded-[20px] border border-white/[0.07] bg-[#2a2a2e] p-4 shadow-card">
       <dt className="text-xs font-medium text-muted">{label}</dt>
       <dd className="mt-1.5 min-w-0">
         <span
-          className="block whitespace-nowrap text-xl font-semibold leading-tight tracking-tight tabular-nums text-foreground"
+          className="block whitespace-nowrap font-display text-xl font-bold leading-tight tracking-tight tabular-nums text-white"
           title={title}
         >
           {value}
@@ -105,7 +105,7 @@ export function MetricStrip({ data }: { data: DashboardOverview }) {
 
   return (
     <section aria-label="Key metrics">
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border shadow-card md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-6">
         <MetricCell
           label="Net sales"
           value={

@@ -22,9 +22,9 @@ export function TopSellers({
     <Panel aria-labelledby={titleId}>
       <PanelHeader
         titleId={titleId}
-        title="Top sellers"
-        description={`By units sold · ${rangeLabel}`}
-        action={<PanelLink href="/products">Products</PanelLink>}
+        title="Popular Products"
+        description={`20+ New top-selling items · ${rangeLabel}`}
+        action={<PanelLink href="/products">View More</PanelLink>}
       />
 
       {sellers.length === 0 ? (

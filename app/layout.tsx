@@ -4,9 +4,9 @@ import { AuthProvider } from "@/components/auth/auth-provider";
 import { Shell } from "@/components/layout/shell";
 
 export const metadata: Metadata = {
-  title: "Supermarket Zanzibar — POS & Inventory",
+  title: "Marketplace — POS, 3D Store & Inventory",
   description:
-    "Supermarket Zanzibar point of sale, barcode inventory, and analytics platform",
+    "Marketplace point of sale, 3D store, barcode inventory, and order analytics platform",
 };
 
 export const viewport: Viewport = {
@@ -21,10 +21,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body className="bg-canvas text-foreground">
         <AuthProvider>
-          <Shell title="Supermarket Zanzibar">{children}</Shell>
+          <Shell title="Marketplace">{children}</Shell>
         </AuthProvider>
       </body>
     </html>

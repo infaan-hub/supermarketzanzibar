@@ -12,8 +12,8 @@ export interface ButtonProps
 
 function baseStyles() {
   return cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors duration-150 cursor-pointer select-none",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1",
+    "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer select-none",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1",
     "disabled:opacity-50 disabled:pointer-events-none",
   );
 }
@@ -24,13 +24,13 @@ function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default")
       default:
         "bg-primary text-white shadow-sm hover:bg-primary-hover",
       secondary:
-        "border border-border bg-white text-foreground shadow-sm hover:border-border-hover hover:bg-surface-subtle",
+        "border border-white/10 bg-[#38383f] text-foreground shadow-sm hover:border-white/20 hover:bg-[#46464f]",
       ghost:
-        "bg-transparent text-muted hover:bg-surface-subtle hover:text-foreground",
+        "bg-transparent text-muted hover:bg-white/[0.06] hover:text-foreground",
       danger:
-        "bg-danger text-white shadow-sm hover:bg-red-800",
+        "bg-danger text-white shadow-sm hover:bg-red-700",
       success:
-        "bg-success text-white shadow-sm hover:bg-green-800",
+        "bg-[#141416] text-white border border-white/10 shadow-sm hover:bg-black",
     }[variant],
   );
 }
@@ -38,9 +38,9 @@ function variantStyles(variant: NonNullable<ButtonProps["variant"]> = "default")
 function sizeStyles(size: NonNullable<ButtonProps["size"]> = "md") {
   return cn(
     {
-      sm: "h-8 px-2.5 text-xs",
-      md: "h-9 px-3.5 text-sm",
-      lg: "h-10 px-5 text-sm",
+      sm: "h-8 px-3.5 text-xs",
+      md: "h-9 px-4 text-sm",
+      lg: "h-11 px-6 text-sm",
     }[size],
   );
 }

@@ -22,16 +22,16 @@ export interface StoreSettings {
 }
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
-  storeName: "Supermarket Zanzibar",
-  storeTagline: "Fresh Groceries & Everyday Essentials",
+  storeName: "Marketplace",
+  storeTagline: "Fresh Food, Groceries & Everyday Essentials",
   storePhone: "+255 777 000 000",
-  storeAddress: "Stone Town, Zanzibar, Tanzania",
+  storeAddress: "Po. 1478, Stone Town Main Road, Zanzibar",
   taxNumber: "",
   taxRatePercent: 15,
   lowStockThreshold: LOW_STOCK_THRESHOLD,
   reorderLevel: REORDER_LEVEL,
   receiptWidth: "80mm",
-  receiptFooter: "Thank you for shopping with Supermarket Zanzibar!",
+  receiptFooter: "Thank you for shopping with Marketplace!",
 };
 
 const STORAGE_KEY = "sz_store_settings";

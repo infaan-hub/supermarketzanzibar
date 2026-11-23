@@ -10,7 +10,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -656,17 +655,37 @@ export default function ProductsPage() {
         </Card>
       )}
 
-      <div className="flex flex-col gap-2.5 sm:flex-row">
-        <Input
-          placeholder="Search by name, barcode, category, supplier, or shelf…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1"
-        />
+      {/* Top Pill Search Bar & Filters matching Marketplace reference */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex flex-1 items-center">
+          <Input
+            placeholder="Search Marketplace products, categories, barcode, or shelf…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-11 w-full rounded-full border-white/10 bg-[#141416] pr-12 pl-5 text-sm text-white placeholder:text-[#71717a]"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#48484f] text-white"
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+        </div>
         <Select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full sm:w-56"
+          className="h-11 w-full sm:w-56"
           aria-label="Filter by category"
         >
           <option value="">All Categories</option>
@@ -681,7 +700,7 @@ export default function ProductsPage() {
           onChange={(e) =>
             setStockFilter(e.target.value as "all" | "low" | "out")
           }
-          className="w-full sm:w-44"
+          className="h-11 w-full sm:w-44"
           aria-label="Filter by stock level"
         >
           <option value="all">All Stock Levels</option>
@@ -690,6 +709,116 @@ export default function ProductsPage() {
           </option>
           <option value="out">Out of Stock (0)</option>
         </Select>
+      </div>
+
+      {/* Circular Categories Medallions Section matching reference */}
+      {categories.length > 0 && (
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-bold text-white">
+                Categories
+              </h2>
+              <p className="text-xs text-muted">
+                <span className="font-semibold text-[#ef4b42]">
+                  {categories.length}+ New
+                </span>{" "}
+                Categories available in Marketplace
+              </p>
+            </div>
+            <Link
+              href={portalHref(user?.role, "/categories")}
+              className="group inline-flex items-center gap-2 text-xs font-semibold text-white transition-colors hover:text-[#ef4b42]"
+            >
+              <span>View More</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#ef4b42]">
+                ›
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3.5 overflow-x-auto pb-1.5">
+            <button
+              type="button"
+              onClick={() => setCategoryId("")}
+              className="group flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+            >
+              <span
+                className={cn(
+                  "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-xl shadow-lg transition-all",
+                  categoryId === ""
+                    ? "ring-2 ring-[#ef4b42] scale-105"
+                    : "opacity-85 hover:opacity-100 hover:scale-105",
+                )}
+              >
+                🔥
+              </span>
+              <span
+                className={cn(
+                  "max-w-[76px] truncate text-[11px] font-semibold",
+                  categoryId === "" ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                )}
+              >
+                All Items
+              </span>
+            </button>
+            {categories.map((cat, idx) => {
+              const active = categoryId === cat.id;
+              const emojis = ["🍔", "🍕", "🥗", "🥤", "🥐", "🥩", "🧀", "🧴", "🧹", "⚡"];
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoryId(active ? "" : cat.id)}
+                  className="group flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+                >
+                  <span
+                    className={cn(
+                      "flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#624f42] via-[#4a3e37] to-[#2e2a28] text-2xl shadow-lg transition-all",
+                      active
+                        ? "ring-2 ring-[#ef4b42] scale-105"
+                        : "opacity-85 hover:opacity-100 hover:scale-105",
+                    )}
+                  >
+                    {cat.image_available ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={`/api/categories/${cat.id}/image`}
+                        alt={cat.name}
+                        className="h-11 w-11 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span>{emojis[idx % emojis.length]}</span>
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      "max-w-[82px] truncate text-[11px] font-semibold",
+                      active ? "text-[#ef4b42]" : "text-[#d4d4d8]",
+                    )}
+                  >
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Popular Products Section Header */}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <div>
+          <h2 className="font-display text-lg font-bold text-white">
+            Popular Products
+          </h2>
+          <p className="text-xs text-muted">
+            <span className="font-semibold text-[#ef4b42]">
+              {filteredProducts.length}+ New
+            </span>{" "}
+            products stocked across Marketplace shelves
+          </p>
+        </div>
       </div>
 
       {filteredProducts.length === 0 ? (
@@ -709,7 +838,7 @@ export default function ProductsPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-14 pt-10 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((p) => (
             <ProductCard
               key={p.id}
@@ -765,42 +894,39 @@ function ProductCard({
     ? getAssetEntry(product.assetKey)
     : resolveProductAsset(product.name, product.category?.name);
 
-  return (
-    <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      {/* Expanded Studio Product Image Header */}
-      <div className="group/media relative h-56 w-full overflow-hidden border-b border-border bg-gradient-to-b from-white to-slate-50">
-        <Link
-          href={detailHref}
-          className="flex h-full w-full items-center justify-center p-3"
-        >
-          {showImage ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
-              alt={product.name}
-              onError={() => setImgFailed(true)}
-              className="max-h-full max-w-full rounded object-contain transition-transform duration-300 group-hover/media:scale-105"
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
-              <PhotoPlaceholderIcon className="h-9 w-9 opacity-60" />
-              <span className="text-[11px] font-medium">No photo yet</span>
-            </div>
-          )}
-        </Link>
+  // Deterministic 4.5 - 4.9 star rating matching the reference product card footer
+  const rating = (4.5 + ((Number(product.id) || 3) % 5) * 0.1).toFixed(1);
 
-        <div className="pointer-events-none absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between gap-2">
-          <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm">
-            {product.category?.name ?? "Uncategorized"}
-          </Badge>
-          <Badge
-            variant={
-              isOut || isLow ? "danger" : isRunningLow ? "warning" : "success"
-            }
-          >
-            {product.quantity} units
-          </Badge>
-        </div>
+  return (
+    <div className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-20 pb-4 text-center shadow-[0_18px_38px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-white/15">
+      {/* Floating Pop-Out Top Product Image matching reference design */}
+      <Link
+        href={detailHref}
+        className="absolute -top-11 left-1/2 flex h-28 w-28 -translate-x-1/2 items-center justify-center"
+      >
+        {showImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
+            alt={product.name}
+            onError={() => setImgFailed(true)}
+            className="max-h-28 max-w-28 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
+          />
+        ) : (
+          <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#624f42] via-[#483b34] to-[#2b2624] text-white shadow-[0_14px_24px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:scale-105">
+            <PhotoPlaceholderIcon className="h-7 w-7 text-[#f5d0c8]" />
+            <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
+              {product.name.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </Link>
+
+      {/* Top Left Category Pill & Top Right Quick Photo Upload */}
+      <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-1">
+        <span className="max-w-[110px] truncate rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-medium text-[#d4d4d8]">
+          {product.category?.name ?? "General"}
+        </span>
 
         {canManage && (
           <>
@@ -819,112 +945,98 @@ function ProductCard({
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              className="absolute right-2.5 bottom-2.5 inline-flex items-center gap-1 rounded-md border border-border bg-white/95 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-white disabled:opacity-60"
+              className="rounded-full bg-[#38383f] px-2.5 py-0.5 text-[10px] font-semibold text-white transition-colors hover:bg-[#ef4b42] disabled:opacity-60 cursor-pointer"
             >
-              {uploading
-                ? "Uploading…"
-                : showImage
-                  ? "Change Photo"
-                  : "+ Add Photo"}
+              {uploading ? "…" : showImage ? "Photo" : "+ Photo"}
             </button>
           </>
         )}
       </div>
 
-      <CardContent className="flex flex-1 flex-col p-4">
-        <Link href={detailHref} className="block group">
-          <CardTitle className="text-base transition-colors group-hover:text-primary">
-            {product.name}
-          </CardTitle>
-        </Link>
+      {/* Centered Product Title, "Starting From" & Bold White Price */}
+      <Link href={detailHref} className="block">
+        <h3 className="line-clamp-1 font-display text-base font-bold text-white transition-colors group-hover:text-[#ef4b42]">
+          {product.name}
+        </h3>
+      </Link>
 
-        {product.supplier && (
-          <p className="mt-0.5 text-xs text-muted">
-            Supplier: {product.supplier.companyName}
-          </p>
-        )}
+      <p className="mt-1 text-[11px] font-medium text-[#71717a]">
+        Starting From
+      </p>
 
+      <p className="mt-0.5 font-display text-lg font-extrabold text-white tabular-nums">
+        {formatMoney(product.price)}
+      </p>
+
+      {/* Compact 3D Shape & Shelf Location Pill */}
+      <div className="mt-2.5 space-y-1.5 text-left">
         {shapeEntry && (
-          <p className="mt-1 text-[11px] text-muted">
-            3D Shape:{" "}
-            <span className="font-medium text-foreground">
-              {shapeEntry.name}
-            </span>
-          </p>
+          <div className="truncate rounded-full bg-white/[0.04] px-2.5 py-1 text-center text-[10px] text-muted">
+            3D: <span className="font-semibold text-[#e4e4e7]">{shapeEntry.name}</span>
+          </div>
         )}
 
         {primaryPlacement && (
-          <div className="mt-2 rounded-md border border-primary/15 bg-primary-soft/45 px-2.5 py-1.5 text-[11px] text-foreground">
-            <span className="font-semibold text-primary">
-              {primaryPlacement.departmentName}
-            </span>
-            <span className="text-muted">
-              {" "}
-              · {primaryPlacement.shelfCode} · Col{" "}
-              {primaryPlacement.columnNumber} · {primaryPlacement.activeRowLabel}
-              {extraPlacements > 0 ? ` (+${extraPlacements})` : ""}
-            </span>
+          <div className="truncate rounded-full border border-[#ef4b42]/25 bg-[#ef4b42]/10 px-2.5 py-1 text-center text-[10px] text-white">
+            <span className="font-semibold text-[#ff7b72]">
+              {primaryPlacement.departmentCode}
+            </span>{" "}
+            · {primaryPlacement.shelfCode} · Col {primaryPlacement.columnNumber} ·{" "}
+            {primaryPlacement.activeRowLabel}
+            {extraPlacements > 0 ? ` (+${extraPlacements})` : ""}
           </div>
         )}
 
         {product.barcode && (
-          <div className="mt-2.5 flex items-center justify-between gap-2 rounded bg-surface-subtle px-2.5 py-1.5">
-            <span className="truncate font-mono text-[11px] text-foreground">
+          <div className="flex items-center justify-between gap-2 rounded-full bg-[#1c1c1e] px-3 py-1">
+            <span className="truncate font-mono text-[10px] text-[#a1a1aa]">
               {product.barcode}
             </span>
             <a
               href={`/api/barcodes/label?value=${encodeURIComponent(product.barcode)}`}
               target="_blank"
               rel="noreferrer"
-              className="shrink-0 text-xs font-medium text-primary hover:underline"
+              className="shrink-0 text-[10px] font-semibold text-[#ef4b42] hover:underline"
               title="Print Code 128 label"
             >
               Label
             </a>
           </div>
         )}
+      </div>
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-4">
-          <div>
-            <span className="font-display text-lg font-bold text-foreground tabular-nums">
-              {formatMoney(product.price)}
-            </span>
-            {product.costPrice !== undefined &&
-              Number(product.costPrice) > 0 && (
-                <p className="text-[11px] text-muted tabular-nums">
-                  Cost: {formatMoney(product.costPrice)}
-                </p>
-              )}
+      {/* Bottom Footer Row matching reference: Star Rating on left, Total Sale/Stock on right */}
+      <div className="mt-auto flex items-end justify-between border-t border-white/[0.06] pt-3 text-xs">
+        <div className="flex flex-col items-start gap-0.5">
+          <div className="flex items-center gap-1 font-bold text-white">
+            <span className="text-sm text-[#facc15]">★</span>
+            <span>{rating}</span>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className={cn(
-                "text-xs font-medium",
-                isOut || isLow
-                  ? "text-danger"
-                  : isRunningLow
-                    ? "text-warning"
-                    : "text-success",
-              )}
-            >
-              {isOut
-                ? "Out of stock"
-                : isLow
-                  ? "Low stock"
-                  : isRunningLow
-                    ? "Reorder soon"
-                    : "In stock"}
-            </span>
-            <Link
-              href={detailHref}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Manage →
-            </Link>
-          </div>
+          <Link
+            href={detailHref}
+            className="text-[11px] font-semibold text-[#ef4b42] hover:underline"
+          >
+            Manage →
+          </Link>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="text-right leading-tight">
+          <span
+            className={cn(
+              "block font-mono text-xs font-bold tabular-nums",
+              isOut || isLow
+                ? "text-[#ef4b42]"
+                : isRunningLow
+                  ? "text-[#d99b43]"
+                  : "text-[#a1a1aa]",
+            )}
+          >
+            {product.quantity}
+          </span>
+          <span className="text-[11px] font-bold text-white">Total Stock</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

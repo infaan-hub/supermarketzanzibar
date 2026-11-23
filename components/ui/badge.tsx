@@ -13,18 +13,18 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium leading-4",
+          "inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-[11px] font-semibold leading-4",
           {
             default:
-              "border-primary/20 bg-primary-soft text-primary",
+              "border-primary/35 bg-primary-soft text-[#ff7b72]",
             secondary:
-              "border-border bg-surface-subtle text-foreground",
+              "border-white/10 bg-[#38383f] text-foreground",
             success:
-              "border-emerald-200 bg-emerald-50 text-emerald-800",
+              "border-transparent bg-[#3fb950] text-white shadow-sm",
             danger:
-              "border-red-200 bg-red-50 text-red-700",
+              "border-transparent bg-[#ef4b42] text-white shadow-sm",
             warning:
-              "border-amber-200 bg-amber-50 text-amber-800",
+              "border-transparent bg-[#d99b43] text-white shadow-sm",
           }[variant],
           className,
         )}

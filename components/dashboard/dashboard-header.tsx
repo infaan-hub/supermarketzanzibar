@@ -51,14 +51,16 @@ export function DashboardHeader({
         <div className="min-w-0 space-y-1">
           <h1
             id="dashboard-title"
-            className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+            className="font-display text-xl font-bold tracking-tight text-white sm:text-2xl"
           >
-            Business overview
+            Marketplace Overview
           </h1>
           <p className="text-sm text-muted">
-            {greetingFor(generatedAt)}
-            {userName ? `, ${userName}` : ""}. Live sales, stock, and store
-            activity.
+            <span className="font-semibold text-[#ef4b42]">
+              {greetingFor(generatedAt)}
+              {userName ? `, ${userName}` : ""} ·{" "}
+            </span>
+            Live Marketplace orders, popular products, and stock activity.
           </p>
         </div>
 
@@ -80,7 +82,7 @@ export function DashboardHeader({
           <div
             role="group"
             aria-label="Reporting period"
-            className="grid min-w-0 flex-1 grid-cols-4 rounded-md border border-border bg-surface-muted p-0.5 sm:inline-flex sm:w-auto sm:flex-none"
+            className="grid min-w-0 flex-1 grid-cols-4 rounded-full border border-white/10 bg-[#151518] p-1 sm:inline-flex sm:w-auto sm:flex-none"
           >
             {DASHBOARD_RANGE_OPTIONS.map((option) => {
               const active = option.key === range;
@@ -90,8 +92,8 @@ export function DashboardHeader({
                   type="button"
                   className={
                     active
-                      ? "h-7 rounded bg-white px-2.5 text-xs font-semibold text-foreground shadow-sm sm:px-3 cursor-pointer"
-                      : "h-7 rounded px-2.5 text-xs font-medium text-muted transition-colors hover:text-foreground sm:px-3 cursor-pointer"
+                      ? "h-7 rounded-full bg-[#ef4b42] px-3 text-xs font-semibold text-white shadow-sm cursor-pointer"
+                      : "h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:text-white cursor-pointer"
                   }
                   aria-pressed={active}
                   onClick={() => onRangeChange(option.key)}

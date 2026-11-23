@@ -25,106 +25,123 @@ export function RecentSales({ sales }: { sales: DashboardRecentSale[] }) {
     <Panel aria-labelledby={titleId}>
       <PanelHeader
         titleId={titleId}
-        title="Recent sales"
-        description="Latest orders across all statuses"
-        action={<PanelLink href="/sales">All sales</PanelLink>}
+        title="Order Reports"
+        description={`${formatCount(sales.length)}+ New orders processed this period`}
+        action={<PanelLink href="/sales">View More</PanelLink>}
       />
 
       {sales.length === 0 ? (
         <PanelEmpty
-          title="No sales yet"
+          title="No orders yet"
           description="Completed and pending orders will appear here."
           action={
             <PanelLink href="/pos">Open point of sale</PanelLink>
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
+        <div className="overflow-x-auto p-4 pt-3">
+          <table className="w-full table-fixed border-separate border-spacing-y-2 text-sm">
             <thead>
-              <tr className="border-b border-border/70 text-xs text-muted">
+              <tr className="bg-[#38383f] text-xs font-medium text-[#d4d4d8]">
                 <th
                   scope="col"
-                  className="w-[46%] px-2.5 py-2 text-left font-normal sm:w-[52%] sm:px-4 md:w-[33%]"
+                  className="w-[38%] rounded-l-full px-4 py-2.5 text-left font-medium sm:w-[34%]"
                 >
-                  Sale
+                  Customer
                 </th>
                 <th
                   scope="col"
-                  className="hidden px-3 py-2 text-right font-normal sm:table-cell sm:w-[10%]"
+                  className="hidden px-3 py-2.5 text-left font-medium sm:table-cell sm:w-[20%]"
                 >
-                  Items
+                  Order number
                 </th>
                 <th
                   scope="col"
-                  className="hidden px-3 py-2 text-left font-normal md:table-cell md:w-[20%]"
+                  className="hidden px-3 py-2.5 text-left font-medium md:table-cell md:w-[18%]"
                 >
                   Payment
                 </th>
                 <th
                   scope="col"
-                  className="w-[28%] px-2.5 py-2 text-left font-normal sm:w-[17%] sm:px-3 md:w-[16%]"
-                >
-                  Status
-                </th>
-                <th
-                  scope="col"
-                  className="w-[26%] px-2.5 py-2 text-right font-normal sm:w-[21%] sm:px-4 md:w-[21%]"
+                  className="w-[30%] px-3 py-2.5 text-right font-medium sm:w-[16%]"
                 >
                   Amount
                 </th>
+                <th
+                  scope="col"
+                  className="w-[32%] rounded-r-full px-4 py-2.5 text-right font-medium sm:w-[18%]"
+                >
+                  Status
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/70">
-              {sales.map((sale) => (
-                <tr
-                  key={sale.id}
-                  className="align-middle transition-colors hover:bg-surface-subtle/60"
-                >
-                  <td className="min-w-0 px-2.5 py-3 sm:px-4">
-                    <Link
-                      href={`/sales/${sale.id}`}
-                      className="block truncate text-[13px] font-medium text-foreground hover:text-primary sm:text-sm"
-                    >
-                      {sale.customer}
-                    </Link>
-                    <p className="mt-0.5 truncate text-[11px] text-muted">
-                      <Link href={`/sales/${sale.id}`} className="hover:underline">
-                        #{sale.id}
-                      </Link>{" "}
-                      · {formatCount(sale.units)}{" "}
-                      {sale.units === 1 ? "unit" : "units"}
-                    </p>
-                  </td>
-                  <td className="hidden px-3 py-3 text-right text-xs tabular-nums text-muted sm:table-cell">
-                    {formatCount(sale.items)}
-                  </td>
-                  <td className="hidden px-3 py-3 md:table-cell">
-                    <p className="truncate text-xs font-medium text-foreground">
-                      {paymentMethodLabel(sale.paymentMethod)}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted">
-                      {paymentStatusLabel(sale.paymentStatus)}
-                    </p>
-                  </td>
-                  <td className="px-2.5 py-3 sm:px-3">
-                    <StatusBadge
-                      label={shortSaleStatus(sale.status)}
-                      tone={saleStatusTone(sale.status)}
-                    />
-                  </td>
-                  <td
-                    className="whitespace-nowrap px-2.5 py-3 text-right text-xs font-medium tabular-nums text-foreground sm:px-4 sm:text-sm"
-                    title={formatMoney(sale.amount)}
+            <tbody>
+              {sales.map((sale, idx) => {
+                const avatarColors = [
+                  "bg-[#eab308] text-[#18181b]",
+                  "bg-[#38bdf8] text-[#0f172a]",
+                  "bg-[#ef4b42] text-white",
+                  "bg-[#4ade80] text-[#0f172a]",
+                ];
+                return (
+                  <tr
+                    key={sale.id}
+                    className="align-middle transition-colors hover:bg-white/[0.04]"
                   >
-                    {formatMoneyAdaptive(sale.amount)}
-                    <span className="sr-only">
-                      {" "}
-                      ({formatMoney(sale.amount)})
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    <td className="min-w-0 px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
+                            avatarColors[idx % avatarColors.length]
+                          }`}
+                        >
+                          {sale.customer.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/sales/${sale.id}`}
+                            className="block truncate text-xs font-semibold text-white hover:text-[#ef4b42] sm:text-[13px]"
+                          >
+                            {sale.customer}
+                          </Link>
+                          <p className="truncate text-[10px] text-muted sm:hidden">
+                            #{sale.id}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden px-3 py-2.5 font-mono text-xs text-[#d4d4d8] sm:table-cell">
+                      <Link href={`/sales/${sale.id}`} className="hover:text-[#ef4b42] hover:underline">
+                        #{String(sale.id).padStart(8, "0")}
+                      </Link>
+                    </td>
+                    <td className="hidden px-3 py-2.5 md:table-cell">
+                      <p className="truncate text-xs font-medium text-[#d4d4d8]">
+                        {paymentMethodLabel(sale.paymentMethod)}
+                      </p>
+                      <p className="truncate text-[10px] text-muted">
+                        {paymentStatusLabel(sale.paymentStatus)}
+                      </p>
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold tabular-nums text-white"
+                      title={formatMoney(sale.amount)}
+                    >
+                      {formatMoneyAdaptive(sale.amount)}
+                      <span className="sr-only">
+                        {" "}
+                        ({formatMoney(sale.amount)})
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <StatusBadge
+                        label={shortSaleStatus(sale.status)}
+                        tone={saleStatusTone(sale.status)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -24,7 +24,10 @@ export function Shell({ title, children }: ShellProps) {
   const authUtility = isAuthUtilityPath(pathname);
   const hideChrome = isPublicPath(pathname);
   const isFullViewportCanvas =
-    pathname === "/digital-twin" || pathname === "/admin/digital-twin";
+    pathname === "/digital-twin" ||
+    pathname === "/admin/digital-twin" ||
+    pathname === "/manager/digital-twin" ||
+    pathname === "/market/digital-twin";
 
   React.useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
@@ -84,7 +87,7 @@ export function Shell({ title, children }: ShellProps) {
         }}
       />
       <div
-        className={`relative flex min-w-0 flex-1 flex-col transition-[margin] duration-200 print:ml-0 ${sidebarOpen ? "lg:ml-60" : "lg:ml-0"}`}
+        className={`relative flex min-w-0 flex-1 flex-col transition-[margin] duration-200 print:ml-0 ${sidebarOpen ? "lg:ml-64" : "lg:ml-0"}`}
       >
         <Header
           title={title}

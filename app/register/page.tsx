@@ -140,13 +140,13 @@ export default function RegisterPage() {
         <div className="space-y-2 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2.5 text-foreground"
+            className="inline-flex items-center gap-3 text-foreground"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-white">
-              SZ
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-base font-extrabold text-white shadow-[0_6px_16px_rgba(239,75,66,0.45)]">
+              🔥
             </span>
-            <span className="text-base font-semibold tracking-tight">
-              Supermarket Zanzibar
+            <span className="font-display text-lg font-extrabold tracking-tight text-white">
+              Marketplace
             </span>
           </Link>
           <div className="flex items-center justify-center gap-2">

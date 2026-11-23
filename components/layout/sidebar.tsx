@@ -161,31 +161,32 @@ export function Sidebar({
       id="app-sidebar"
       aria-hidden={!isOpen}
       inert={!isOpen}
-      className={`fixed inset-y-0 left-0 z-50 w-60 border-r border-border bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+      className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-white/[0.06] bg-[#252528] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 print:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       aria-label="Main navigation"
     >
       <div className="flex h-full flex-col">
-        <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-4">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold tracking-tight text-white">
-            SZ
+        {/* Top Fiery Marketplace Emblem Header */}
+        <div className="flex h-20 shrink-0 items-center gap-3 px-5">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff9a1f] via-[#ef4b42] to-[#991b1b] text-white shadow-[0_6px_18px_rgba(239,75,66,0.45)]">
+            <FlameLogoIcon />
           </div>
           <div className="min-w-0">
-            <span className="block truncate text-sm font-semibold tracking-tight text-foreground">
-              Supermarket
+            <span className="block truncate font-display text-base font-extrabold tracking-tight text-white">
+              Marketplace
             </span>
-            <span className="block truncate text-[11px] text-muted">
+            <span className="block truncate text-[11px] font-medium text-[#ef4b42]">
               {isAdmin
-                ? "Administration"
+                ? "Admin Portal"
                 : isSupplier
                   ? "Supplier Portal"
                   : user
-                    ? roleLabel(user.role)
+                    ? `${roleLabel(user.role)} Portal`
                     : "Store Operations"}
             </span>
           </div>
           <button
             type="button"
-            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-subtle hover:text-foreground lg:hidden"
+            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-muted transition-colors hover:bg-white/10 hover:text-white lg:hidden"
             aria-label="Close navigation"
             onClick={onClose}
           >
@@ -193,90 +194,167 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-3.5" aria-label="Main">
-          {visibleSections.map((section) => (
-            <div key={section.title} className="space-y-0.5">
-              <p className="px-2.5 pb-1 text-[11px] font-medium text-muted-foreground">
-                {section.title}
-              </p>
-              {section.items.map((item) => {
-                const active = isActive(item, pathname);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
-                      active
-                        ? "bg-primary-soft text-primary font-semibold"
-                        : "text-muted hover:bg-surface-subtle hover:text-foreground",
-                    )}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition-colors",
-                        active
-                          ? "text-primary"
-                          : "text-muted-foreground group-hover:text-foreground",
-                      )}
+        {/* Iconic Curved Left Icon Rail + Right Label Column */}
+        <div className="relative flex min-h-0 flex-1 overflow-hidden py-2">
+          {/* Decorative Curved Grey Left Rail Backdrop matching reference design */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1 bottom-1 left-0 w-[60px] rounded-r-[34px] bg-[#505056] shadow-[inset_-1px_0_0_rgba(255,255,255,0.12),4px_0_16px_rgba(0,0,0,0.3)]"
+          />
+
+          <nav
+            className="relative z-10 flex-1 space-y-4 overflow-y-auto py-3 pr-3"
+            aria-label="Main"
+          >
+            {visibleSections.map((section) => (
+              <div key={section.title} className="space-y-1">
+                <p className="pl-[74px] pr-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#71717a]">
+                  {section.title}
+                </p>
+                {section.items.map((item) => {
+                  const active = isActive(item, pathname);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className="group relative flex items-center py-1.5 text-[13px] font-medium transition-colors"
+                      aria-current={active ? "page" : undefined}
                     >
-                      {item.icon}
-                    </span>
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.badge === "cart" && cartCount > 0 && (
+                      {/* Left Rail Icon Slot (centered inside the 60px curved grey rail) */}
+                      <span className="relative flex w-[60px] shrink-0 items-center justify-center">
+                        <span
+                          className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                            active
+                              ? "bg-[#252528] text-[#ef4b42] shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
+                              : "text-white/90 group-hover:bg-white/10 group-hover:text-white",
+                          )}
+                        >
+                          <span className="h-4 w-4">{item.icon}</span>
+                        </span>
+                        {/* Glowing Coral-Red Dot on the Curved Rail Edge */}
+                        {active && (
+                          <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#ef4b42] ring-2 ring-[#252528]" />
+                        )}
+                      </span>
+
+                      {/* Right Label Slot */}
                       <span
                         className={cn(
-                          "rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                          "ml-3.5 flex-1 truncate transition-colors",
                           active
-                            ? "bg-primary text-white"
-                            : "bg-surface-muted text-foreground",
+                            ? "font-semibold text-[#ef4b42]"
+                            : "text-[#a1a1aa] group-hover:text-white",
                         )}
                       >
-                        {cartCount}
+                        {item.label}
                       </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
 
-        <div className="shrink-0 space-y-1 border-t border-border p-2.5">
-          {user && (
+                      {item.badge === "cart" && cartCount > 0 && (
+                        <span
+                          className={cn(
+                            "mr-1 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
+                            active
+                              ? "bg-[#ef4b42] text-white"
+                              : "bg-[#38383f] text-white",
+                          )}
+                        >
+                          {cartCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+
+            {/* Inline Logout row matching the reference sidebar */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="group relative flex w-full items-center py-1.5 text-[13px] font-medium text-[#a1a1aa] transition-colors hover:text-[#ef4b42] cursor-pointer"
+              >
+                <span className="flex w-[60px] shrink-0 items-center justify-center">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition-all group-hover:bg-white/10 group-hover:text-[#ef4b42]">
+                    <span className="h-4 w-4">
+                      <LogoutIcon />
+                    </span>
+                  </span>
+                </span>
+                <span className="ml-3.5 truncate">Logout</span>
+              </button>
+            </div>
+          </nav>
+        </div>
+
+        {/* Bottom Bronze Circular Utility Buttons + Active User Pill */}
+        <div className="shrink-0 space-y-2.5 border-t border-white/[0.06] px-4 py-3.5">
+          <div className="flex items-center gap-3">
             <Link
-              href={profileHref}
+              href={
+                isAdmin
+                  ? "/admin/settings"
+                  : profileHref
+              }
               onClick={onNavigate}
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-surface-subtle"
+              title={isAdmin ? "Store Settings" : "My Profile"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle text-[11px] font-semibold text-foreground">
-                {(user.full_name || user.username).slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-foreground">
-                  {user.full_name || user.username}
-                </p>
-                <p className="truncate text-[11px] text-muted">
-                  {roleLabel(user.role)}
-                </p>
-              </div>
+              <span className="h-4.5 w-4.5">
+                <SettingsIcon />
+              </span>
             </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-          >
-            <span className="h-4 w-4 shrink-0">
-              <LogoutIcon />
-            </span>
-            Sign out
-          </button>
+            <Link
+              href="/"
+              onClick={onNavigate}
+              title="Open Public Marketplace"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#463331] text-[#f5d0c8] shadow-md transition-all hover:bg-[#ef4b42] hover:text-white"
+            >
+              <span className="h-4.5 w-4.5">
+                <BellIcon />
+              </span>
+            </Link>
+            {user && (
+              <Link
+                href={profileHref}
+                onClick={onNavigate}
+                className="ml-auto flex min-w-0 items-center gap-2 rounded-full bg-[#1c1c1e] py-1 pr-3 pl-1.5 transition-colors hover:bg-[#323238]"
+              >
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ef4b42] text-[10px] font-bold text-white">
+                  {(user.full_name || user.username).slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-semibold text-white">
+                    {user.full_name || user.username}
+                  </p>
+                  <p className="truncate text-[10px] text-[#9ca3af]">
+                    {roleLabel(user.role)}
+                  </p>
+                </div>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </aside>
+  );
+}
+
+function FlameLogoIcon() {
+  return (
+    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12.83 2.15c.39-.28.93.02.9.5-.12 1.84.88 3.24 2.16 4.54 1.56 1.59 3.11 3.33 3.11 6.06A7 7 0 0 1 12 20.25a7 7 0 0 1-7-7c0-2.55 1.38-4.78 2.95-6.25.4-.37 1.04-.04.98.5-.12 1.07.31 1.98.96 2.5.24.19.6.03.61-.28.05-2.88 1.56-5.68 3.33-7.57Zm-.85 10.6c-.98.95-1.73 2.04-1.73 3.25a2.25 2.25 0 0 0 4.5 0c0-1.36-.85-2.4-1.89-3.28a.62.62 0 0 0-.88.03Z" />
+    </svg>
+  );
+}
+function BellIcon() {
+  return (
+    <svg className="h-full w-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
   );
 }
 
