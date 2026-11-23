@@ -21,6 +21,11 @@ import {
   DEFAULT_STORE_SETTINGS,
   sanitizeStoreSettings,
 } from "../lib/store-settings";
+import {
+  hashPassword,
+  isUsablePassword,
+  verifyPassword,
+} from "../lib/auth/password";
 import { generateReceipt } from "../lib/receipt";
 
 describe("RBAC path and role guards", () => {
@@ -266,5 +271,16 @@ describe("text receipt formatting", () => {
     expect(output).toContain("Control #: ZN26112200000042");
     expect(output).toContain("Discount");
     expect(output).not.toContain("$");
+  });
+});
+
+describe("admin-set user login passwords", () => {
+  it("hashes and verifies PBKDF2-SHA256 login passwords within the 128-char DB limit", () => {
+    const raw = "Zanzibar#2026!";
+    const hashed = hashPassword(raw);
+    expect(hashed.length).toBeLessThanOrEqual(128);
+    expect(isUsablePassword(hashed)).toBe(true);
+    expect(verifyPassword(raw, hashed)).toBe(true);
+    expect(verifyPassword("WrongPassword1!", hashed)).toBe(false);
   });
 });

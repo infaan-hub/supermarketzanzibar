@@ -476,16 +476,27 @@ export async function createUser(input: {
 export async function updateUser(
   id: string,
   input: {
+    username?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
     role?: string;
     is_active?: boolean;
     full_name?: string;
     password?: string;
+    companyName?: string;
   },
 ): Promise<User> {
   return request<User>(`/api/users/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+}
+
+export async function deleteUser(id: string): Promise<{ detail: string }> {
+  return request<{ detail: string }>(`/api/users/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 
