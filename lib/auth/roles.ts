@@ -25,6 +25,7 @@ export const ALL_ROLES = [
 export type AppRole = (typeof ALL_ROLES)[number];
 
 export const ADMIN_ROLES: readonly string[] = ["admin"];
+export const MARKET_ROLES: readonly string[] = ["marketmaster"];
 export const MANAGER_ROLES: readonly string[] = ["admin", "manager"];
 export const INVENTORY_ROLES: readonly string[] = [
   "admin",
@@ -149,6 +150,7 @@ export function isAuthUtilityPath(pathname: string): boolean {
 export function defaultHomeForRole(role: string | null | undefined): string {
   const normalized = normalizeRole(role);
   if (normalized === "admin") return "/admin";
+  if (normalized === "marketmaster") return "/market";
   if (normalized === "supplier") return "/supplier";
   if (EXPLORE_ROLES.includes(normalized)) return "/dashboard";
   return "/";
@@ -157,6 +159,7 @@ export function defaultHomeForRole(role: string | null | undefined): string {
 /**
  * Rewrite an operational route path into the active role's portal namespace.
  * - `admin`: `/dashboard` -> `/admin`, `/pos` -> `/admin/pos`, `/users` -> `/admin/users`
+ * - `marketmaster`: `/dashboard` -> `/market`, `/products` -> `/market/products`, `/pos` -> `/market/pos`
  * - other roles: keep root operational routes as-is (e.g. `/dashboard`, `/pos`, `/supplier`)
  */
 export function portalHref(
@@ -172,7 +175,9 @@ export function portalHref(
     path.startsWith("/register") ||
     path.startsWith("/unauthorized") ||
     path === "/admin" ||
-    path.startsWith("/admin/")
+    path.startsWith("/admin/") ||
+    path === "/market" ||
+    path.startsWith("/market/")
   ) {
     return path;
   }
@@ -185,6 +190,14 @@ export function portalHref(
     return `/admin${path}`;
   }
 
+  if (isMarketMasterRole(role)) {
+    if (path === "/dashboard") return "/market";
+    if (path.startsWith("/dashboard?")) {
+      return `/market${path.slice("/dashboard".length)}`;
+    }
+    return `/market${path}`;
+  }
+
   return path;
 }
 
@@ -193,7 +206,7 @@ export function portalHref(
  * `/dashboard`, `/pos`, `/users`, `/settings`, `/digital-twin`), return its
  * canonical `/admin/...` path so all Admin pages consistently start with `/admin/`.
  * Returns `null` when no redirect is needed (e.g. public storefront `/` or `/store-3d`,
- * `/supplier*`, or already under `/admin`).
+ * `/supplier*`, `/market*`, or already under `/admin`).
  */
 export function adminCanonicalRedirect(pathname: string): string | null {
   if (
@@ -202,6 +215,8 @@ export function adminCanonicalRedirect(pathname: string): string | null {
     pathname.startsWith("/store-3d/") ||
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
+    pathname === "/market" ||
+    pathname.startsWith("/market/") ||
     pathname === "/supplier" ||
     pathname.startsWith("/supplier/") ||
     isAuthUtilityPath(pathname)
@@ -214,6 +229,37 @@ export function adminCanonicalRedirect(pathname: string): string | null {
   return `/admin${pathname}`;
 }
 
+/**
+ * If a MarketMaster visits an allowed non-`/market/*` operational route (like
+ * `/dashboard`, `/products`, `/pos`, `/sales`, `/customers`, `/profile`),
+ * return its canonical `/market/...` path so all MarketMaster pages consistently
+ * live under `/market/*`. Returns `null` when already under `/market`, on public
+ * storefront routes, or on paths MarketMaster is not authorized to access.
+ */
+export function marketCanonicalRedirect(pathname: string): string | null {
+  if (
+    pathname === "/" ||
+    pathname === "/store-3d" ||
+    pathname.startsWith("/store-3d/") ||
+    pathname === "/market" ||
+    pathname.startsWith("/market/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/supplier" ||
+    pathname.startsWith("/supplier/") ||
+    isAuthUtilityPath(pathname)
+  ) {
+    return null;
+  }
+  if (!canAccessPath("marketmaster", pathname)) {
+    return null;
+  }
+  if (pathname === "/dashboard" || pathname === "/dashboard/") {
+    return "/market";
+  }
+  return `/market${pathname}`;
+}
+
 /** Allowed roles for an application pathname. Returns null for any signed-in user (or public). */
 export function requiredRolesForPath(
   pathname: string,
@@ -223,6 +269,11 @@ export function requiredRolesForPath(
   // All `/admin` & `/admin/*` pages belong exclusively to administrators.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return ADMIN_ROLES;
+  }
+
+  // All `/market` & `/market/*` pages belong exclusively to MarketMaster.
+  if (pathname === "/market" || pathname.startsWith("/market/")) {
+    return MARKET_ROLES;
   }
 
   // Dedicated Supplier Portal (`/supplier` & `/supplier/*`).

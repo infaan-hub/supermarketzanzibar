@@ -50,6 +50,42 @@ export interface ProductBarcodeItem {
   createdAt: string;
 }
 
+export interface ProductShelfPlacementRow {
+  rowIndex: number;
+  rowLabel: string;
+  quantity: number;
+  capacity: number;
+  isFull: boolean;
+  fillPercent: number;
+}
+
+export interface ProductShelfPlacement {
+  positionId: string;
+  departmentId: string;
+  departmentCode: string;
+  departmentName: string;
+  shelfId: string;
+  shelfCode: string;
+  shelfName: string;
+  positionCode: string;
+  slotIndex: number;
+  columnNumber: number;
+  quantity: number;
+  maximumCapacity: number;
+  reorderLevel: number;
+  rowCount: number;
+  filledRows: number;
+  activeRowLabel: string;
+  rowPlan: ProductShelfPlacementRow[];
+}
+
+export interface ProductShelfPlacementInput {
+  shelfId?: string | null;
+  positionId?: string | null;
+  previousPositionId?: string | null;
+  rowNumber?: number | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -64,6 +100,7 @@ export interface Product {
   category: ProductCategory | null;
   supplier: ProductSupplier | null;
   image_available: boolean;
+  shelfPlacements?: ProductShelfPlacement[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -82,6 +119,7 @@ export interface ProductDetail extends Product {
   updatedAt: string;
   barcodes: ProductBarcodeItem[];
   recentMovements: ProductStockMovementSummary[];
+  shelfPlacements: ProductShelfPlacement[];
 }
 
 export interface ProductsResponse {
@@ -99,6 +137,7 @@ export interface CreateProductRequest {
   categoryId?: string | null;
   supplierId?: string | null;
   description?: string;
+  shelfPlacement?: ProductShelfPlacementInput;
 }
 
 export interface UpdateProductRequest {
@@ -109,6 +148,7 @@ export interface UpdateProductRequest {
   supplierId?: string | null;
   description?: string;
   isActive?: boolean;
+  shelfPlacement?: ProductShelfPlacementInput;
 }
 
 // ---- Barcodes --------------------------------------------------------------

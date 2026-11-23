@@ -2,7 +2,7 @@
 
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,13 +26,16 @@ import {
   archiveProduct,
   createProductBarcodeLabel,
   deleteProductBarcodeLabel,
+  deleteProductImage,
   fetchProductDetail,
+  fetchShelves,
   updateProduct,
+  uploadProductImage,
 } from "@/lib/api";
 import { useCategories } from "@/hooks/useCategories";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { formatBusinessDateTime, formatMoney } from "@/lib/format";
-import type { ProductDetail } from "@/types/api";
+import type { ProductDetail, ShelfRecord } from "@/types/api";
 
 export default function ProductDetailPage({
   params,
@@ -61,6 +64,22 @@ export default function ProductDetailPage({
   const [categoryId, setCategoryId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [description, setDescription] = useState("");
+
+  // Shelf Department, Shelf, Column & Row placement state
+  const [shelves, setShelves] = useState<ShelfRecord[]>([]);
+  const [placementDepartmentId, setPlacementDepartmentId] = useState("");
+  const [placementShelfId, setPlacementShelfId] = useState("");
+  const [placementPositionId, setPlacementPositionId] = useState("");
+  const [placementRowNumber, setPlacementRowNumber] = useState("");
+  const [originalPositionId, setOriginalPositionId] = useState("");
+  const [placementDirty, setPlacementDirty] = useState(false);
+
+  // Product photo upload state
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [imageVersion, setImageVersion] = useState("");
+  const [imgFailed, setImgFailed] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -77,14 +96,38 @@ export default function ProductDetailPage({
     try {
       setLoading(true);
       setError(null);
-      const detail = await fetchProductDetail(id);
+      const [detail, shelvesRes] = await Promise.all([
+        fetchProductDetail(id),
+        fetchShelves().catch(() => ({ shelves: [] as ShelfRecord[] })),
+      ]);
       setProduct(detail);
+      setShelves(shelvesRes.shelves ?? []);
       setName(detail.name);
       setPrice(String(detail.price));
       setCostPrice(String(detail.costPrice));
       setCategoryId(detail.category?.id ?? "");
       setSupplierId(detail.supplier?.id ?? "");
       setDescription(detail.description ?? "");
+      setImageVersion(detail.updatedAt || String(Date.now()));
+      setImgFailed(false);
+
+      const primary = detail.shelfPlacements?.[0] ?? null;
+      if (primary) {
+        setPlacementDepartmentId(primary.departmentId);
+        setPlacementShelfId(primary.shelfId);
+        setPlacementPositionId(primary.positionId);
+        setOriginalPositionId(primary.positionId);
+        setPlacementRowNumber(
+          primary.filledRows > 0 ? String(primary.filledRows) : "",
+        );
+      } else {
+        setPlacementDepartmentId("");
+        setPlacementShelfId("");
+        setPlacementPositionId("");
+        setOriginalPositionId("");
+        setPlacementRowNumber("");
+      }
+      setPlacementDirty(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load product.");
     } finally {
@@ -96,6 +139,66 @@ export default function ProductDetailPage({
     void load();
   }, [load]);
 
+  const shelfDepartments = useMemo(() => {
+    const map = new Map<string, { id: string; code: string; name: string }>();
+    for (const shelf of shelves) {
+      if (shelf.department && !map.has(shelf.department.id)) {
+        map.set(shelf.department.id, shelf.department);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [shelves]);
+
+  const shelvesInDepartment = useMemo(() => {
+    if (!placementDepartmentId) return [];
+    return shelves.filter((s) => s.department.id === placementDepartmentId);
+  }, [shelves, placementDepartmentId]);
+
+  const selectedShelf = useMemo(
+    () => shelvesInDepartment.find((s) => s.id === placementShelfId) ?? null,
+    [shelvesInDepartment, placementShelfId],
+  );
+
+  const handleImageUpload = async (file: File) => {
+    if (!product || !canEdit || uploadingImage) return;
+    setUploadingImage(true);
+    setSaveError(null);
+    setSaveMessage(null);
+    try {
+      const res = await uploadProductImage(product.id, file);
+      setImageVersion(res.updatedAt || String(Date.now()));
+      setImgFailed(false);
+      await load();
+      setSaveMessage("Product image uploaded.");
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Unable to upload product image.",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!product || !canEdit || uploadingImage) return;
+    setUploadingImage(true);
+    setSaveError(null);
+    setSaveMessage(null);
+    try {
+      await deleteProductImage(product.id);
+      await load();
+      setSaveMessage("Product image removed.");
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Unable to remove product image.",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product || !canEdit || saving) return;
@@ -103,6 +206,11 @@ export default function ProductDetailPage({
     setSaveError(null);
     setSaveMessage(null);
     try {
+      const parsedRow =
+        placementRowNumber && /^[1-4]$/.test(placementRowNumber)
+          ? Number.parseInt(placementRowNumber, 10)
+          : null;
+
       await updateProduct(product.id, {
         name: name.trim(),
         price,
@@ -110,9 +218,19 @@ export default function ProductDetailPage({
         categoryId: categoryId || null,
         supplierId: supplierId || null,
         description,
+        ...(placementDirty
+          ? {
+              shelfPlacement: {
+                shelfId: placementShelfId || null,
+                positionId: placementPositionId || null,
+                previousPositionId: originalPositionId || null,
+                rowNumber: parsedRow,
+              },
+            }
+          : {}),
       });
       await load();
-      setSaveMessage("Product details updated.");
+      setSaveMessage("Product information & shelf placement updated.");
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : "Unable to save product.",
@@ -327,6 +445,71 @@ export default function ProductDetailPage({
                   {saveMessage}
                 </div>
               )}
+
+              {/* Product Photo */}
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-subtle p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
+                    {product.image_available && !imgFailed ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
+                        alt={product.name}
+                        onError={() => setImgFailed(true)}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="px-2 text-center text-[11px] text-muted">
+                        No photo
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      Product Image
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      Displayed on product cards, storefront, and 3D shelf packaging.
+                    </p>
+                  </div>
+                </div>
+                {canEdit && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) void handleImageUpload(f);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      isLoading={uploadingImage}
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      {product.image_available ? "Change Photo" : "Upload Photo"}
+                    </Button>
+                    {product.image_available && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={uploadingImage}
+                        onClick={() => void handleImageRemove()}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Product Name</label>
                 <Input
@@ -405,6 +588,199 @@ export default function ProductDetailPage({
                   disabled={!canEdit}
                   placeholder="Optional product notes…"
                 />
+              </div>
+
+              {/* Shelf Placement (Department, Shelf, Column & Row) */}
+              <div className="space-y-3 rounded-lg border border-border bg-surface-subtle/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Shelf Placement (Department, Column &amp; Row)
+                    </p>
+                    <p className="text-xs text-muted">
+                      Each column holds one product stacked across 4 vertical rows (Row 1 bottom to Row 4 top).
+                    </p>
+                  </div>
+                  {(product.shelfPlacements?.length ?? 0) > 0 ? (
+                    <Badge variant="success">
+                      {product.shelfPlacements.length}{" "}
+                      {product.shelfPlacements.length === 1
+                        ? "Column Placed"
+                        : "Columns Placed"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">Not Placed on Shelf</Badge>
+                  )}
+                </div>
+
+                {/* Current Placed Locations Summary */}
+                {(product.shelfPlacements?.length ?? 0) > 0 && (
+                  <div className="space-y-2">
+                    {product.shelfPlacements.map((sp) => (
+                      <div
+                        key={sp.positionId}
+                        className="rounded-md border border-border bg-white p-3 text-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="default">
+                              {sp.departmentName} ({sp.departmentCode})
+                            </Badge>
+                            <span className="font-semibold text-foreground">
+                              Shelf {sp.shelfCode}
+                            </span>
+                            <span className="text-muted">({sp.shelfName})</span>
+                            <span className="text-muted">·</span>
+                            <span className="font-semibold text-primary">
+                              Column {sp.columnNumber} ({sp.positionCode})
+                            </span>
+                            <span className="text-muted">·</span>
+                            <span className="font-medium text-foreground">
+                              {sp.activeRowLabel}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[11px] text-muted tabular-nums">
+                            {sp.quantity}/{sp.maximumCapacity} units
+                          </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-4 gap-1.5">
+                          {sp.rowPlan.map((row) => (
+                            <div
+                              key={row.rowIndex}
+                              className="rounded border border-border bg-surface-subtle px-2 py-1 text-center"
+                            >
+                              <p className="text-[10px] font-semibold text-foreground">
+                                {row.rowLabel}
+                              </p>
+                              <p className="font-mono text-[10px] text-muted tabular-nums">
+                                {row.quantity}/{row.capacity}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Editable Department / Shelf / Column / Row selectors */}
+                {shelfDepartments.length > 0 && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted">
+                        Shelf Department
+                      </label>
+                      <Select
+                        value={placementDepartmentId}
+                        disabled={!canEdit}
+                        onChange={(e) => {
+                          setPlacementDepartmentId(e.target.value);
+                          setPlacementShelfId("");
+                          setPlacementPositionId("");
+                          setPlacementDirty(true);
+                        }}
+                        aria-label="Shelf Department"
+                      >
+                        <option value="">Not assigned to shelf</option>
+                        {shelfDepartments.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({d.code})
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted">
+                        Shelf Fixture
+                      </label>
+                      <Select
+                        value={placementShelfId}
+                        disabled={!canEdit || !placementDepartmentId}
+                        onChange={(e) => {
+                          setPlacementShelfId(e.target.value);
+                          setPlacementPositionId("");
+                          setPlacementDirty(true);
+                        }}
+                        aria-label="Shelf Fixture"
+                      >
+                        <option value="">Select shelf…</option>
+                        {shelvesInDepartment.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.shelfCode} — {s.shelfName}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted">
+                        Column
+                      </label>
+                      <Select
+                        value={placementPositionId}
+                        disabled={!canEdit || !placementShelfId}
+                        onChange={(e) => {
+                          setPlacementPositionId(e.target.value);
+                          setPlacementDirty(true);
+                        }}
+                        aria-label="Shelf Column"
+                      >
+                        <option value="">Select column…</option>
+                        {(selectedShelf?.positions ?? []).map((pos) => {
+                          const isSameProduct = pos.product?.id === product.id;
+                          const occupiedByOther =
+                            Boolean(pos.product) &&
+                            !isSameProduct &&
+                            pos.quantity > 0;
+                          return (
+                            <option
+                              key={pos.id}
+                              value={pos.id}
+                              disabled={occupiedByOther}
+                            >
+                              Col {pos.slotIndex + 1} ({pos.positionCode}) —{" "}
+                              {isSameProduct
+                                ? `Current (${pos.quantity}/${pos.maximumCapacity})`
+                                : occupiedByOther
+                                  ? `Occupied: ${pos.product?.name}`
+                                  : pos.product
+                                    ? `Empty (${pos.product.name})`
+                                    : "Available"}
+                            </option>
+                          );
+                        })}
+                        {selectedShelf && selectedShelf.positions.length < 12 && (
+                          <option value="__NEW_COLUMN__">
+                            + Add New Column (Col{" "}
+                            {selectedShelf.positions.length + 1})
+                          </option>
+                        )}
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted">
+                        Row (4-Row Column Plan)
+                      </label>
+                      <Select
+                        value={placementRowNumber}
+                        disabled={!canEdit || !placementPositionId}
+                        onChange={(e) => {
+                          setPlacementRowNumber(e.target.value);
+                          setPlacementDirty(true);
+                        }}
+                        aria-label="Shelf Row"
+                      >
+                        <option value="">Keep current row fill</option>
+                        <option value="1">Row 1 (Bottom row)</option>
+                        <option value="2">Rows 1–2 (2 rows)</option>
+                        <option value="3">Rows 1–3 (3 rows)</option>
+                        <option value="4">Rows 1–4 (Full 4-row column)</option>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {canEdit && (

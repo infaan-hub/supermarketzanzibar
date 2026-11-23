@@ -23,6 +23,15 @@ import {
   isMissingBarcodeTable,
 } from "@/services/barcode.service";
 import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
+import {
+  ShelfPlacementError,
+  applyProductShelfPlacement,
+  serializeShelfPositions,
+  type ApplyShelfPlacementInput,
+  type ShelfPositionWithHierarchy,
+} from "@/lib/product-placement";
+import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import { isMissingTwinTables } from "@/services/digital-twin.service";
 
 const MAX_MONEY = new Prisma.Decimal("99999999.99");
 
@@ -60,7 +69,9 @@ async function uniqueSlug(name: string, barcode: string): Promise<string> {
 
 type ProductWithRelations = NonNullable<
   Awaited<ReturnType<typeof getProductById>>
->;
+> & {
+  shelfPositions?: ShelfPositionWithHierarchy[];
+};
 
 function serializeProduct(product: ProductWithRelations) {
   return {
@@ -83,6 +94,7 @@ function serializeProduct(product: ProductWithRelations) {
         }
       : null,
     image_available: Boolean(product.imageData),
+    shelfPlacements: serializeShelfPositions(product.shelfPositions),
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
   };
@@ -126,13 +138,38 @@ export async function GET(request: NextRequest) {
     const pageNum = page ? Math.max(Number(page), 1) : 1;
 
     const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        include: { category: true, supplier: true },
-        orderBy: { name: "asc" },
-        take: takeNum,
-        skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
-      }),
+      prisma.product
+        .findMany({
+          where,
+          include: {
+            category: true,
+            supplier: true,
+            shelfPositions: {
+              include: {
+                shelf: {
+                  include: {
+                    department: {
+                      select: { id: true, code: true, name: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+          take: takeNum,
+          skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
+        })
+        .catch((err) => {
+          if (!isMissingTwinTables(err)) throw err;
+          return prisma.product.findMany({
+            where,
+            include: { category: true, supplier: true },
+            orderBy: { name: "asc" },
+            take: takeNum,
+            skip: pageNum > 1 ? (pageNum - 1) * takeNum : undefined,
+          });
+        }),
       prisma.product.count({ where }),
     ]);
 
@@ -259,13 +296,20 @@ export async function POST(request: NextRequest) {
     return validation("description", "Description must be 5,000 characters or fewer.");
   }
 
+  const shelfPlacementInput: ApplyShelfPlacementInput | null =
+    input.shelfPlacement && typeof input.shelfPlacement === "object"
+      ? (input.shelfPlacement as ApplyShelfPlacementInput)
+      : null;
+
   try {
+    let categoryNameForPlacement: string | null = null;
     if (categoryId !== null) {
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
-        select: { id: true },
+        select: { id: true, name: true },
       });
       if (!category) return validation("categoryId", "Category not found.");
+      categoryNameForPlacement = category.name;
     }
 
     if (supplierId !== null) {
@@ -342,6 +386,19 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      if (
+        shelfPlacementInput &&
+        (shelfPlacementInput.positionId || shelfPlacementInput.shelfId)
+      ) {
+        await applyProductShelfPlacement(tx, {
+          productId: createdProduct.id,
+          productName: createdProduct.name,
+          categoryName: categoryNameForPlacement,
+          productQuantity: createdProduct.quantity,
+          placement: shelfPlacementInput,
+        });
+      }
+
       return createdProduct;
     });
 
@@ -371,7 +428,40 @@ export async function POST(request: NextRequest) {
       await syncLabel(sourceBarcode, false, "scanned");
     }
 
-    const fullProduct = await getProductById(product.id);
+    if (
+      shelfPlacementInput &&
+      (shelfPlacementInput.positionId || shelfPlacementInput.shelfId)
+    ) {
+      publishInventoryEvent({
+        type: "shelf_updated",
+        productId: product.id.toString(),
+        summary: `Placed ${product.name} on shelf`,
+      });
+    }
+
+    const fullProduct = await prisma.product
+      .findUnique({
+        where: { id: product.id },
+        include: {
+          category: true,
+          supplier: true,
+          shelfPositions: {
+            include: {
+              shelf: {
+                include: {
+                  department: {
+                    select: { id: true, code: true, name: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+      .catch((err) => {
+        if (!isMissingTwinTables(err)) throw err;
+        return getProductById(product.id);
+      });
     if (!fullProduct) {
       return serverError("The product was created but could not be loaded.");
     }
@@ -381,6 +471,9 @@ export async function POST(request: NextRequest) {
       sourceBarcode: sourceBarcode || null,
     });
   } catch (error) {
+    if (error instanceof ShelfPlacementError) {
+      return json({ detail: error.message }, { status: error.status });
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

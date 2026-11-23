@@ -101,7 +101,12 @@ const SUPPLIER_SECTIONS: NavSection[] = [
 ];
 
 function isActive(item: NavItem, pathname: string) {
-  if (item.exact || item.href === "/" || item.href === "/admin") {
+  if (
+    item.exact ||
+    item.href === "/" ||
+    item.href === "/admin" ||
+    item.href === "/market"
+  ) {
     return pathname === item.href;
   }
   return pathname === item.href || pathname.startsWith(`${item.href}/`);

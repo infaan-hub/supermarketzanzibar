@@ -287,6 +287,32 @@ export async function archiveProduct(id: string): Promise<{ detail: string }> {
   });
 }
 
+export async function uploadProductImage(
+  id: string,
+  file: File,
+): Promise<{
+  id: string;
+  image_available: boolean;
+  imageName: string;
+  imageContentType: string;
+  updatedAt: string;
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request(`/api/products/${encodeURIComponent(id)}/image`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function deleteProductImage(
+  id: string,
+): Promise<{ id: string; image_available: boolean; updatedAt: string }> {
+  return request(`/api/products/${encodeURIComponent(id)}/image`, {
+    method: "DELETE",
+  });
+}
+
 export async function lookupBarcode(
   barcode: string,
 ): Promise<BarcodeLookupResponse> {

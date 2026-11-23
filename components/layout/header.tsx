@@ -14,7 +14,7 @@ import {
 import { CART_CHANGE_EVENT, readCartItemCount } from "@/hooks/usePosCart";
 
 function pageLabelForPath(pathname: string): string {
-  const clean = pathname.replace(/^\/admin(?=\/|$)/, "") || "/";
+  const clean = pathname.replace(/^\/(?:admin|market)(?=\/|$)/, "") || "/";
   if (clean === "/" || clean === "/dashboard") return "Overview";
   if (clean.startsWith("/digital-twin")) return "3D Digital Twin";
   if (clean.startsWith("/pos")) return "Point of Sale";

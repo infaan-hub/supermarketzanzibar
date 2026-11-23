@@ -13,10 +13,15 @@ import {
   isProductRole,
   isPublicPath,
   isStaffRole,
+  marketCanonicalRedirect,
   portalHref,
   roleDescription,
   roleLabel,
 } from "../lib/auth/roles";
+import {
+  serializeShelfPositions,
+  unitsForTargetRows,
+} from "../lib/product-placement";
 import {
   DEFAULT_STORE_SETTINGS,
   sanitizeStoreSettings,
@@ -148,7 +153,7 @@ describe("RBAC path and role guards", () => {
 
   it("routes each role to its proper portal namespace and default landing page", () => {
     expect(defaultHomeForRole("admin")).toBe("/admin");
-    expect(defaultHomeForRole("marketmaster")).toBe("/dashboard");
+    expect(defaultHomeForRole("marketmaster")).toBe("/market");
     expect(defaultHomeForRole("manager")).toBe("/dashboard");
     expect(defaultHomeForRole("supplier")).toBe("/supplier");
     expect(defaultHomeForRole("customer")).toBe("/");
@@ -160,15 +165,40 @@ describe("RBAC path and role guards", () => {
     );
     expect(portalHref("admin", "/")).toBe("/");
 
-    expect(portalHref("marketmaster", "/dashboard")).toBe("/dashboard");
-    expect(portalHref("marketmaster", "/products")).toBe("/products");
+    expect(portalHref("marketmaster", "/dashboard")).toBe("/market");
+    expect(portalHref("marketmaster", "/products")).toBe("/market/products");
+    expect(portalHref("marketmaster", "/pos")).toBe("/market/pos");
+    expect(portalHref("marketmaster", "/market/products")).toBe(
+      "/market/products",
+    );
+    expect(portalHref("marketmaster", "/")).toBe("/");
 
     expect(adminCanonicalRedirect("/dashboard")).toBe("/admin");
     expect(adminCanonicalRedirect("/users")).toBe("/admin/users");
     expect(adminCanonicalRedirect("/pos")).toBe("/admin/pos");
     expect(adminCanonicalRedirect("/admin/users")).toBe(null);
+    expect(adminCanonicalRedirect("/market/products")).toBe(null);
     expect(adminCanonicalRedirect("/")).toBe(null);
     expect(adminCanonicalRedirect("/store-3d")).toBe(null);
+
+    expect(marketCanonicalRedirect("/dashboard")).toBe("/market");
+    expect(marketCanonicalRedirect("/products")).toBe("/market/products");
+    expect(marketCanonicalRedirect("/products/42")).toBe("/market/products/42");
+    expect(marketCanonicalRedirect("/pos")).toBe("/market/pos");
+    expect(marketCanonicalRedirect("/market/products")).toBe(null);
+    expect(marketCanonicalRedirect("/admin/users")).toBe(null);
+    expect(marketCanonicalRedirect("/users")).toBe(null);
+    expect(marketCanonicalRedirect("/purchase-orders")).toBe(null);
+    expect(marketCanonicalRedirect("/")).toBe(null);
+
+    // `/market` and `/market/*` are specialized strictly for MarketMaster.
+    expect(canAccessPath("marketmaster", "/market")).toBe(true);
+    expect(canAccessPath("marketmaster", "/market/products")).toBe(true);
+    expect(canAccessPath("marketmaster", "/market/pos")).toBe(true);
+    expect(canAccessPath("admin", "/market")).toBe(false);
+    expect(canAccessPath("admin", "/market/products")).toBe(false);
+    expect(canAccessPath("manager", "/market/products")).toBe(false);
+    expect(canAccessPath("customer", "/market")).toBe(false);
   });
 
   it("allows any authenticated user to access /profile", () => {
@@ -282,5 +312,50 @@ describe("admin-set user login passwords", () => {
     expect(isUsablePassword(hashed)).toBe(true);
     expect(verifyPassword(raw, hashed)).toBe(true);
     expect(verifyPassword("WrongPassword1!", hashed)).toBe(false);
+  });
+});
+
+describe("product shelf placement department, column & 4-row helpers", () => {
+  it("serializes department, shelf, column number, and 4-row breakdown", () => {
+    const placements = serializeShelfPositions([
+      {
+        id: "pos-1",
+        shelfId: "shelf-1",
+        positionCode: "COL-02",
+        slotIndex: 1,
+        quantity: 14,
+        maximumCapacity: 24,
+        reorderLevel: 6,
+        shelf: {
+          id: "shelf-1",
+          shelfCode: "BEV-A1",
+          shelfName: "Beverages Gondola 1",
+          department: {
+            id: "dept-1",
+            code: "BEV",
+            name: "Beverages",
+          },
+        },
+      },
+    ]);
+
+    expect(placements).toHaveLength(1);
+    expect(placements[0].departmentName).toBe("Beverages");
+    expect(placements[0].departmentCode).toBe("BEV");
+    expect(placements[0].shelfCode).toBe("BEV-A1");
+    expect(placements[0].columnNumber).toBe(2);
+    expect(placements[0].filledRows).toBe(3);
+    expect(placements[0].activeRowLabel).toBe("Rows 1–3");
+    expect(placements[0].rowPlan).toHaveLength(4);
+    expect(placements[0].rowPlan[0].quantity).toBe(6);
+    expect(placements[0].rowPlan[2].quantity).toBe(2);
+    expect(placements[0].rowPlan[3].quantity).toBe(0);
+  });
+
+  it("computes target shelf units per desired row count (1..4)", () => {
+    expect(unitsForTargetRows(1, 24)).toBe(6);
+    expect(unitsForTargetRows(2, 24)).toBe(12);
+    expect(unitsForTargetRows(4, 24)).toBe(24);
+    expect(unitsForTargetRows(3, 24, 10)).toBe(10);
   });
 });

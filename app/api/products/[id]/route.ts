@@ -17,6 +17,16 @@ import {
   requireStaff,
 } from "@/lib/auth/request";
 import { listProductBarcodes } from "@/services/barcode.service";
+import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
+import {
+  ShelfPlacementError,
+  applyProductShelfPlacement,
+  serializeShelfPositions,
+  type ApplyShelfPlacementInput,
+  type ShelfPositionWithHierarchy,
+} from "@/lib/product-placement";
+import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import { isMissingTwinTables } from "@/services/digital-twin.service";
 
 const MAX_MONEY = new Prisma.Decimal("99999999.99");
 
@@ -42,7 +52,8 @@ export async function GET(
   if (!productId) return badRequest("Invalid product ID.");
 
   try {
-    const [product, barcodes, movements] = await Promise.all([
+    await ensureDigitalTwinSchema().catch(() => undefined);
+    const [product, barcodes, movements, shelfPositions] = await Promise.all([
       prisma.product.findUnique({
         where: { id: productId },
         include: { category: true, supplier: true },
@@ -54,6 +65,24 @@ export async function GET(
         orderBy: { date: "desc" },
         take: 25,
       }),
+      prisma.shelfPosition
+        .findMany({
+          where: { productId },
+          include: {
+            shelf: {
+              include: {
+                department: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+          },
+          orderBy: { slotIndex: "asc" },
+        })
+        .catch((err): ShelfPositionWithHierarchy[] => {
+          if (isMissingTwinTables(err)) return [];
+          throw err;
+        }),
     ]);
 
     if (!product) {
@@ -80,6 +109,7 @@ export async function GET(
           }
         : null,
       image_available: Boolean(product.imageData),
+      shelfPlacements: serializeShelfPositions(shelfPositions),
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       barcodes: barcodes.map((b) => ({
@@ -195,12 +225,79 @@ export async function PATCH(
     }
   }
 
+  const shelfPlacementInput: ApplyShelfPlacementInput | null =
+    body.shelfPlacement && typeof body.shelfPlacement === "object"
+      ? (body.shelfPlacement as ApplyShelfPlacementInput)
+      : null;
+
   try {
-    const updated = await prisma.product.update({
-      where: { id: productId },
-      data,
-      include: { category: true, supplier: true },
-    });
+    if (shelfPlacementInput) {
+      await ensureDigitalTwinSchema().catch(() => undefined);
+    }
+
+    const { updated, placementResult } = await prisma.$transaction(
+      async (tx) => {
+        const nextProduct = await tx.product.update({
+          where: { id: productId },
+          data,
+          include: { category: true, supplier: true },
+        });
+
+        let result: Awaited<ReturnType<typeof applyProductShelfPlacement>> = {
+          changed: false,
+        };
+        if (shelfPlacementInput) {
+          result = await applyProductShelfPlacement(tx, {
+            productId: nextProduct.id,
+            productName: nextProduct.name,
+            categoryName: nextProduct.category?.name ?? null,
+            productQuantity: nextProduct.quantity,
+            placement: shelfPlacementInput,
+          });
+        }
+
+        return { updated: nextProduct, placementResult: result };
+      },
+    );
+
+    if (placementResult.changed) {
+      publishInventoryEvent({
+        type: "shelf_updated",
+        shelfId: placementResult.shelfId,
+        shelfCode: placementResult.shelfCode,
+        positionId: placementResult.positionId,
+        productId: updated.id.toString(),
+        quantity: placementResult.quantity,
+        updates: placementResult.positionId
+          ? [
+              {
+                productId: updated.id.toString(),
+                shelfCode: placementResult.shelfCode,
+                positionId: placementResult.positionId,
+                quantity: placementResult.quantity ?? 0,
+              },
+            ]
+          : undefined,
+        summary: `Updated shelf placement for ${updated.name}`,
+      });
+    }
+
+    const shelfPositions = await prisma.shelfPosition
+      .findMany({
+        where: { productId },
+        include: {
+          shelf: {
+            include: {
+              department: { select: { id: true, code: true, name: true } },
+            },
+          },
+        },
+        orderBy: { slotIndex: "asc" },
+      })
+      .catch((err): ShelfPositionWithHierarchy[] => {
+        if (isMissingTwinTables(err)) return [];
+        throw err;
+      });
 
     return json({
       id: updated.id.toString(),
@@ -222,10 +319,14 @@ export async function PATCH(
           }
         : null,
       image_available: Boolean(updated.imageData),
+      shelfPlacements: serializeShelfPositions(shelfPositions),
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     });
   } catch (error) {
+    if (error instanceof ShelfPlacementError) {
+      return json({ detail: error.message }, { status: error.status });
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2025"

@@ -28,7 +28,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": product.imageContentType || "image/jpeg",
-        "Cache-Control": "public, max-age=300",
+        "Cache-Control": "public, max-age=60, must-revalidate",
       },
     });
   } catch {

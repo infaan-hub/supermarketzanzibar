@@ -13,7 +13,9 @@ import {
   adminCanonicalRedirect,
   canAccessPath,
   isAdminRole,
+  isMarketMasterRole,
   isPublicPath,
+  marketCanonicalRedirect,
 } from "@/lib/auth/roles";
 import {
   fetchMe,
@@ -105,6 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Keep all MarketMaster pages strictly under `/market/*` (preserving query params).
+    if (isMarketMasterRole(user.role)) {
+      const marketTarget = marketCanonicalRedirect(pathname);
+      if (marketTarget) {
+        const search =
+          typeof window !== "undefined" ? window.location.search : "";
+        router.replace(`${marketTarget}${search}`);
+        return;
+      }
+    }
+
     if (!canAccessPath(user.role, pathname)) {
       router.replace("/unauthorized");
     }
@@ -150,7 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (loading ||
       !user ||
       !canAccessPath(user.role, pathname) ||
-      (isAdminRole(user.role) && adminCanonicalRedirect(pathname) !== null));
+      (isAdminRole(user.role) && adminCanonicalRedirect(pathname) !== null) ||
+      (isMarketMasterRole(user.role) &&
+        marketCanonicalRedirect(pathname) !== null));
 
   return (
     <AuthContext.Provider value={value}>
