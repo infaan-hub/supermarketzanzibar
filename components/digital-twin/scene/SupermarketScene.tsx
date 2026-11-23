@@ -101,7 +101,11 @@ export function SupermarketScene({
     selection?.type === "warehouse_position" ? selection.locationId : null;
 
   const dpr: [number, number] =
-    quality === "high" ? [1, 2] : quality === "balanced" ? [1, 1.5] : [0.75, 1];
+    quality === "high"
+      ? [1.25, 2.25]
+      : quality === "balanced"
+        ? [1, 1.75]
+        : [0.85, 1.1];
 
   const showRetail = sceneScope !== "warehouse";
   const showWarehouse = sceneScope !== "supermarket";
@@ -123,14 +127,14 @@ export function SupermarketScene({
       camera={{
         position: CAMERA_PRESETS.overview.position,
         fov: 45,
-        near: 0.15,
+        near: 0.08,
         far: 160,
       }}
       gl={{
         antialias: quality !== "low",
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.04,
+        toneMappingExposure: 1.08,
         outputColorSpace: THREE.SRGBColorSpace,
       }}
       onPointerMissed={onClearSelection}

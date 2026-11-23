@@ -446,68 +446,68 @@ export default function ProductDetailPage({
                 </div>
               )}
 
-              {/* Product Photo */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-subtle p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
-                    {product.image_available && !imgFailed ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
-                        alt={product.name}
-                        onError={() => setImgFailed(true)}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="px-2 text-center text-[11px] text-muted">
-                        No photo
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      Product Image
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      Displayed on product cards, storefront, and 3D shelf packaging.
-                    </p>
-                  </div>
-                </div>
-                {canEdit && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = "";
-                        if (f) void handleImageUpload(f);
-                      }}
+              {/* Expanded HD Product Photo Showcase */}
+              <div className="space-y-3 rounded-lg border border-border bg-surface-subtle/60 p-3.5">
+                <div className="flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-white to-slate-50 p-3">
+                  {product.image_available && !imgFailed ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
+                      alt={product.name}
+                      onError={() => setImgFailed(true)}
+                      className="max-h-full max-w-full rounded object-contain"
                     />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      isLoading={uploadingImage}
-                      onClick={() => photoInputRef.current?.click()}
-                    >
-                      {product.image_available ? "Change Photo" : "Upload Photo"}
-                    </Button>
-                    {product.image_available && (
+                  ) : (
+                    <span className="px-3 text-center text-xs text-muted">
+                      No product photo uploaded yet
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      HD Product Image (Front &amp; Back of 3D Shelf Package)
+                    </p>
+                    <p className="text-xs text-muted">
+                      Shown expanded on product cards, storefront, and front &amp; back of 3D shelf packaging.
+                    </p>
+                  </div>
+                  {canEdit && (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (f) void handleImageUpload(f);
+                        }}
+                      />
                       <Button
                         type="button"
                         size="sm"
-                        variant="ghost"
-                        disabled={uploadingImage}
-                        onClick={() => void handleImageRemove()}
+                        variant="secondary"
+                        isLoading={uploadingImage}
+                        onClick={() => photoInputRef.current?.click()}
                       >
-                        Remove
+                        {product.image_available ? "Change Photo" : "Upload Photo"}
                       </Button>
-                    )}
-                  </div>
-                )}
+                      {product.image_available && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={uploadingImage}
+                          onClick={() => void handleImageRemove()}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5">

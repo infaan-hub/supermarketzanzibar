@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/components/auth/auth-provider";
-import { isInventoryRole, isManagerRole } from "@/lib/auth/roles";
+import { isInventoryRole, isManagerRole, portalHref } from "@/lib/auth/roles";
 import {
   addShelfColumn,
   fetchDigitalTwin,
@@ -29,6 +30,14 @@ import { DepartmentNavigation } from "@/components/digital-twin/departments/Depa
 import { SceneToolbar } from "@/components/digital-twin/interface/SceneToolbar";
 import { InventoryOverlay } from "@/components/digital-twin/interface/InventoryOverlay";
 import { ObjectInformationPanel } from "@/components/digital-twin/interface/ObjectInformationPanel";
+
+const ProductCloseUpModal = dynamic(
+  () =>
+    import("@/components/digital-twin/products/ProductCloseUpModal").then(
+      (m) => m.ProductCloseUpModal,
+    ),
+  { ssr: false },
+);
 import { FloorPlan2DFallback } from "@/components/digital-twin/interface/FloorPlan2DFallback";
 import {
   WebGLErrorBoundary,
@@ -101,7 +110,7 @@ export function DigitalTwinWorkspace({
   const [sceneScope, setSceneScope] =
     React.useState<TwinSceneScope>(initialScope);
   const [viewMode, setViewMode] = React.useState<TwinViewMode>("realistic");
-  const [quality, setQuality] = React.useState<GraphicsQuality>("balanced");
+  const [quality, setQuality] = React.useState<GraphicsQuality>("high");
   const [showCeiling, setShowCeiling] = React.useState(false);
   const [is2DMode, setIs2DMode] = React.useState(false);
   const [webglSupported, setWebglSupported] = React.useState(true);
@@ -111,6 +120,14 @@ export function DigitalTwinWorkspace({
   const [rightOpen, setRightOpen] = React.useState(true);
 
   const [selection, setSelection] = React.useState<TwinSelection>(null);
+  const [closeUpPosition, setCloseUpPosition] =
+    React.useState<TwinShelfPositionNode | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setQuality("balanced");
+    }
+  }, []);
   const [cameraGoal, setCameraGoal] = React.useState<CameraGoal | null>(
     initialScope === "warehouse"
       ? {
@@ -259,6 +276,8 @@ export function DigitalTwinWorkspace({
   const handleSelectProduct = React.useCallback(
     (pos: TwinShelfPositionNode) => {
       if (!pos.product) return;
+      const alreadySelected =
+        selection?.type === "product" && selection.positionId === pos.id;
       setSelection({
         type: "product",
         productId: pos.product.id,
@@ -273,13 +292,16 @@ export function DigitalTwinWorkspace({
         const framing = shelfSlotWorldCamera(
           fixture,
           pos.slotIndex,
-          2.25,
+          1.45,
           shelf?.positions.length,
         );
         flyTo(framing.position, framing.target);
       }
+      if (alreadySelected) {
+        setCloseUpPosition(pos);
+      }
     },
-    [flyTo, snapshot],
+    [flyTo, selection, snapshot],
   );
 
   const handleSelectWarehousePosition = React.useCallback(
@@ -803,6 +825,7 @@ export function DigitalTwinWorkspace({
               canRestock={canRestock}
               onSelectShelf={handleSelectShelf}
               onSelectProduct={handleSelectProduct}
+              onInspectProductCloseUp={(pos) => setCloseUpPosition(pos)}
               onRestockShelfPosition={handleRestockShelfPosition}
               onAddShelfColumn={handleAddShelfColumn}
               onTransferFromWarehouse={handleTransferFromWarehouse}
@@ -811,6 +834,40 @@ export function DigitalTwinWorkspace({
           </aside>
         )}
       </div>
+
+      {/* Ultra-HD 360° Close-Up Product Studio Modal */}
+      {closeUpPosition?.product && (
+        <ProductCloseUpModal
+          position={closeUpPosition}
+          departmentName={
+            snapshot?.shelves.find((s) => s.id === closeUpPosition.shelfId)
+              ?.departmentName
+          }
+          shelfName={
+            snapshot?.shelves.find((s) => s.id === closeUpPosition.shelfId)?.name
+          }
+          onClose={() => setCloseUpPosition(null)}
+          footerActions={
+            <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
+              <Link
+                href={portalHref(
+                  user?.role,
+                  `/products/${closeUpPosition.product.id}`,
+                )}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-semibold text-foreground transition-colors hover:bg-surface-subtle"
+              >
+                Edit Product
+              </Link>
+              <Link
+                href={portalHref(user?.role, "/pos")}
+                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-hover"
+              >
+                Sell in POS
+              </Link>
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

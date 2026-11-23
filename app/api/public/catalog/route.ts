@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
           quantity: true,
           description: true,
           imageName: true,
+          updatedAt: true,
           category: { select: { id: true, name: true } },
         },
         orderBy: [{ quantity: "desc" }, { name: "asc" }],
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
           description: p.description,
           imageAvailable: Boolean(p.imageName),
           imageUrl: p.imageName
-            ? `/api/public/products/${p.id.toString()}/image`
+            ? `/api/public/products/${p.id.toString()}/image?v=${p.updatedAt.getTime()}`
             : null,
           category: p.category
             ? { id: p.category.id.toString(), name: p.category.name }

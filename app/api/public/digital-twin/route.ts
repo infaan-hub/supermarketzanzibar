@@ -112,6 +112,7 @@ async function loadPublicProductMetaMap(
       barcode: true,
       imageName: true,
       description: true,
+      updatedAt: true,
       barcodes: {
         select: {
           id: true,
@@ -128,7 +129,9 @@ async function loadPublicProductMetaMap(
   for (const row of rows) {
     const idStr = row.id.toString();
     map.set(idStr, {
-      imageUrl: row.imageName ? `/api/public/products/${idStr}/image` : null,
+      imageUrl: row.imageName
+        ? `/api/public/products/${idStr}/image?v=${row.updatedAt.getTime()}`
+        : null,
       description: row.description ?? "",
       packOptions: buildPackOptions(
         Number(row.price),
@@ -153,6 +156,7 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       sku: true,
       imageName: true,
       description: true,
+      updatedAt: true,
       category: { select: { id: true, name: true } },
       barcodes: {
         select: {
@@ -255,7 +259,7 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       assetKey: asset.key,
       assetPath: asset.path,
       imageUrl: product.imageName
-        ? `/api/public/products/${idStr}/image`
+        ? `/api/public/products/${idStr}/image?v=${product.updatedAt.getTime()}`
         : null,
       description: product.description ?? "",
       packOptions: buildPackOptions(

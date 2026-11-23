@@ -260,7 +260,7 @@ export function CameraControls({
       makeDefault
       enableDamping
       dampingFactor={0.08}
-      minDistance={1.35}
+      minDistance={0.55}
       maxDistance={BUILDING_DIMENSIONS.cameraLimits.maxDistance}
       minPolarAngle={BUILDING_DIMENSIONS.cameraLimits.minPolarAngle}
       maxPolarAngle={BUILDING_DIMENSIONS.cameraLimits.maxPolarAngle}

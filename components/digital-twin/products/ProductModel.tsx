@@ -18,7 +18,11 @@ import {
   type ColumnRowFacing,
   type SlotFacingPlacement,
 } from "@/lib/digital-twin/product-layout";
-import { getProductLabelTexture } from "@/lib/digital-twin/procedural-textures";
+import {
+  categoryAccentPalette,
+  getProductBackLabelTexture,
+  getProductLabelTexture,
+} from "@/lib/digital-twin/procedural-textures";
 import type { Vec3 } from "@/lib/digital-twin/spatial-plan";
 import { formatMoney } from "@/lib/format";
 import type {
@@ -136,27 +140,41 @@ export function getTintedMaterial(
 
 /**
  * Shared-geometry, Box3-grounded 3D product unit with shape-aware
- * HD CanvasTexture packaging wrap (curved cylinder sleeve for bottles/cans,
- * flush front & top face wrap for cartons/boxes/trays).
+ * Ultra-HD 1024x1024 FRONT & BACK retail packaging wraps:
+ * - Bottles & cans: smooth 40-segment front (~176 deg) & back (~176 deg) wraps
+ *   with glossy satin clearcoat laminate.
+ * - Cartons, boxes, bags & trays: expanded flush front face, full back-of-pack
+ *   product info/image face, branded side spines, and top tray label.
  */
-function GroundedHeroProductUnit({
+export function DetailedProductMesh({
   assetPath,
   assetKey,
-  tintColor,
-  applyTint,
-  labelTexture,
-  showLabel,
+  tintColor = "#0f766e",
+  applyTint = false,
+  frontLabelTexture,
+  backLabelTexture,
+  accentColor = "#0f766e",
+  showLabel = true,
+  scaleMultiplier = 1,
 }: {
   assetPath: string;
   assetKey: string;
-  tintColor: string;
-  applyTint: boolean;
-  labelTexture: THREE.CanvasTexture | null;
-  showLabel: boolean;
+  tintColor?: string;
+  applyTint?: boolean;
+  frontLabelTexture: THREE.CanvasTexture | null;
+  backLabelTexture?: THREE.CanvasTexture | null;
+  accentColor?: string;
+  showLabel?: boolean;
+  scaleMultiplier?: number;
 }) {
   const { scene } = useGLTF(assetPath);
   const entry = getAssetEntry(assetKey);
-  const baseScale = entry?.defaultScale ?? [1.15, 1.15, 1.15];
+  const rawScale = entry?.defaultScale ?? [1.15, 1.15, 1.15];
+  const baseScale: [number, number, number] = [
+    rawScale[0] * scaleMultiplier,
+    rawScale[1] * scaleMultiplier,
+    rawScale[2] * scaleMultiplier,
+  ];
 
   const normalized = React.useMemo(
     () => extractNormalizedGltf(assetPath, scene),
@@ -168,23 +186,29 @@ function GroundedHeroProductUnit({
     !isCyl &&
     normalized.size.y < Math.max(normalized.size.x, normalized.size.z) * 0.58;
 
-  const cylRx = normalized.size.x * 0.5 + 0.0022;
-  const cylRz = normalized.size.z * 0.5 + 0.0022;
+  // Expanded, smooth 360-degree front + back wrap dimensions for bottles & cans
+  const cylRx = normalized.size.x * 0.5 + 0.0024;
+  const cylRz = normalized.size.z * 0.5 + 0.0024;
   const cylBaseR = Math.max(0.02, cylRx);
   const cylScaleZ = cylRz / cylBaseR;
   const cylLabelH =
-    normalized.size.y * (assetKey.includes("can") ? 0.72 : 0.44);
+    normalized.size.y * (assetKey.includes("can") ? 0.78 : 0.56);
   const cylLabelY =
-    normalized.size.y * (assetKey.includes("can") ? 0.49 : 0.43);
+    normalized.size.y * (assetKey.includes("can") ? 0.49 : 0.44);
 
-  const boxLabelW = Math.max(0.052, normalized.size.x * 0.86);
+  // Expanded full-coverage front, back & side dimensions for boxes/cartons/pouches
+  const boxLabelW = Math.max(0.056, normalized.size.x * 0.94);
   const boxLabelH = Math.max(
-    0.028,
-    normalized.size.y * (assetKey.includes("milk") ? 0.68 : 0.76),
+    0.032,
+    normalized.size.y * (assetKey.includes("milk") ? 0.76 : 0.88),
   );
   const boxLabelY =
-    normalized.size.y * (assetKey.includes("milk") ? 0.42 : 0.49);
+    normalized.size.y * (assetKey.includes("milk") ? 0.42 : 0.5);
   const boxLabelZ = normalized.size.z * 0.5 + 0.0028;
+  const boxSideX = normalized.size.x * 0.5 + 0.0024;
+  const boxSideW = Math.max(0.03, normalized.size.z * 0.92);
+
+  const effectiveBackTexture = backLabelTexture ?? frontLabelTexture;
 
   return (
     <group scale={baseScale}>
@@ -213,51 +237,133 @@ function GroundedHeroProductUnit({
         ))}
       </group>
 
-      {/* Shape-aware live HD packaging label */}
+      {/* Shape-aware live Ultra-HD FRONT & BACK packaging wraps */}
       {showLabel &&
-        labelTexture &&
+        frontLabelTexture &&
         (isCyl ? (
-          <mesh position={[0, cylLabelY, 0]} scale={[1, 1, cylScaleZ]}>
-            <cylinderGeometry
-              args={[
-                cylBaseR,
-                cylBaseR,
-                cylLabelH,
-                24,
-                1,
-                true,
-                -Math.PI * 0.42,
-                Math.PI * 0.84,
-              ]}
-            />
-            <meshStandardMaterial
-              map={labelTexture}
-              roughness={0.3}
-              metalness={0.06}
-            />
-          </mesh>
-        ) : (
-          <>
-            <mesh position={[0, boxLabelY, boxLabelZ]}>
-              <planeGeometry args={[boxLabelW, boxLabelH]} />
-              <meshStandardMaterial
-                map={labelTexture}
-                roughness={0.34}
+          <group position={[0, cylLabelY, 0]} scale={[1, 1, cylScaleZ]}>
+            {/* Front curved HD label (~176 deg) */}
+            <mesh>
+              <cylinderGeometry
+                args={[
+                  cylBaseR,
+                  cylBaseR,
+                  cylLabelH,
+                  40,
+                  1,
+                  true,
+                  -Math.PI * 0.49,
+                  Math.PI * 0.98,
+                ]}
+              />
+              <meshPhysicalMaterial
+                map={frontLabelTexture}
+                roughness={0.24}
                 metalness={0.04}
+                clearcoat={0.34}
+                clearcoatRoughness={0.18}
               />
             </mesh>
+            {/* Back curved HD product-info label (~176 deg) */}
+            {effectiveBackTexture && (
+              <mesh>
+                <cylinderGeometry
+                  args={[
+                    cylBaseR,
+                    cylBaseR,
+                    cylLabelH,
+                    40,
+                    1,
+                    true,
+                    Math.PI * 0.51,
+                    Math.PI * 0.98,
+                  ]}
+                />
+                <meshPhysicalMaterial
+                  map={effectiveBackTexture}
+                  roughness={0.28}
+                  metalness={0.03}
+                  clearcoat={0.24}
+                  clearcoatRoughness={0.22}
+                />
+              </mesh>
+            )}
+          </group>
+        ) : (
+          <>
+            {/* Expanded Front HD Package Face */}
+            <mesh position={[0, boxLabelY, boxLabelZ]}>
+              <planeGeometry args={[boxLabelW, boxLabelH]} />
+              <meshPhysicalMaterial
+                map={frontLabelTexture}
+                roughness={0.28}
+                metalness={0.03}
+                clearcoat={0.26}
+                clearcoatRoughness={0.22}
+              />
+            </mesh>
+            {/* Expanded Back HD Package Face (Product Info, Photo & Barcode) */}
+            {effectiveBackTexture && (
+              <mesh
+                position={[0, boxLabelY, -boxLabelZ]}
+                rotation={[0, Math.PI, 0]}
+              >
+                <planeGeometry args={[boxLabelW, boxLabelH]} />
+                <meshPhysicalMaterial
+                  map={effectiveBackTexture}
+                  roughness={0.32}
+                  metalness={0.02}
+                  clearcoat={0.18}
+                  clearcoatRoughness={0.26}
+                />
+              </mesh>
+            )}
+            {/* Branded satin left & right package side spines */}
+            {!isLowTray && (
+              <>
+                <mesh
+                  position={[boxSideX, boxLabelY, 0]}
+                  rotation={[0, Math.PI / 2, 0]}
+                >
+                  <planeGeometry args={[boxSideW, boxLabelH]} />
+                  <meshPhysicalMaterial
+                    color={accentColor}
+                    roughness={0.34}
+                    metalness={0.04}
+                    clearcoat={0.2}
+                    clearcoatRoughness={0.25}
+                  />
+                </mesh>
+                <mesh
+                  position={[-boxSideX, boxLabelY, 0]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                >
+                  <planeGeometry args={[boxSideW, boxLabelH]} />
+                  <meshPhysicalMaterial
+                    color={accentColor}
+                    roughness={0.34}
+                    metalness={0.04}
+                    clearcoat={0.2}
+                    clearcoatRoughness={0.25}
+                  />
+                </mesh>
+              </>
+            )}
+            {/* Top label decal for low trays / flat packs */}
             {isLowTray && (
               <mesh
                 position={[0, normalized.size.y + 0.0025, 0]}
                 rotation={[-Math.PI / 2, 0, 0]}
               >
                 <planeGeometry
-                  args={[normalized.size.x * 0.84, normalized.size.z * 0.82]}
+                  args={[normalized.size.x * 0.9, normalized.size.z * 0.88]}
                 />
-                <meshStandardMaterial
-                  map={labelTexture}
-                  roughness={0.34}
-                  metalness={0.04}
+                <meshPhysicalMaterial
+                  map={frontLabelTexture}
+                  roughness={0.28}
+                  metalness={0.03}
+                  clearcoat={0.26}
+                  clearcoatRoughness={0.22}
                 />
               </mesh>
             )}
@@ -342,8 +448,8 @@ export function ProductModel({
     frontRowFacings.length > 0 &&
     (isNearShelf || isSelected || isSearchMatch || hovered);
 
-  // Per-product HD retail packaging CanvasTexture shared across all 4 rows in this column.
-  const labelTexture = React.useMemo(() => {
+  // Per-product Ultra-HD 1024x1024 FRONT & BACK retail packaging textures.
+  const frontLabelTexture = React.useMemo(() => {
     if (!product || viewMode === "heatmap" || !renderInteractiveRows) return null;
     return getProductLabelTexture({
       productId: product.id,
@@ -352,8 +458,31 @@ export function ProductModel({
       priceText: formatMoney(product.price),
       barcode: product.barcode,
       imageUrl: product.imageUrl,
+      description: product.description,
     });
   }, [product, viewMode, renderInteractiveRows]);
+
+  const backLabelTexture = React.useMemo(() => {
+    if (!product || viewMode === "heatmap" || !renderInteractiveRows) return null;
+    return getProductBackLabelTexture({
+      productId: product.id,
+      name: product.name,
+      categoryName: product.categoryName,
+      priceText: formatMoney(product.price),
+      barcode: product.barcode,
+      sku: product.sku,
+      imageUrl: product.imageUrl,
+      description: product.description,
+    });
+  }, [product, viewMode, renderInteractiveRows]);
+
+  const accentPalette = React.useMemo(
+    () =>
+      product
+        ? categoryAccentPalette(product.categoryName, product.name)
+        : { primary: "#0f766e", secondary: "#115e59", soft: "#f0fdfa" },
+    [product],
+  );
 
   // GSAP post-commit restocking bounce animation when warehouse restock arrives.
   React.useEffect(() => {
@@ -368,23 +497,39 @@ export function ProductModel({
   }, [isRecentlyRestocked]);
 
   // GSAP Pick-Up & Inspect animation: smoothly slides the eye-level hero item
-  // forward (+0.18m along its outward aisle normal) for close label inspection.
+  // forward (+0.24m along its outward aisle normal) and subtly scales up (+16%)
+  // so both front and back HD labels are crystal-clear when tapped.
   React.useEffect(() => {
     const hero = heroUnitRef.current;
     if (!hero) return;
     gsap.killTweensOf(hero.position);
     gsap.killTweensOf(hero.rotation);
+    gsap.killTweensOf(hero.scale);
     if (isSelected && !isEmpty) {
       gsap.to(hero.position, {
-        z: 0.18,
-        y: 0.048,
+        z: 0.24,
+        y: 0.058,
         duration: 0.45,
         ease: "power2.out",
+      });
+      gsap.to(hero.scale, {
+        x: 1.16,
+        y: 1.16,
+        z: 1.16,
+        duration: 0.45,
+        ease: "back.out(1.4)",
       });
     } else {
       gsap.to(hero.position, {
         z: 0,
         y: 0,
+        duration: 0.35,
+        ease: "power2.inOut",
+      });
+      gsap.to(hero.scale, {
+        x: 1,
+        y: 1,
+        z: 1,
         duration: 0.35,
         ease: "power2.inOut",
       });
@@ -418,14 +563,20 @@ export function ProductModel({
       .set(hero.position, { y: 0, z: -0.14 })
       .set(hero.scale, { x: 0.92, y: 0.92, z: 0.92 })
       .to(hero.position, {
-        y: isSelected ? 0.048 : 0,
-        z: isSelected ? 0.18 : 0,
+        y: isSelected ? 0.058 : 0,
+        z: isSelected ? 0.24 : 0,
         duration: 0.32,
         ease: "power2.out",
       })
       .to(
         hero.scale,
-        { x: 1, y: 1, z: 1, duration: 0.28, ease: "back.out(1.4)" },
+        {
+          x: isSelected ? 1.16 : 1,
+          y: isSelected ? 1.16 : 1,
+          z: isSelected ? 1.16 : 1,
+          duration: 0.28,
+          ease: "back.out(1.4)",
+        },
         "<",
       );
   }, [pickNonce, isSelected]);
@@ -521,15 +672,27 @@ export function ProductModel({
                         </mesh>
                       }
                     >
-                      <GroundedHeroProductUnit
+                      <DetailedProductMesh
                         assetPath={product.assetPath}
                         assetKey={product.assetKey}
                         tintColor={activeColor}
                         applyTint={applyTint}
-                        labelTexture={labelTexture}
+                        frontLabelTexture={frontLabelTexture}
+                        backLabelTexture={backLabelTexture}
+                        accentColor={accentPalette.primary}
                         showLabel={!searchActive || isSearchMatch || isSelected}
                       />
                     </React.Suspense>
+                    {/* Dedicated soft studio fill light on tapped/selected hero item */}
+                    {facing.isHero && isSelected && (
+                      <pointLight
+                        position={[0, 0.22, 0.42]}
+                        intensity={1.15}
+                        distance={1.6}
+                        decay={2}
+                        color="#fffdf8"
+                      />
+                    )}
                   </group>
                 </group>
               </group>
@@ -624,6 +787,11 @@ export function ProductModel({
               ) : (
                 <span className="ml-1.5 font-mono text-primary">
                   {positionNode.quantity}/{positionNode.maximumCapacity}
+                </span>
+              )}
+              {isSelected && (
+                <span className="ml-1.5 rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  Tap again: 360° HD
                 </span>
               )}
             </div>

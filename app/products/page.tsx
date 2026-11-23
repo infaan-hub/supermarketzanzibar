@@ -668,20 +668,23 @@ function ProductCard({
 
   return (
     <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      {/* Product Image Header */}
-      <div className="group/media relative h-44 w-full overflow-hidden border-b border-border bg-surface-subtle">
-        <Link href={detailHref} className="block h-full w-full">
+      {/* Expanded Studio Product Image Header */}
+      <div className="group/media relative h-56 w-full overflow-hidden border-b border-border bg-gradient-to-b from-white to-slate-50">
+        <Link
+          href={detailHref}
+          className="flex h-full w-full items-center justify-center p-3"
+        >
           {showImage ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={`/api/products/${product.id}/image?v=${encodeURIComponent(imageVersion)}`}
               alt={product.name}
               onError={() => setImgFailed(true)}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover/media:scale-105"
+              className="max-h-full max-w-full rounded object-contain transition-transform duration-300 group-hover/media:scale-105"
             />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
-              <PhotoPlaceholderIcon className="h-8 w-8 opacity-60" />
+              <PhotoPlaceholderIcon className="h-9 w-9 opacity-60" />
               <span className="text-[11px] font-medium">No photo yet</span>
             </div>
           )}

@@ -24,6 +24,7 @@ export function ObjectInformationPanel({
   canRestock,
   onSelectShelf,
   onSelectProduct,
+  onInspectProductCloseUp,
   onRestockShelfPosition,
   onAddShelfColumn,
   onTransferFromWarehouse,
@@ -34,6 +35,7 @@ export function ObjectInformationPanel({
   canRestock: boolean;
   onSelectShelf: (shelf: TwinShelfNode) => void;
   onSelectProduct: (pos: TwinShelfPositionNode) => void;
+  onInspectProductCloseUp?: (pos: TwinShelfPositionNode) => void;
   onRestockShelfPosition: (
     positionId: string,
     quantity: number,
@@ -393,14 +395,18 @@ export function ObjectInformationPanel({
               </p>
             );
           }
+          const parentShelf = snapshot.shelves.find((s) => s.id === pos.shelfId);
           return (
             <ProductInspection
               position={pos}
+              departmentName={parentShelf?.departmentName}
+              shelfName={parentShelf?.name}
               canRestock={canRestock}
               onRestock={handleRestock}
               onAddSameProductColumn={
                 onAddShelfColumn ? handleAddCol : undefined
               }
+              onInspectCloseUp={onInspectProductCloseUp}
               restocking={busy}
             />
           );

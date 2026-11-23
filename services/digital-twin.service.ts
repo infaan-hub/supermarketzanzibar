@@ -631,6 +631,11 @@ export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
                 prod.modelAsset?.filePath ??
                 resolvedAsset?.path ??
                 "/models/products/groceries/cereal-box.glb",
+              imageUrl:
+                prod.imageName || prod.imageData
+                  ? `/api/products/${prod.id.toString()}/image?v=${prod.updatedAt.getTime()}`
+                  : null,
+              description: prod.description ?? "",
             }
           : null,
       };

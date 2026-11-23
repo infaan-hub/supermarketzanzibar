@@ -17,12 +17,17 @@ import type { TwinShelfPositionNode } from "@/types/digital-twin";
 
 export function ProductInspection({
   position,
+  departmentName,
+  shelfName,
   canRestock,
   onRestock,
   onAddSameProductColumn,
+  onInspectCloseUp,
   restocking,
 }: {
   position: TwinShelfPositionNode;
+  departmentName?: string;
+  shelfName?: string;
   canRestock: boolean;
   onRestock: (
     positionId: string,
@@ -30,12 +35,17 @@ export function ProductInspection({
     allowAddColumn?: boolean,
   ) => Promise<void>;
   onAddSameProductColumn?: (shelfId: string, sourcePositionId: string) => Promise<void>;
+  onInspectCloseUp?: (pos: TwinShelfPositionNode) => void;
   restocking: boolean;
 }) {
   const { user } = useAuth();
   const href = (path: string) => portalHref(user?.role, path);
   const [qty, setQty] = React.useState("6");
+  const [imgFailed, setImgFailed] = React.useState(false);
   const product = position.product;
+  React.useEffect(() => {
+    setImgFailed(false);
+  }, [position.id, product?.imageUrl]);
   const style = INVENTORY_STATE_STYLES[position.visualState];
   const rowPlan = computeColumnRowPlan(
     position.quantity,
@@ -65,21 +75,76 @@ export function ProductInspection({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
+      {/* Expanded HD Product Photo — tap to launch 360° Close-Up Studio */}
+      <button
+        type="button"
+        onClick={() => onInspectCloseUp?.(position)}
+        className="group relative flex h-44 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-white to-slate-50 p-3 transition-all hover:border-primary/50 hover:shadow-md cursor-pointer"
+        title="Tap to inspect product closely in 360° Ultra-HD"
+      >
+        {product.imageUrl && !imgFailed ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            onError={() => setImgFailed(true)}
+            className="max-h-full max-w-full rounded object-contain transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-1.5 text-muted">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">
+              {product.name.slice(0, 2).toUpperCase()}
+            </span>
+            <span className="text-[11px] font-medium">
+              Tap to inspect 3D package (Front &amp; Back)
+            </span>
+          </div>
+        )}
+        <span className="absolute right-2 bottom-2 rounded-md bg-slate-900/85 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm group-hover:bg-primary">
+          360° HD Close-Up
+        </span>
+      </button>
+
+      <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={style.badgeTone}>{style.label}</Badge>
+          {departmentName && (
+            <Badge variant="secondary">{departmentName}</Badge>
+          )}
           <span className="font-mono text-[11px] text-muted">
             {position.objectName}
           </span>
         </div>
-        <h3 className="text-base font-semibold text-foreground">
-          {product.name}
-        </h3>
+        <h3 className="text-base font-bold text-foreground">{product.name}</h3>
         <p className="text-xs text-muted">
-          {product.categoryName ?? "Uncategorized"} · SKU {product.sku} ·
-          Barcode <span className="font-mono">{product.barcode}</span>
+          {product.categoryName ?? "Uncategorized"} · SKU{" "}
+          <span className="font-mono">{product.sku}</span> · Barcode{" "}
+          <span className="font-mono">{product.barcode}</span>
         </p>
+        {product.description && (
+          <p className="rounded-md border border-border bg-surface-subtle/60 p-2.5 text-xs leading-relaxed text-foreground">
+            {product.description}
+          </p>
+        )}
+        {shelfName && (
+          <p className="text-[11px] text-muted">
+            Placed on <strong className="text-foreground">{shelfName}</strong> (
+            {position.shelfCode}, Column {position.slotIndex + 1})
+          </p>
+        )}
       </div>
+
+      {onInspectCloseUp && (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="w-full text-xs font-semibold"
+          onClick={() => onInspectCloseUp(position)}
+        >
+          Inspect Closely in 3D (Front &amp; Back HD)
+        </Button>
+      )}
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border text-sm">
         <div className="bg-white p-2.5">

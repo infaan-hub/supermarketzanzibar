@@ -30,6 +30,14 @@ import {
   isWebGLAvailable,
 } from "@/components/digital-twin/interface/WebGLErrorBoundary";
 import { StoreMinimap } from "@/components/storefront/store-minimap";
+
+const ProductCloseUpModal = dynamic(
+  () =>
+    import("@/components/digital-twin/products/ProductCloseUpModal").then(
+      (m) => m.ProductCloseUpModal,
+    ),
+  { ssr: false },
+);
 import type { PublicCatalogProduct } from "@/types/api";
 import type {
   DigitalTwinSnapshot,
@@ -138,6 +146,8 @@ export function Interactive3DStorefront({
   }, []);
   const [webglOk, setWebglOk] = React.useState(true);
   const [selection, setSelection] = React.useState<TwinSelection>(null);
+  const [closeUpPosition, setCloseUpPosition] =
+    React.useState<TwinShelfPositionNode | null>(null);
   const [activeDeptCode, setActiveDeptCode] = React.useState<string>("");
   const [cameraGoal, setCameraGoal] = React.useState<CameraGoal | null>({
     position: CAMERA_PRESETS.overview.position,
@@ -289,9 +299,12 @@ export function Interactive3DStorefront({
 
   // Aisle-side aware product slot auto-framing: computes exact outward normal so
   // clicking a slot on either side of a double-sided gondola ALWAYS lands in front of it!
+  // Tapping an already-selected product opens the Ultra-HD 360° Close-Up Studio.
   const handleSelectProduct = React.useCallback(
     (pos: TwinShelfPositionNode) => {
       if (!pos.product) return;
+      const alreadySelected =
+        selection?.type === "product" && selection.positionId === pos.id;
       const shelf = snapshot?.shelves.find((s) => s.id === pos.shelfId);
       if (shelf) setActiveDeptCode(shelf.departmentCode);
       setSelection({
@@ -306,13 +319,16 @@ export function Interactive3DStorefront({
         const framing = shelfSlotWorldCamera(
           fixture,
           pos.slotIndex,
-          2.2,
+          1.45,
           shelf?.positions.length,
         );
         flyTo(framing.position, framing.target);
       }
+      if (alreadySelected) {
+        setCloseUpPosition(pos);
+      }
     },
-    [flyTo, snapshot],
+    [flyTo, selection, snapshot],
   );
 
   // Matterport-style click-on-floor to walk smoothly at eye level (y = 1.65m).
@@ -1084,59 +1100,115 @@ export function Interactive3DStorefront({
           </div>
 
           <div className="max-h-[360px] flex-1 overflow-y-auto p-4 lg:max-h-none">
-            {/* 1. Selected Product Detail + Pack Variants + Siblings on Same Shelf */}
+            {/* 1. Selected Product Detail + Expanded HD Image + Close-Up 360° Studio */}
             {selectedPos?.product ? (
               <div className="space-y-4">
-                <div className="flex gap-3">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle p-1.5">
-                    {selectedProductImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={selectedProductImage}
-                        alt={selectedPos.product.name}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-xs font-semibold text-muted">
+                {/* Expanded HD Product Showcase Image — tap to inspect closely in 360° HD */}
+                <button
+                  type="button"
+                  onClick={() => setCloseUpPosition(selectedPos)}
+                  className="group relative flex h-48 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-white to-slate-50 p-3 transition-all hover:border-primary/50 hover:shadow-md cursor-pointer"
+                  title="Tap to inspect product closely in 360° Ultra-HD"
+                >
+                  {selectedProductImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedProductImage}
+                      alt={selectedPos.product.name}
+                      className="max-h-full max-w-full rounded object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5 text-muted">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
                         {selectedPos.product.name.slice(0, 2).toUpperCase()}
                       </span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    {selectedPos.product.categoryName && (
-                      <p className="text-[11px] text-muted">
-                        {selectedPos.product.categoryName}
-                      </p>
-                    )}
-                    <h3 className="text-sm font-semibold leading-snug text-foreground">
-                      {selectedPos.product.name}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-base font-semibold tabular-nums text-foreground">
-                        {formatMoney(selectedPos.product.price)}
+                      <span className="text-[11px] font-medium">
+                        Tap to view 3D package (Front &amp; Back)
                       </span>
-                      <Badge
-                        variant={
-                          selectedPos.quantity <= 0
-                            ? "danger"
-                            : selectedPos.quantity <= 10
-                              ? "warning"
-                              : "success"
-                        }
-                      >
-                        {selectedPos.quantity > 0
-                          ? `${selectedPos.quantity} on shelf`
-                          : "Out of stock"}
-                      </Badge>
                     </div>
+                  )}
+                  <span className="absolute right-2.5 bottom-2.5 rounded-md bg-slate-900/85 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm backdrop-blur-sm transition-colors group-hover:bg-primary">
+                    Tap for 360° HD Close-Up
+                  </span>
+                </button>
+
+                {/* Clear Product Header & Key Info */}
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedPos.product.categoryName && (
+                      <Badge variant="secondary">
+                        {selectedPos.product.categoryName}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={
+                        selectedPos.quantity <= 0
+                          ? "danger"
+                          : selectedPos.quantity <= 10
+                            ? "warning"
+                            : "success"
+                      }
+                    >
+                      {selectedPos.quantity > 0
+                        ? `${selectedPos.quantity} on shelf`
+                        : "Out of stock"}
+                    </Badge>
+                  </div>
+                  <h3 className="text-base font-bold leading-snug text-foreground">
+                    {selectedPos.product.name}
+                  </h3>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-display text-xl font-bold tabular-nums text-primary">
+                      {formatMoney(selectedPos.product.price)}
+                    </span>
+                    <span className="font-mono text-[11px] text-muted">
+                      {selectedPos.product.sku}
+                    </span>
                   </div>
                 </div>
 
-                {selectedProductDesc && (
-                  <p className="text-xs leading-relaxed text-muted">
-                    {selectedProductDesc}
+                {/* Clear Product Description & Metadata */}
+                <div className="space-y-2 rounded-md border border-border bg-white p-3 text-xs">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    Product Information
                   </p>
-                )}
+                  <p className="leading-relaxed text-foreground">
+                    {selectedProductDesc ||
+                      `Fresh ${selectedPos.product.categoryName ?? "retail"} item placed in ${selectedShelf?.departmentName ?? "store"} (${selectedPos.shelfCode}, Col ${selectedPos.slotIndex + 1}).`}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 border-t border-border pt-2 text-[11px]">
+                    <div>
+                      <span className="text-muted">Shelf: </span>
+                      <span className="font-semibold text-foreground">
+                        {selectedPos.shelfCode}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted">Column: </span>
+                      <span className="font-semibold text-foreground">
+                        Col {selectedPos.slotIndex + 1} ({selectedPos.positionCode})
+                      </span>
+                    </div>
+                    {selectedPos.product.barcode && (
+                      <div className="col-span-2 truncate">
+                        <span className="text-muted">Barcode: </span>
+                        <span className="font-mono font-medium text-foreground">
+                          {selectedPos.product.barcode}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="w-full text-xs font-semibold"
+                  onClick={() => setCloseUpPosition(selectedPos)}
+                >
+                  Inspect Closely in 3D (Front &amp; Back HD)
+                </Button>
 
                 <div className="space-y-2 rounded-md border border-border bg-surface-subtle p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -1385,6 +1457,60 @@ export function Interactive3DStorefront({
           )}
         </aside>
       </div>
+
+      {/* Ultra-HD 360° Close-Up Product Studio Modal */}
+      {closeUpPosition?.product && (
+        <ProductCloseUpModal
+          position={closeUpPosition}
+          departmentName={
+            snapshot?.shelves.find((s) => s.id === closeUpPosition.shelfId)
+              ?.departmentName
+          }
+          shelfName={
+            snapshot?.shelves.find((s) => s.id === closeUpPosition.shelfId)?.name
+          }
+          imageUrl={
+            closeUpPosition.product.imageUrl ??
+            catalogById?.get(closeUpPosition.product.id)?.imageUrl ??
+            null
+          }
+          description={
+            closeUpPosition.product.description ||
+            catalogById?.get(closeUpPosition.product.id)?.description ||
+            ""
+          }
+          effectiveQuantity={Math.max(
+            0,
+            closeUpPosition.quantity -
+              (basketQuantities[closeUpPosition.product.id] ?? 0),
+          )}
+          onClose={() => setCloseUpPosition(null)}
+          footerActions={
+            <div className="space-y-2.5 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-foreground">
+                  Add to your basket
+                </span>
+                {renderBasketControl(closeUpPosition)}
+              </div>
+              {onOpenBasket && basketCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full text-xs"
+                  onClick={() => {
+                    setCloseUpPosition(null);
+                    onOpenBasket();
+                  }}
+                >
+                  Open Basket ({basketCount}{" "}
+                  {basketCount === 1 ? "item" : "items"})
+                </Button>
+              )}
+            </div>
+          }
+        />
+      )}
     </section>
   );
 }
