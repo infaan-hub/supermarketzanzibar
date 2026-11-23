@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireInventory } from "@/lib/auth/request";
 import {
   badRequest,
+  conflict,
   json,
   notFound,
   serverError,
@@ -53,7 +54,10 @@ export async function PATCH(
   try {
     const existing = await prisma.shelfPosition.findUnique({
       where: { id },
-      include: { shelf: true },
+      include: {
+        shelf: { include: { positions: { select: { id: true } } } },
+        product: { select: { id: true, name: true } },
+      },
     });
     if (!existing) return notFound("Shelf position not found.");
 
@@ -65,8 +69,21 @@ export async function PATCH(
       if (parsed.data.productId === null || parsed.data.productId === "") {
         nextProductId = null;
       } else if (/^\d+$/.test(parsed.data.productId)) {
+        const candidateId = BigInt(parsed.data.productId);
+        // Enforce 1-product-per-column rule: never mix a different product into a
+        // stocked 4-row column; staff should add a new column or clear stock first.
+        if (
+          existing.productId !== null &&
+          existing.productId !== candidateId &&
+          existing.quantity > 0
+        ) {
+          return conflict(
+            `Cannot mix products in column ${existing.shelf.shelfCode}/${existing.positionCode} while ${existing.quantity} unit(s) of "${existing.product?.name ?? "current product"}" remain. Clear stock first or add a new column.`,
+          );
+        }
+
         const prod = await prisma.product.findUnique({
-          where: { id: BigInt(parsed.data.productId) },
+          where: { id: candidateId },
           select: {
             id: true,
             name: true,

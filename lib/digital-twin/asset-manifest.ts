@@ -68,7 +68,7 @@ export const ASSET_MANIFEST: AssetManifestEntry[] = [
   { key: "products/beverages/juice-carton", name: "Fruit Juice Carton (1L)", category: "product", path: "/models/products/beverages/juice-carton.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [1.35, 1.35, 1.35] },
 
   // Products — Groceries
-  { key: "products/groceries/rice-bag", name: "Rice Bag (5kg)", category: "product", path: "/models/products/groceries/rice-bag.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [1.1, 1.1, 1.1] },
+  { key: "products/groceries/rice-bag", name: "Rice Bag (5kg)", category: "product", path: "/models/products/groceries/rice-bag.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [0.96, 0.92, 0.96] },
   { key: "products/groceries/flour-bag", name: "Flour Bag (2kg)", category: "product", path: "/models/products/groceries/flour-bag.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [1.2, 1.2, 1.2] },
   { key: "products/groceries/oil-bottle", name: "Cooking Oil Bottle (2L)", category: "product", path: "/models/products/groceries/oil-bottle.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [1.2, 1.2, 1.2] },
   { key: "products/groceries/cereal-box", name: "Cereal Box", category: "product", path: "/models/products/groceries/cereal-box.glb", format: "glb", version: "1.0.0", source: "procedural-glb", defaultScale: [1.15, 1.15, 1.15] },

@@ -5,6 +5,7 @@ import {
   PHYSICAL_AREAS,
   SHELF_FIXTURES,
   WAREHOUSE_RACKS,
+  shelfSlotLocalLayout,
   shelfSlotWorldPosition,
   warehouseSlotWorldPosition,
 } from "../lib/digital-twin/spatial-plan";
@@ -73,12 +74,18 @@ describe("Phase 2 — Supermarket 3D spatial design integrity", () => {
     }
   });
 
-  it("computes valid above-floor slot coordinates for shelves and warehouse racks", () => {
+  it("computes valid 4-row vertical column coordinates with top header above Row 4 and warehouse rack levels", () => {
     const shelf = SHELF_FIXTURES[0];
-    const slot0 = shelfSlotWorldPosition(shelf, 0);
-    const slot5 = shelfSlotWorldPosition(shelf, 5);
-    expect(slot0[1]).toBeGreaterThan(0);
-    expect(slot5[1]).toBeGreaterThan(slot0[1]);
+    const col0World = shelfSlotWorldPosition(shelf, 0);
+    const col0Layout = shelfSlotLocalLayout(shelf, 0);
+    expect(col0World[1]).toBeGreaterThan(0);
+    expect(col0Layout.rowLocalPositions).toHaveLength(4);
+    expect(col0Layout.rowLocalPositions[3][1]).toBeGreaterThan(
+      col0Layout.rowLocalPositions[0][1],
+    );
+    expect(col0Layout.headerLocalPosition[1]).toBeGreaterThan(
+      col0Layout.rowLocalPositions[3][1],
+    );
 
     const rack = WAREHOUSE_RACKS[0];
     const whSlot0 = warehouseSlotWorldPosition(rack, 0, 0);

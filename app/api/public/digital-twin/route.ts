@@ -173,24 +173,27 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
 
   const shelfBuckets = SHELF_FIXTURES.map((fixture) => {
     const area = areaByCode.get(fixture.departmentCode);
-    const slotCount = Math.min(fixture.tiers * fixture.slotsPerTier, 12);
+    const isZLong = fixture.size[2] >= fixture.size[0];
+    const isDoubleSided =
+      isZLong && fixture.kind !== "refrigerator" && fixture.kind !== "meat_counter";
+    const columnCount = isDoubleSided
+      ? fixture.slotsPerTier * 2
+      : fixture.slotsPerTier;
     const maxCap = Math.max(
-      12,
-      Math.floor(fixture.capacity / Math.max(1, slotCount)),
+      24,
+      Math.floor(fixture.capacity / Math.max(1, columnCount)),
     );
     const positions: TwinShelfPositionNode[] = Array.from(
-      { length: slotCount },
-      (_, slotIdx) => {
-        const tierNum = Math.floor(slotIdx / fixture.slotsPerTier) + 1;
-        const posNum = (slotIdx % fixture.slotsPerTier) + 1;
-        const positionCode = `T${tierNum}-P${posNum}`;
+      { length: columnCount },
+      (_, colIdx) => {
+        const positionCode = `COL_${String(colIdx + 1).padStart(2, "0")}`;
         return {
-          id: `proj-${fixture.code}-${slotIdx}`,
+          id: `proj-${fixture.code}-${colIdx}`,
           shelfId: `proj-shelf-${fixture.code}`,
           shelfCode: fixture.code,
           positionCode,
           objectName: `${fixture.code}_${positionCode}`,
-          slotIndex: slotIdx,
+          slotIndex: colIdx,
           quantity: 0,
           maximumCapacity: maxCap,
           reservedQuantity: 0,
@@ -211,6 +214,13 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
     };
   });
 
+  // Track overflow units for high-stock products whose quantity exceeds 1 full 4-row column
+  const overflowQueue: Array<{
+    bucket: (typeof shelfBuckets)[number];
+    remaining: number;
+    productPayload: NonNullable<TwinShelfPositionNode["product"]>;
+  }> = [];
+
   for (const product of products) {
     const deptCode = departmentCodeForProduct(
       product.name,
@@ -227,15 +237,12 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
     const slot = targetBucket.positions[targetBucket.cursor];
     targetBucket.cursor += 1;
     const asset = resolveProductAsset(product.name, product.category?.name);
-    const onShelf = Math.max(0, product.quantity);
+    const totalQty = Math.max(0, product.quantity);
+    const inFirstColumn = Math.min(totalQty, slot.maximumCapacity);
+    const overflowQty = Math.max(0, totalQty - inFirstColumn);
     const idStr = product.id.toString();
 
-    slot.quantity = onShelf;
-    slot.visualState = classifyInventoryState({
-      quantity: onShelf,
-      reorderLevel: LOW_STOCK_THRESHOLD,
-    });
-    slot.product = {
+    const productPayload: NonNullable<TwinShelfPositionNode["product"]> = {
       id: idStr,
       name: product.name,
       sku: product.sku ?? `SKU-${idStr}`,
@@ -244,7 +251,7 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
       categoryName: product.category?.name ?? null,
       price: Number(product.price),
       costPrice: 0,
-      totalStock: onShelf,
+      totalStock: totalQty,
       assetKey: asset.key,
       assetPath: asset.path,
       imageUrl: product.imageName
@@ -257,6 +264,65 @@ async function buildLiveReadOnlyRetailProjection(): Promise<DigitalTwinSnapshot>
         product.barcodes,
       ),
     };
+
+    slot.quantity = inFirstColumn;
+    slot.visualState = classifyInventoryState({
+      quantity: inFirstColumn,
+      reorderLevel: LOW_STOCK_THRESHOLD,
+    });
+    slot.product = productPayload;
+
+    if (overflowQty > 0) {
+      overflowQueue.push({
+        bucket: targetBucket,
+        remaining: overflowQty,
+        productPayload,
+      });
+    }
+  }
+
+  // When a product's 4-row column is full, allocate an extra column on the same
+  // shelf for the SAME product (never mixing different products into one column).
+  for (const ov of overflowQueue) {
+    let rem = ov.remaining;
+    while (rem > 0 && ov.bucket.positions.length < 10) {
+      const targetCol =
+        ov.bucket.cursor < ov.bucket.positions.length
+          ? ov.bucket.positions[ov.bucket.cursor++]
+          : (() => {
+              const colIdx = ov.bucket.positions.length;
+              const colCap = ov.bucket.positions[0]?.maximumCapacity ?? 24;
+              const code = `COL_${String(colIdx + 1).padStart(2, "0")}`;
+              const added: TwinShelfPositionNode = {
+                id: `proj-${ov.bucket.fixture.code}-${colIdx}`,
+                shelfId: `proj-shelf-${ov.bucket.fixture.code}`,
+                shelfCode: ov.bucket.fixture.code,
+                positionCode: code,
+                objectName: `${ov.bucket.fixture.code}_${code}`,
+                slotIndex: colIdx,
+                quantity: 0,
+                maximumCapacity: colCap,
+                reservedQuantity: 0,
+                warehouseQuantity: 0,
+                reorderLevel: LOW_STOCK_THRESHOLD,
+                visualState: "out",
+                nearestExpiryDate: null,
+                product: null,
+              };
+              ov.bucket.positions.push(added);
+              ov.bucket.cursor = ov.bucket.positions.length;
+              return added;
+            })();
+
+      const take = Math.min(rem, targetCol.maximumCapacity);
+      targetCol.quantity = take;
+      targetCol.visualState = classifyInventoryState({
+        quantity: take,
+        reorderLevel: LOW_STOCK_THRESHOLD,
+      });
+      targetCol.product = ov.productPayload;
+      rem -= take;
+    }
   }
 
   let totalShelfUnits = 0;

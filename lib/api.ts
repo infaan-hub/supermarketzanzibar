@@ -657,6 +657,7 @@ export async function transferWarehouseStockToShelf(input: {
   shelfPositionId: string;
   warehouseLocationId?: string;
   quantity: number;
+  allowAddColumn?: boolean;
   notes?: string;
 }): Promise<{
   movementId: string;
@@ -667,6 +668,7 @@ export async function transferWarehouseStockToShelf(input: {
   positionCode: string;
   newShelfQuantity: number;
   newWarehouseQuantity: number;
+  addedColumnCodes?: string[];
 }> {
   return request("/api/digital-twin/transfer", {
     method: "POST",
@@ -741,6 +743,34 @@ export async function updateShelfPosition(
 ) {
   return request(`/api/shelves/positions/${encodeURIComponent(positionId)}`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function addShelfColumn(
+  shelfId: string,
+  input: {
+    productId?: string | null;
+    sourcePositionId?: string;
+    maximumCapacity?: number;
+    reorderLevel?: number;
+  } = {},
+): Promise<{
+  column: {
+    id: string;
+    shelfId: string;
+    shelfCode: string;
+    positionCode: string;
+    slotIndex: number;
+    quantity: number;
+    maximumCapacity: number;
+    reorderLevel: number;
+    product: { id: string; name: string; barcode: string } | null;
+  };
+}> {
+  return request(`/api/shelves/${encodeURIComponent(shelfId)}/columns`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });

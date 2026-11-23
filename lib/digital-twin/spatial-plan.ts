@@ -495,10 +495,10 @@ export const SHELF_FIXTURES: ShelfFixtureSpec[] = [
     kind: "bakery_case",
     position: [-17.2, 0, 4.4],
     rotationY: Math.PI / 2,
-    size: [5.2, 1.6, 1.2],
-    tiers: 3,
+    size: [5.2, 1.75, 1.2],
+    tiers: 4,
     slotsPerTier: 3,
-    capacity: 75,
+    capacity: 96,
     assetKey: "departments/bakery",
     cameraOffset: [5.0, 2.5, 1.0],
   },
@@ -571,10 +571,10 @@ export const SHELF_FIXTURES: ShelfFixtureSpec[] = [
     kind: "electronics_case",
     position: [2.2, 0, -12.6],
     rotationY: 0,
-    size: [7.6, 1.9, 0.9],
-    tiers: 3,
+    size: [7.6, 2.0, 0.9],
+    tiers: 4,
     slotsPerTier: 4,
-    capacity: 75,
+    capacity: 96,
     assetKey: "departments/electronics",
     cameraOffset: [0, 2.6, 5.2],
   },
@@ -736,18 +736,37 @@ export function findRackByCode(code: string): WarehouseRackSpec | undefined {
   );
 }
 
+/** Standard vertical rows per single-product shelf column (4 rows = 1 product). */
+export const ROWS_PER_COLUMN = 4;
+
 export interface ShelfSlotLocalLayout {
-  /** Local position [x, y, z] of the front-center of the product slot (y = top of shelf deck). */
+  /** Column index on this shelf (1 column = 1 product across 4 vertical rows). */
+  columnIndex: number;
+  /** Column index along this specific aisle face (0..columnsOnSide - 1). */
+  sideColumnIndex: number;
+  /** Total columns laid out along this aisle face (expands dynamically when columns are added). */
+  columnsOnSide: number;
+  /** Allocated physical width of this vertical column in meters. */
+  columnWidth: number;
+  /** Number of rows in this column (always 4 rows for 1 product). */
+  rowCount: number;
+  /** Local positions [x, y, z] for all 4 rows (Row 1 bottom -> Row 4 top) in this column. */
+  rowLocalPositions: Vec3[];
+  /** Local position [x, y, z] of the Product Name Header Sign mounted ON TOP of this column. */
+  headerLocalPosition: Vec3;
+  /** Eye-level anchor [x, y, z] of the column (used for camera framing & slot focus). */
   localPosition: Vec3;
-  /** Local Y rotation so the product front faces directly outward into the aisle. */
+  /** Local Y rotation so the product column & top header face outward into the aisle. */
   localRotationY: number;
   /** Forward presentation tilt in radians (e.g. 18° = 0.314 rad on tilted produce timber crates). */
   tiltX: number;
   /** Unit outward normal [nx, 0, nz] in shelf-local coordinates pointing into the shopper aisle. */
   localNormal: Vec3;
-  /** Local position of the Electronic Shelf Label (ESL) mounted on the front lip of this tier. */
+  /** Primary eye-level ESL position mounted on the front lip of this column. */
   eslLocalPosition: Vec3;
-  /** Which side of a double-sided gondola this slot belongs to (+1 = +X/+Z front, -1 = -X back). */
+  /** ESL positions across each physical shelf tier inside this column. */
+  eslLocalPositions: Vec3[];
+  /** Which side of a double-sided gondola this column belongs to (+1 = +X/+Z front, -1 = -X back). */
   sideSign: 1 | -1;
   tier: number;
   slotInTier: number;
@@ -763,36 +782,39 @@ export function chillerDoorCountForFixture(
   return Math.max(2, Math.min(8, Math.round(span / 0.88)));
 }
 
-/** Map a product slot index on a chiller to the specific hinged door index covering it. */
+/** Map a column slot index on a chiller to the specific hinged door index covering it. */
 export function shelfSlotDoorIndex(
   fixture: Pick<ShelfFixtureSpec, "size" | "slotsPerTier" | "tiers" | "kind">,
   slotIndex: number,
+  totalColumnsOnShelf?: number,
 ): number {
   const doorCount = chillerDoorCountForFixture(fixture);
   const [w, , d] = fixture.size;
   const isZLong = d >= w;
   const span = (isZLong ? d : w) - 0.16;
-  const layout = shelfSlotLocalLayout(fixture, slotIndex);
-  // In door-group local coordinates, Z-long chillers are rotated by -PI/2 around Y,
-  // which maps shelf-local Z -> door-local +X (or -X depending on axis).
-  // Specifically: rotationY(-PI/2) maps (x', 0, z') -> (-z', 0, x'), so door-local x' = shelf-local z!
+  const layout = shelfSlotLocalLayout(fixture, slotIndex, totalColumnsOnShelf);
   const alongDoorAxis = isZLong ? layout.localPosition[2] : layout.localPosition[0];
   const normalized = (alongDoorAxis + span / 2) / Math.max(0.01, span);
   return Math.max(0, Math.min(doorCount - 1, Math.floor(normalized * doorCount)));
 }
 
 /**
- * Deterministic local layout for a product slot on any shelf fixture.
- * Double-sided Z-long gondolas orient even slots toward +X and odd slots toward -X;
- * single-sided wall/island fixtures orient all slots outward along local +Z.
+ * Deterministic vertical-column layout for a shelf fixture:
+ * - Each `slotIndex` owns ONE vertical column spanning 4 rows for 1 single product
+ *   (no mixing different products vertically in the same column).
+ * - Double-sided Z-long gondolas alternate columns across `+X` (even) and `-X` (odd)
+ *   aisle faces; single-sided wall/island fixtures place columns side-by-side along `+Z`.
+ * - Passing `totalColumnsOnShelf` dynamically scales column spacing when overflow
+ *   columns are added to a shelf.
  */
 export function shelfSlotLocalLayout(
   fixture: Pick<ShelfFixtureSpec, "size" | "tiers" | "slotsPerTier" | "kind">,
   slotIndex: number,
+  totalColumnsOnShelf?: number,
 ): ShelfSlotLocalLayout {
   const [w, h, d] = fixture.size;
-  const tiers = Math.max(1, fixture.tiers);
-  const slotsPerTier = Math.max(1, fixture.slotsPerTier);
+  const physicalTiers = Math.max(1, fixture.tiers);
+  const baseColsPerSide = Math.max(1, fixture.slotsPerTier);
   const isZLong = d >= w;
   const isDoubleSided =
     isZLong && fixture.kind !== "refrigerator" && fixture.kind !== "meat_counter";
@@ -800,55 +822,141 @@ export function shelfSlotLocalLayout(
   // Authentic 18-degree tilted timber produce crate slant (0.314 rad)
   const tiltX = isProduce ? 0.314 : 0;
 
-  const tier = Math.floor(slotIndex / slotsPerTier) % tiers;
-  const slotInTier = slotIndex % slotsPerTier;
-  const span = isZLong ? d * 0.78 : w * 0.78;
-  const frac = slotsPerTier > 1 ? slotInTier / (slotsPerTier - 1) - 0.5 : 0;
-  const along = frac * span;
-
-  // Shelf deck top surface Y matches Shelf.tsx deck center + half thickness (0.024).
-  const deckCenterY = 0.26 + tier * ((h - 0.48) / tiers);
-  const deckTopY = deckCenterY + 0.024;
-
-  if (isZLong) {
-    // Refrigerated Z-long cooler (`FR-BEV-01`) faces the west beverage aisle (-X).
-    const sideSign: 1 | -1 = isDoubleSided
+  const sideSign: 1 | -1 = isZLong
+    ? isDoubleSided
       ? slotIndex % 2 === 0
         ? 1
         : -1
-      : -1;
+      : -1
+    : 1;
+
+  const sideColumnIndex = isDoubleSided
+    ? Math.floor(slotIndex / 2)
+    : slotIndex;
+
+  const totalCols = Math.max(
+    isDoubleSided ? baseColsPerSide * 2 : baseColsPerSide,
+    totalColumnsOnShelf ?? slotIndex + 1,
+  );
+  const columnsOnSide = isDoubleSided
+    ? Math.max(baseColsPerSide, Math.ceil(totalCols / 2), sideColumnIndex + 1)
+    : Math.max(baseColsPerSide, totalCols, sideColumnIndex + 1);
+
+  const usableSpan = (isZLong ? d : w) * 0.86;
+  const columnWidth = usableSpan / Math.max(1, columnsOnSide);
+  const along =
+    columnsOnSide > 1
+      ? -usableSpan / 2 + (sideColumnIndex + 0.5) * columnWidth
+      : 0;
+
+  const deckCenterYForTier = (t: number) =>
+    0.26 + t * ((h - 0.48) / physicalTiers);
+  const deckTopYForTier = (t: number) => deckCenterYForTier(t) + 0.024;
+
+  // Build exactly 4 row positions per column (Row 1 bottom -> Row 4 top):
+  // - On 4-tier fixtures (all gondolas, chillers, cosmetics, bakery, electronics): 1 row per tier.
+  // - On 2-tier low counters (produce islands, freezers, meat counter): 2 stepped rows per tier = 4 rows.
+  const rowLocalPositions: Vec3[] = [];
+  const eslLocalPositions: Vec3[] = [];
+
+  if (isZLong) {
     const frontFace = sideSign * (w * 0.34);
     const eslX = sideSign * (w * 0.488);
+
+    for (let r = 0; r < ROWS_PER_COLUMN; r += 1) {
+      const tierIdx = Math.min(physicalTiers - 1, r);
+      rowLocalPositions.push([frontFace, deckTopYForTier(tierIdx), along]);
+    }
+    for (let t = 0; t < physicalTiers; t += 1) {
+      eslLocalPositions.push([eslX, deckCenterYForTier(t) - 0.005, along]);
+    }
+
+    const eyeTier = Math.min(physicalTiers - 1, 2);
+    const headerLocalPosition: Vec3 = [
+      sideSign * (w * 0.46),
+      h + 0.09,
+      along,
+    ];
+
     return {
-      localPosition: [frontFace, deckTopY, along],
+      columnIndex: slotIndex,
+      sideColumnIndex,
+      columnsOnSide,
+      columnWidth,
+      rowCount: ROWS_PER_COLUMN,
+      rowLocalPositions,
+      headerLocalPosition,
+      localPosition: [frontFace, deckTopYForTier(Math.min(physicalTiers - 1, 1)), along],
       localRotationY: sideSign > 0 ? Math.PI / 2 : -Math.PI / 2,
       tiltX: 0,
       localNormal: [sideSign, 0, 0],
-      eslLocalPosition: [eslX, deckCenterY - 0.005, along],
+      eslLocalPosition: eslLocalPositions[eyeTier] ?? eslLocalPositions[0],
+      eslLocalPositions,
       sideSign,
-      tier,
-      slotInTier,
+      tier: eyeTier,
+      slotInTier: sideColumnIndex,
       isDoubleSided,
     };
   }
 
-  const frontFace = isProduce ? d * 0.18 : d * 0.32;
   const eslZ = d * 0.488;
-  // On 18°-tilted produce crates, drop front deck Y slightly to match the sloped lip.
   const produceLipDrop = isProduce ? Math.sin(tiltX) * (d * 0.46) : 0;
-  const productRestY = isProduce
-    ? deckTopY - Math.sin(tiltX) * (frontFace * 0.85) + 0.025
-    : deckTopY;
+
+  if (physicalTiers >= ROWS_PER_COLUMN) {
+    const frontFace = isProduce ? d * 0.18 : d * 0.32;
+    for (let r = 0; r < ROWS_PER_COLUMN; r += 1) {
+      const restY = isProduce
+        ? deckTopYForTier(r) - Math.sin(tiltX) * (frontFace * 0.85) + 0.025
+        : deckTopYForTier(r);
+      rowLocalPositions.push([along, restY, frontFace]);
+    }
+  } else {
+    // Low 2-tier islands/freezers/counters: 2 stepped front/rear rows on each tier = 4 rows for 1 product
+    for (let r = 0; r < ROWS_PER_COLUMN; r += 1) {
+      const tierIdx = Math.min(physicalTiers - 1, Math.floor(r / 2));
+      const isUpperBackSubRow = r % 2 === 1;
+      const zPos = isUpperBackSubRow ? -d * 0.12 : d * 0.24;
+      const restY = isProduce
+        ? deckTopYForTier(tierIdx) - Math.sin(tiltX) * (zPos * 0.85) + 0.025
+        : deckTopYForTier(tierIdx);
+      rowLocalPositions.push([along, restY, zPos]);
+    }
+  }
+
+  for (let t = 0; t < physicalTiers; t += 1) {
+    eslLocalPositions.push([
+      along,
+      deckCenterYForTier(t) - produceLipDrop - 0.004,
+      eslZ,
+    ]);
+  }
+
+  const eyeTier = Math.min(physicalTiers - 1, physicalTiers >= 3 ? 2 : physicalTiers - 1);
+  const headerLocalPosition: Vec3 = [
+    along,
+    isProduce ? h + 0.24 : h + 0.09,
+    d * 0.46,
+  ];
 
   return {
-    localPosition: [along, productRestY, frontFace],
+    columnIndex: slotIndex,
+    sideColumnIndex,
+    columnsOnSide,
+    columnWidth,
+    rowCount: ROWS_PER_COLUMN,
+    rowLocalPositions,
+    headerLocalPosition,
+    localPosition:
+      rowLocalPositions[Math.min(rowLocalPositions.length - 1, 1)] ??
+      rowLocalPositions[0],
     localRotationY: 0,
     tiltX,
     localNormal: [0, 0, 1],
-    eslLocalPosition: [along, deckCenterY - produceLipDrop - 0.004, eslZ],
+    eslLocalPosition: eslLocalPositions[eyeTier] ?? eslLocalPositions[0],
+    eslLocalPositions,
     sideSign: 1,
-    tier,
-    slotInTier,
+    tier: eyeTier,
+    slotInTier: sideColumnIndex,
     isDoubleSided: false,
   };
 }
@@ -880,34 +988,36 @@ export function fixtureLocalNormalToWorld(
   return [nx * cos + nz * sin, 0, -nx * sin + nz * cos];
 }
 
-/** Deterministic world coordinate of a slot on a shelf fixture. */
+/** Deterministic world coordinate of a column on a shelf fixture. */
 export function shelfSlotWorldPosition(
   fixture: ShelfFixtureSpec,
   positionIndex: number,
+  totalColumnsOnShelf?: number,
 ): Vec3 {
-  const layout = shelfSlotLocalLayout(fixture, positionIndex);
+  const layout = shelfSlotLocalLayout(fixture, positionIndex, totalColumnsOnShelf);
   return fixtureLocalToWorld(fixture, layout.localPosition);
 }
 
 /**
- * Aisle-side aware camera framing for a specific product slot.
- * Always places the shopper camera directly in front of the product's outward
- * aisle face (so clicking a slot on either side of a double-sided gondola never
- * views it from behind the shelf).
+ * Aisle-side aware camera framing for a specific 4-row vertical product column.
+ * Frames all 4 rows and the top-of-column product name sign cleanly from the
+ * column's outward aisle normal without clipping into an opposite shelf.
  */
 export function shelfSlotWorldCamera(
   fixture: ShelfFixtureSpec,
   positionIndex: number,
-  distance = 2.05,
+  distance = 2.25,
+  totalColumnsOnShelf?: number,
 ): { position: Vec3; target: Vec3; worldNormal: Vec3 } {
-  const layout = shelfSlotLocalLayout(fixture, positionIndex);
-  const slotPos = fixtureLocalToWorld(fixture, layout.localPosition);
+  const layout = shelfSlotLocalLayout(fixture, positionIndex, totalColumnsOnShelf);
+  const colMidPos = fixtureLocalToWorld(fixture, layout.localPosition);
   const worldNormal = fixtureLocalNormalToWorld(
     fixture.rotationY,
     layout.localNormal,
   );
-  const target: Vec3 = [slotPos[0], slotPos[1] + 0.14, slotPos[2]];
-  const camY = Math.min(2.05, Math.max(1.25, slotPos[1] + 0.32));
+  const targetY = Math.min(fixture.size[1] * 0.62, Math.max(0.85, colMidPos[1] + 0.32));
+  const target: Vec3 = [colMidPos[0], targetY, colMidPos[2]];
+  const camY = Math.min(2.1, Math.max(1.38, targetY + 0.28));
 
   // Ensure camera lands cleanly in the open aisle without clipping into an opposite shelf.
   let safeDist = distance;

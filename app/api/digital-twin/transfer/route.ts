@@ -18,6 +18,7 @@ const transferSchema = z.object({
     .int("Quantity must be a whole number.")
     .min(1, "Transfer at least 1 unit.")
     .max(10_000, "Maximum 10,000 units per transfer."),
+  allowAddColumn: z.boolean().optional().default(false),
   notes: z.string().trim().max(300).optional(),
 });
 

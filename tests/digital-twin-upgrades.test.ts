@@ -11,7 +11,13 @@ import {
   shelfSlotWorldCamera,
 } from "@/lib/digital-twin/spatial-plan";
 import {
+  computeColumnFacings,
+  computeColumnRowPlan,
+  computeColumnRowQuantities,
   computeSlotFacings,
+  filledRowCount,
+  fullRowCount,
+  isColumnFull,
   isCylindricalProductAsset,
 } from "@/lib/digital-twin/product-layout";
 import { applyPublicShelfEventToSnapshot } from "@/hooks/usePublicStorefrontRealtime";
@@ -92,7 +98,7 @@ describe("3D Live Shelf — Real Back-to-Front Depth Depletion & Shape-Aware Lab
       maxDepthBack: 0.34,
     });
     const mid = computeSlotFacings({
-      quantity: 7,
+      quantity: 5,
       assetKey: "products/beverages/soda-bottle",
       maxDepthBack: 0.34,
     });
@@ -122,6 +128,61 @@ describe("3D Live Shelf — Real Back-to-Front Depth Depletion & Shape-Aware Lab
     expect(isCylindricalProductAsset("products/groceries/oil-bottle")).toBe(true);
     expect(isCylindricalProductAsset("products/dairy/milk-carton")).toBe(false);
     expect(isCylindricalProductAsset("products/groceries/cereal-box")).toBe(false);
+  });
+
+  it("organizes each shelf column into 4 vertical rows for 1 product with top header and dynamic overflow columns", () => {
+    const gondola = findFixtureByCode("SH-GRO-01")!;
+    // Expand gondola from 6 to 8 columns (overflow same-product columns added)
+    const col0 = shelfSlotLocalLayout(gondola, 0, 8);
+    const col2 = shelfSlotLocalLayout(gondola, 2, 8);
+    const col6 = shelfSlotLocalLayout(gondola, 6, 8);
+
+    expect(col0.rowCount).toBe(4);
+    expect(col0.rowLocalPositions).toHaveLength(4);
+    expect(col0.columnsOnSide).toBe(4);
+    // Top-of-column product header sits above Row 4 and aligns with column Z
+    expect(col0.headerLocalPosition[1]).toBeGreaterThan(
+      col0.rowLocalPositions[3][1],
+    );
+    expect(col0.headerLocalPosition[2]).toBeCloseTo(col0.localPosition[2], 4);
+    // Columns on same +X side are cleanly separated horizontally without overlap
+    expect(col2.localPosition[2]).toBeGreaterThan(col0.localPosition[2] + 1.0);
+    expect(col6.localPosition[2]).toBeGreaterThan(col2.localPosition[2] + 1.0);
+
+    // Planned row-by-row fill across 4 rows (6 units/row = 24 total column capacity)
+    expect(computeColumnRowQuantities(24, 4, 24)).toEqual([6, 6, 6, 6]);
+    expect(computeColumnRowQuantities(14, 4, 24)).toEqual([6, 6, 2, 0]);
+    expect(computeColumnRowQuantities(5, 4, 24)).toEqual([5, 0, 0, 0]);
+
+    const partialPlan = computeColumnRowPlan(14, 24, 4);
+    expect(partialPlan[0]).toMatchObject({ quantity: 6, capacity: 6, isFull: true, fillPercent: 100 });
+    expect(partialPlan[1]).toMatchObject({ quantity: 6, capacity: 6, isFull: true, fillPercent: 100 });
+    expect(partialPlan[2]).toMatchObject({ quantity: 2, capacity: 6, isFull: false });
+    expect(partialPlan[3]).toMatchObject({ quantity: 0, capacity: 6, isFull: false, fillPercent: 0 });
+
+    expect(fullRowCount(14, 24, 4)).toBe(2);
+    expect(fullRowCount(24, 24, 4)).toBe(4);
+    expect(filledRowCount(14, 4, 24)).toBe(3);
+    expect(filledRowCount(24, 4, 24)).toBe(4);
+    expect(isColumnFull(24, 24)).toBe(true);
+    expect(isColumnFull(18, 24)).toBe(false);
+
+    // 4-row column facings place units cleanly edge-to-edge across all 4 stocked rows,
+    // with 1 eye-level interactive hero and every front-row item wearing the HD label
+    const facings = computeColumnFacings({
+      quantity: 24,
+      maximumCapacity: 24,
+      assetKey: "products/beverages/soda-bottle",
+      maxDepthBack: 0.34,
+      columnWidth: col0.columnWidth,
+      rowCount: 4,
+    });
+    const rowsUsed = new Set(facings.map((f) => f.shelfRowIndex));
+    expect(rowsUsed.size).toBe(4);
+    expect(facings.filter((f) => f.isHero)).toHaveLength(1);
+    const frontLabeled = facings.filter((f) => f.isRowFrontLabel);
+    expect(frontLabeled.length).toBeGreaterThanOrEqual(4);
+    expect(frontLabeled.every((f) => f.row === 0)).toBe(true);
   });
 });
 

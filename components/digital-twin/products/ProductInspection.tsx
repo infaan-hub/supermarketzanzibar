@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { portalHref } from "@/lib/auth/roles";
 import { INVENTORY_STATE_STYLES } from "@/lib/digital-twin/inventory-state";
+import {
+  computeColumnRowPlan,
+  isColumnFull,
+} from "@/lib/digital-twin/product-layout";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { TwinShelfPositionNode } from "@/types/digital-twin";
 
@@ -15,11 +19,17 @@ export function ProductInspection({
   position,
   canRestock,
   onRestock,
+  onAddSameProductColumn,
   restocking,
 }: {
   position: TwinShelfPositionNode;
   canRestock: boolean;
-  onRestock: (positionId: string, quantity: number) => Promise<void>;
+  onRestock: (
+    positionId: string,
+    quantity: number,
+    allowAddColumn?: boolean,
+  ) => Promise<void>;
+  onAddSameProductColumn?: (shelfId: string, sourcePositionId: string) => Promise<void>;
   restocking: boolean;
 }) {
   const { user } = useAuth();
@@ -27,6 +37,14 @@ export function ProductInspection({
   const [qty, setQty] = React.useState("6");
   const product = position.product;
   const style = INVENTORY_STATE_STYLES[position.visualState];
+  const rowPlan = computeColumnRowPlan(
+    position.quantity,
+    position.maximumCapacity,
+    4,
+  );
+  const colFull = Boolean(
+    product && isColumnFull(position.quantity, position.maximumCapacity),
+  );
 
   if (!product) {
     return (
@@ -97,25 +115,75 @@ export function ProductInspection({
         </div>
       )}
 
+      {/* 4-Row Vertical Column Planogram (1 Product per Column, Never Mixed) */}
+      <div className="space-y-1.5 rounded-md border border-border bg-white p-2.5">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="font-semibold text-foreground">
+            Column {position.positionCode} · 4 Planned Rows
+          </span>
+          <span className="font-mono text-muted">
+            {colFull
+              ? "4/4 FULL"
+              : `${rowPlan.filter((r) => r.isFull).length}/4 full`}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          {rowPlan.map((row) => (
+            <div
+              key={row.rowIndex}
+              className={`rounded border px-1.5 py-1 text-center font-mono text-[10px] ${
+                row.isFull
+                  ? "border-amber-300 bg-amber-50 font-semibold text-amber-900"
+                  : row.quantity > 0
+                    ? "border-teal-200 bg-teal-50 font-semibold text-teal-900"
+                    : "border-dashed border-border bg-surface-subtle text-muted"
+              }`}
+            >
+              R{row.rowIndex + 1}: {row.quantity}/{row.capacity}
+            </div>
+          ))}
+        </div>
+        {canRestock && onAddSameProductColumn && (
+          <Button
+            type="button"
+            size="sm"
+            variant={colFull ? "default" : "secondary"}
+            className="mt-1.5 h-7 w-full text-xs"
+            isLoading={restocking}
+            onClick={() =>
+              void onAddSameProductColumn(position.shelfId, position.id)
+            }
+          >
+            {colFull
+              ? "+ Column full — Add same-product column"
+              : "+ Add another column for this product"}
+          </Button>
+        )}
+      </div>
+
       {canRestock && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const parsed = Number(qty);
             if (Number.isInteger(parsed) && parsed > 0) {
-              void onRestock(position.id, parsed);
+              const needsOverflow =
+                parsed > Math.max(0, position.maximumCapacity - position.quantity);
+              void onRestock(position.id, parsed, needsOverflow);
             }
           }}
           className="space-y-2 rounded-md border border-border bg-surface-subtle p-3"
         >
           <p className="text-xs font-medium text-foreground">
-            Restock shelf from warehouse
+            {colFull
+              ? "Restock into new same-product overflow column"
+              : "Restock column from warehouse"}
           </p>
           <div className="flex gap-2">
             <Input
               type="number"
               min={1}
-              max={Math.max(1, position.maximumCapacity - position.quantity)}
+              max={Math.max(1, position.warehouseQuantity || 24)}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               className="h-8"
@@ -127,7 +195,7 @@ export function ProductInspection({
               isLoading={restocking}
               disabled={position.warehouseQuantity <= 0}
             >
-              Transfer
+              {colFull ? "Add col & move" : "Transfer"}
             </Button>
           </div>
           {position.warehouseQuantity <= 0 && (

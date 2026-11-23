@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { isInventoryRole, isManagerRole } from "@/lib/auth/roles";
 import {
+  addShelfColumn,
   fetchDigitalTwin,
   initializeDigitalTwin,
   locateInTwin,
@@ -267,12 +268,18 @@ export function DigitalTwinWorkspace({
       });
       setRightOpen(true);
       const fixture = findFixtureByCode(pos.shelfCode);
+      const shelf = snapshot?.shelves.find((s) => s.id === pos.shelfId);
       if (fixture) {
-        const framing = shelfSlotWorldCamera(fixture, pos.slotIndex, 2.15);
+        const framing = shelfSlotWorldCamera(
+          fixture,
+          pos.slotIndex,
+          2.25,
+          shelf?.positions.length,
+        );
         flyTo(framing.position, framing.target);
       }
     },
-    [flyTo],
+    [flyTo, snapshot],
   );
 
   const handleSelectWarehousePosition = React.useCallback(
@@ -408,14 +415,31 @@ export function DigitalTwinWorkspace({
   const handleRestockShelfPosition = async (
     positionId: string,
     quantity: number,
+    allowAddColumn = false,
   ) => {
     const res = await transferWarehouseStockToShelf({
       shelfPositionId: positionId,
       quantity,
+      allowAddColumn,
     });
     triggerRestockHighlight(res.positionId);
     setLastEventMessage(
-      `Restocked +${quantity} ${res.productName} onto ${res.shelfCode}`,
+      res.addedColumnCodes && res.addedColumnCodes.length > 0
+        ? `Restocked +${quantity} ${res.productName} onto ${res.shelfCode} (+same-product column ${res.addedColumnCodes.join(", ")})`
+        : `Restocked +${quantity} ${res.productName} onto ${res.shelfCode}`,
+    );
+    await loadSnapshot(true);
+  };
+
+  const handleAddShelfColumn = async (
+    shelfId: string,
+    sourcePositionId?: string,
+  ) => {
+    const res = await addShelfColumn(shelfId, { sourcePositionId });
+    setLastEventMessage(
+      res.column.product
+        ? `Added 4-row column ${res.column.positionCode} for ${res.column.product.name} on ${res.column.shelfCode}`
+        : `Added empty 4-row column ${res.column.positionCode} on ${res.column.shelfCode}`,
     );
     await loadSnapshot(true);
   };
@@ -780,6 +804,7 @@ export function DigitalTwinWorkspace({
               onSelectShelf={handleSelectShelf}
               onSelectProduct={handleSelectProduct}
               onRestockShelfPosition={handleRestockShelfPosition}
+              onAddShelfColumn={handleAddShelfColumn}
               onTransferFromWarehouse={handleTransferFromWarehouse}
               onClose={() => setSelection(null)}
             />

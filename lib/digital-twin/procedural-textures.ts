@@ -30,6 +30,7 @@ let cachedWelcomeMat: THREE.CanvasTexture | null = null;
 
 const eslTextureCache = new Map<string, THREE.CanvasTexture>();
 const productLabelCache = new Map<string, THREE.CanvasTexture>();
+const columnHeaderCache = new Map<string, THREE.CanvasTexture>();
 const endcapPromoCache = new Map<string, THREE.CanvasTexture>();
 const chalkboardCache = new Map<string, THREE.CanvasTexture>();
 const tempGaugeCache = new Map<string, THREE.CanvasTexture>();
@@ -910,6 +911,161 @@ export function getProductLabelTexture({
     }
   }
   productLabelCache.set(key, tex);
+  return tex;
+}
+
+/**
+ * 512x160 HD Top-of-Column Product Name Header Plaque Texture.
+ * Mounted directly on TOP of each 4-row single-product vertical column so
+ * shoppers and staff immediately read the product name above that column,
+ * alongside live TSh price, 4-row fill meter, and full/overflow column badge.
+ */
+export function getColumnHeaderTexture({
+  productName,
+  columnLabel,
+  priceText,
+  quantity,
+  maximumCapacity,
+  filledRows,
+  rowFillPercents,
+  categoryName,
+  isOverflowContinuation = false,
+}: {
+  productName: string | null;
+  columnLabel: string;
+  priceText?: string;
+  quantity: number;
+  maximumCapacity: number;
+  filledRows: number;
+  rowFillPercents?: number[];
+  categoryName?: string | null;
+  isOverflowContinuation?: boolean;
+}): THREE.CanvasTexture | null {
+  const rowSig = rowFillPercents ? rowFillPercents.join(",") : String(filledRows);
+  const key = `${productName ?? "EMPTY"}|${columnLabel}|${priceText ?? ""}|${quantity}|${maximumCapacity}|${rowSig}|${categoryName ?? ""}|${isOverflowContinuation ? 1 : 0}`;
+  const existing = columnHeaderCache.get(key);
+  if (existing) return existing;
+
+  const pair = makeCanvas(512, 160);
+  if (!pair) return null;
+  const [canvas, ctx] = pair;
+
+  const isEmpty = !productName;
+  const isFull = !isEmpty && maximumCapacity > 0 && quantity >= maximumCapacity;
+  const isOut = !isEmpty && quantity <= 0;
+  const palette = isEmpty
+    ? { primary: "#475569", secondary: "#334155", soft: "#f1f5f9" }
+    : categoryAccentPalette(categoryName, productName);
+
+  // Clean architectural header sign base with dark aluminum rim
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(6, 6, 500, 148);
+
+  // Colored top brand stripe
+  const barGrad = ctx.createLinearGradient(6, 6, 506, 48);
+  barGrad.addColorStop(0, palette.primary);
+  barGrad.addColorStop(1, palette.secondary);
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(6, 6, 500, 40);
+
+  // Left: Column ID + 4 ROWS tag
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 18px Inter, system-ui, sans-serif";
+  const badgeLeft = isOverflowContinuation
+    ? `${columnLabel} · SAME PRODUCT (CONT.)`
+    : `${columnLabel} · 4 ROWS`;
+  ctx.fillText(badgeLeft.toUpperCase(), 20, 32);
+
+  // Right: Status pill (FULL / OUT / LIVE COUNT)
+  const pillText = isEmpty
+    ? "EMPTY"
+    : isOut
+      ? "OUT OF STOCK"
+      : isFull
+        ? "4/4 FULL"
+        : `${quantity}/${maximumCapacity}`;
+  const pillBg = isEmpty
+    ? "rgba(255,255,255,0.22)"
+    : isOut
+      ? "#dc2626"
+      : isFull
+        ? "#f59e0b"
+        : "rgba(255,255,255,0.24)";
+  ctx.fillStyle = pillBg;
+  ctx.fillRect(356, 12, 138, 28);
+  ctx.fillStyle = isFull ? "#0f172a" : "#ffffff";
+  ctx.font = "800 16px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(pillText, 425, 31);
+  ctx.textAlign = "left";
+
+  // Center-left: LARGE BOLD PRODUCT NAME on top of the column
+  ctx.fillStyle = isEmpty ? "#64748b" : "#0b141a";
+  const displayName = productName ? productName.toUpperCase() : "OPEN COLUMN · 1 PRODUCT";
+  const isLong = displayName.length > 22;
+  ctx.font = isLong
+    ? "800 24px Inter, system-ui, sans-serif"
+    : "800 30px Inter, system-ui, sans-serif";
+  drawWrappedLines(ctx, displayName, 20, isLong ? 80 : 90, 336, 28, 2);
+
+  // Bottom-left: Live price if product assigned
+  if (priceText && !isEmpty) {
+    ctx.fillStyle = palette.primary;
+    ctx.font = "800 22px Inter, system-ui, sans-serif";
+    ctx.fillText(priceText, 20, 142);
+  } else {
+    ctx.fillStyle = "#64748b";
+    ctx.font = "600 16px Inter, system-ui, sans-serif";
+    ctx.fillText("ASSIGN SINGLE PRODUCT TO 4 ROWS", 20, 140);
+  }
+
+  // Right side: 4-Row Vertical Fill Meter (R4 top -> R1 bottom)
+  ctx.fillStyle = "#f1f5f9";
+  ctx.fillRect(368, 56, 126, 88);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(368, 56, 126, 88);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "700 11px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("4-ROW COLUMN", 431, 71);
+  ctx.textAlign = "left";
+
+  for (let row = 0; row < 4; row += 1) {
+    // Draw R4 at top -> R1 at bottom with exact per-row proportional fill bar
+    const barIdxFromTop = 3 - row;
+    const by = 78 + barIdxFromTop * 15;
+    const pct = rowFillPercents
+      ? Math.max(0, Math.min(100, rowFillPercents[row] ?? 0))
+      : row < filledRows
+        ? 100
+        : 0;
+    // Empty row track
+    ctx.fillStyle = "#dbe4ea";
+    ctx.fillRect(380, by, 102, 10);
+    // Planned row fill bar
+    if (pct > 0) {
+      ctx.fillStyle = pct >= 100 ? (isFull ? "#d97706" : "#0f766e") : "#14b8a6";
+      ctx.fillRect(380, by, Math.max(6, Math.round((102 * pct) / 100)), 10);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+  tex.needsUpdate = true;
+
+  if (columnHeaderCache.size > 320) {
+    const firstKey = columnHeaderCache.keys().next().value;
+    if (firstKey) {
+      columnHeaderCache.get(firstKey)?.dispose();
+      columnHeaderCache.delete(firstKey);
+    }
+  }
+  columnHeaderCache.set(key, tex);
   return tex;
 }
 

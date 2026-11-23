@@ -200,12 +200,17 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
       rotY: fixture.rotationY,
     });
 
-    const totalSlots = Math.min(6, fixture.tiers * fixture.slotsPerTier);
-    for (let slot = 0; slot < totalSlots; slot += 1) {
+    const isZLong = fixture.size[2] >= fixture.size[0];
+    const isDoubleSided =
+      isZLong && fixture.kind !== "refrigerator" && fixture.kind !== "meat_counter";
+    const totalColumns = isDoubleSided
+      ? fixture.slotsPerTier * 2
+      : fixture.slotsPerTier;
+    for (let col = 0; col < totalColumns; col += 1) {
       positionSeedRows.push({
         shelfId,
-        positionCode: `POS_${String(slot + 1).padStart(2, "0")}`,
-        slotIndex: slot,
+        positionCode: `COL_${String(col + 1).padStart(2, "0")}`,
+        slotIndex: col,
         quantity: 0,
         maximumCapacity: 24,
         reorderLevel: 6,
@@ -950,11 +955,17 @@ export async function locateInDigitalTwin(
  * Atomic Warehouse -> Shelf transfer (Phases 8 & 13).
  * Decrements warehouse `Inventory`, increments `ShelfPosition.quantity`,
  * records a `TRANSFER` StockMovement + AuditLog, and emits SSE ONLY post-commit.
+ *
+ * When a 4-row product column is full (`availableSpace < quantity`) and
+ * `allowAddColumn` is true, automatically fills any other same-product column
+ * on that shelf first and then adds a new 4-row overflow column for the SAME
+ * product (never mixing different products in one column).
  */
 export async function transferWarehouseToShelf(input: {
   shelfPositionId: string;
   warehouseLocationId?: string;
   quantity: number;
+  allowAddColumn?: boolean;
   actorId?: bigint | null;
   notes?: string;
 }) {
@@ -965,14 +976,23 @@ export async function transferWarehouseToShelf(input: {
   const result = await prisma.$transaction(async (tx) => {
     const position = await tx.shelfPosition.findUnique({
       where: { id: input.shelfPositionId },
-      include: { shelf: true, product: true },
+      include: {
+        shelf: {
+          include: {
+            positions: {
+              orderBy: { slotIndex: "asc" },
+            },
+          },
+        },
+        product: { include: { category: { select: { name: true } } } },
+      },
     });
     if (!position) {
-      throw new DigitalTwinError("Shelf position not found.", 404);
+      throw new DigitalTwinError("Shelf column not found.", 404);
     }
     if (!position.productId || !position.product) {
       throw new DigitalTwinError(
-        "Assign a product to this shelf position before restocking.",
+        "Assign a product to this shelf column before restocking.",
         400,
       );
     }
@@ -981,9 +1001,26 @@ export async function transferWarehouseToShelf(input: {
       0,
       position.maximumCapacity - position.quantity,
     );
-    if (input.quantity > availableSpace) {
+
+    // Check existing same-product columns on this shelf for overflow capacity
+    const sameProductSiblings = position.shelf.positions.filter(
+      (p) =>
+        p.id !== position.id &&
+        p.productId === position.productId &&
+        p.quantity < p.maximumCapacity,
+    );
+    const totalSameProductFree =
+      availableSpace +
+      sameProductSiblings.reduce(
+        (sum, p) => sum + Math.max(0, p.maximumCapacity - p.quantity),
+        0,
+      );
+
+    if (input.quantity > totalSameProductFree && !input.allowAddColumn) {
       throw new DigitalTwinError(
-        `Shelf slot ${position.shelf.shelfCode}/${position.positionCode} can accept at most ${availableSpace} more unit(s).`,
+        availableSpace === 0
+          ? `All 4 rows in column ${position.shelf.shelfCode}/${position.positionCode} are full (${position.quantity}/${position.maximumCapacity}). Add another column for "${position.product.name}" instead of mixing products.`
+          : `Column ${position.shelf.shelfCode}/${position.positionCode} has room for ${availableSpace} more unit(s). Enable overflow column creation to place additional "${position.product.name}" units in a new 4-row column.`,
         409,
       );
     }
@@ -1027,10 +1064,142 @@ export async function transferWarehouseToShelf(input: {
       );
     }
 
-    const updatedPos = await tx.shelfPosition.update({
-      where: { id: position.id },
-      data: { quantity: { increment: input.quantity } },
+    let remaining = input.quantity;
+    let primaryUpdatedQty = position.quantity;
+    const positionUpdates: Array<{
+      productId: string;
+      shelfCode: string;
+      positionId: string;
+      quantity: number;
+    }> = [];
+    const addedColumnCodes: string[] = [];
+
+    // 1. Fill target column up to its 4-row capacity
+    if (availableSpace > 0 && remaining > 0) {
+      const take = Math.min(availableSpace, remaining);
+      const updated = await tx.shelfPosition.update({
+        where: { id: position.id },
+        data: { quantity: { increment: take } },
+      });
+      primaryUpdatedQty = updated.quantity;
+      positionUpdates.push({
+        productId: position.productId.toString(),
+        shelfCode: position.shelf.shelfCode,
+        positionId: updated.id,
+        quantity: updated.quantity,
+      });
+      remaining -= take;
+    }
+
+    // 2. Overflow into any existing same-product columns on the same shelf
+    for (const sibling of sameProductSiblings) {
+      if (remaining <= 0) break;
+      const free = Math.max(0, sibling.maximumCapacity - sibling.quantity);
+      if (free <= 0) continue;
+      const take = Math.min(free, remaining);
+      const updated = await tx.shelfPosition.update({
+        where: { id: sibling.id },
+        data: { quantity: { increment: take } },
+      });
+      positionUpdates.push({
+        productId: position.productId.toString(),
+        shelfCode: position.shelf.shelfCode,
+        positionId: updated.id,
+        quantity: updated.quantity,
+      });
+      remaining -= take;
+    }
+
+    // 3. Still overflowing & allowAddColumn enabled -> add new 4-row column(s) for the SAME product!
+    let currentCols = position.shelf.positions.length;
+    let nextSlotIndex =
+      currentCols > 0
+        ? Math.max(...position.shelf.positions.map((p) => p.slotIndex)) + 1
+        : 0;
+    const existingCodes = new Set(
+      position.shelf.positions.map((p) => p.positionCode),
+    );
+    const colCap = Math.max(4, position.maximumCapacity || 24);
+    const fixture = findFixtureByCode(position.shelf.shelfCode);
+    const assetEntry = resolveProductAsset(
+      position.product.name,
+      position.product.category?.name,
+    );
+    const asset = await tx.threeDAsset.findUnique({
+      where: { assetKey: assetEntry.key },
+      select: { id: true },
     });
+
+    while (remaining > 0) {
+      if (currentCols >= 12) {
+        throw new DigitalTwinError(
+          `Shelf ${position.shelf.shelfCode} reached maximum 12 columns. Transfer remaining ${remaining} unit(s) to another shelf.`,
+          409,
+        );
+      }
+
+      let codeNum = nextSlotIndex + 1;
+      let newCode = `COL_${String(codeNum).padStart(2, "0")}`;
+      while (existingCodes.has(newCode)) {
+        codeNum += 1;
+        newCode = `COL_${String(codeNum).padStart(2, "0")}`;
+      }
+      existingCodes.add(newCode);
+
+      const take = Math.min(colCap, remaining);
+      const createdCol = await tx.shelfPosition.create({
+        data: {
+          shelfId: position.shelfId,
+          productId: position.productId,
+          positionCode: newCode,
+          slotIndex: nextSlotIndex,
+          quantity: take,
+          maximumCapacity: colCap,
+          reorderLevel: position.reorderLevel,
+        },
+      });
+      await tx.shelf.update({
+        where: { id: position.shelfId },
+        data: { capacity: { increment: colCap } },
+      });
+
+      currentCols += 1;
+      const coords = fixture
+        ? shelfSlotWorldPosition(fixture, nextSlotIndex, currentCols)
+        : ([0, 1, 0] as [number, number, number]);
+
+      await tx.threeDObjectMapping.upsert({
+        where: { objectName: `${position.shelf.shelfCode}_${newCode}` },
+        update: {
+          linkedEntityType: "PRODUCT",
+          linkedEntityId: position.productId.toString(),
+          assetId: asset?.id ?? null,
+          posX: coords[0],
+          posY: coords[1],
+          posZ: coords[2],
+        },
+        create: {
+          objectName: `${position.shelf.shelfCode}_${newCode}`,
+          objectType: "PRODUCT_POSITION",
+          linkedEntityType: "PRODUCT",
+          linkedEntityId: position.productId.toString(),
+          assetId: asset?.id ?? null,
+          posX: coords[0],
+          posY: coords[1],
+          posZ: coords[2],
+        },
+      });
+
+      addedColumnCodes.push(newCode);
+      positionUpdates.push({
+        productId: position.productId.toString(),
+        shelfCode: position.shelf.shelfCode,
+        positionId: createdCol.id,
+        quantity: createdCol.quantity,
+      });
+      nextSlotIndex += 1;
+      remaining -= take;
+    }
 
     const movement = await tx.stockMovement.create({
       data: {
@@ -1040,8 +1209,12 @@ export async function transferWarehouseToShelf(input: {
         sourceLocationId: invRecord.warehouseLocationId ?? undefined,
         destinationLocationId: position.id,
         performedById: input.actorId ?? undefined,
-        reference: `${invRecord.warehouseLocation?.rackCode ?? "WH"} -> ${position.shelf.shelfCode}/${position.positionCode}`,
-        notes: input.notes ?? "Warehouse to shelf restock",
+        reference: `${invRecord.warehouseLocation?.rackCode ?? "WH"} -> ${position.shelf.shelfCode}/${position.positionCode}${addedColumnCodes.length > 0 ? ` (+${addedColumnCodes.join(",")})` : ""}`,
+        notes:
+          input.notes ??
+          (addedColumnCodes.length > 0
+            ? `Warehouse restock with same-product overflow column(s): ${addedColumnCodes.join(", ")}`
+            : "Warehouse to shelf restock"),
       },
     });
 
@@ -1053,9 +1226,11 @@ export async function transferWarehouseToShelf(input: {
       shelfCode: position.shelf.shelfCode,
       positionId: position.id,
       positionCode: position.positionCode,
-      newShelfQuantity: updatedPos.quantity,
+      newShelfQuantity: primaryUpdatedQty,
       warehouseLocationId: invRecord.warehouseLocationId,
       newWarehouseQuantity: invRecord.quantityOnHand - input.quantity,
+      addedColumnCodes,
+      positionUpdates,
     };
   });
 
@@ -1064,7 +1239,10 @@ export async function transferWarehouseToShelf(input: {
     action: "SHELF_RESTOCK_TRANSFER",
     entityType: "SHELF_POSITION",
     entityId: result.positionId,
-    summary: `Transferred ${input.quantity}× ${result.productName} to ${result.shelfCode}/${result.positionCode}.`,
+    summary:
+      result.addedColumnCodes.length > 0
+        ? `Transferred ${input.quantity}× ${result.productName} to ${result.shelfCode} (added overflow column ${result.addedColumnCodes.join(", ")}).`
+        : `Transferred ${input.quantity}× ${result.productName} to ${result.shelfCode}/${result.positionCode}.`,
     metadata: result,
   });
 
@@ -1077,15 +1255,11 @@ export async function transferWarehouseToShelf(input: {
     warehouseLocationId: result.warehouseLocationId ?? undefined,
     quantity: result.newShelfQuantity,
     delta: input.quantity,
-    updates: [
-      {
-        productId: result.productId,
-        shelfCode: result.shelfCode,
-        positionId: result.positionId,
-        quantity: result.newShelfQuantity,
-      },
-    ],
-    summary: `Restocked +${input.quantity} ${result.productName} onto ${result.shelfCode}`,
+    updates: result.positionUpdates,
+    summary:
+      result.addedColumnCodes.length > 0
+        ? `Restocked +${input.quantity} ${result.productName} onto ${result.shelfCode} (+column ${result.addedColumnCodes.join(",")})`
+        : `Restocked +${input.quantity} ${result.productName} onto ${result.shelfCode}`,
   });
 
   return result;

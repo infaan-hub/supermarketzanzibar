@@ -177,11 +177,11 @@ export async function POST(request: NextRequest) {
         await tx.shelfPosition.create({
           data: {
             shelfId: createdShelf.id,
-            positionCode: `POS_${String(i + 1).padStart(2, "0")}`,
+            positionCode: `COL_${String(i + 1).padStart(2, "0")}`,
             slotIndex: i,
             quantity: 0,
             maximumCapacity: Math.max(
-              12,
+              16,
               Math.floor(parsed.data.capacity / parsed.data.slotCount),
             ),
             reorderLevel: 6,

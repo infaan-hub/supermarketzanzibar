@@ -11,6 +11,7 @@ import {
 } from "@/lib/digital-twin/inventory-state";
 import {
   getChillerBackwallTexture,
+  getColumnHeaderTexture,
   getDigitalTempTexture,
   getEndcapPromoTexture,
   getEslLabelTexture,
@@ -19,6 +20,7 @@ import {
   getProduceChalkboardTexture,
   getSlottedUprightTexture,
 } from "@/lib/digital-twin/procedural-textures";
+import { computeColumnRowPlan } from "@/lib/digital-twin/product-layout";
 import {
   chillerDoorCountForFixture,
   shelfSlotDoorIndex,
@@ -330,22 +332,150 @@ function MeatCounterCurvedGlass({
 }
 
 // ---------------------------------------------------------------------------
+// HD Top-of-Column Product Name Sign (mounted right on top of each 4-row column)
+// ---------------------------------------------------------------------------
+function ShelfColumnTopHeader({
+  shelf,
+  pos,
+  totalColumns,
+  effectiveQuantity,
+  isOverflowContinuation,
+  isSelected,
+  onSelectProduct,
+}: {
+  shelf: TwinShelfNode;
+  pos: TwinShelfPositionNode;
+  totalColumns: number;
+  effectiveQuantity: number;
+  isOverflowContinuation: boolean;
+  isSelected: boolean;
+  onSelectProduct: (pos: TwinShelfPositionNode) => void;
+}) {
+  const layout = React.useMemo(
+    () => shelfSlotLocalLayout(shelf, pos.slotIndex, totalColumns),
+    [shelf, pos.slotIndex, totalColumns],
+  );
+
+  const product = pos.product;
+  const rowPlan = React.useMemo(
+    () =>
+      computeColumnRowPlan(
+        product ? effectiveQuantity : 0,
+        pos.maximumCapacity,
+        layout.rowCount,
+      ),
+    [product, effectiveQuantity, pos.maximumCapacity, layout.rowCount],
+  );
+  const rowsFilled = rowPlan.filter((r) => r.quantity > 0).length;
+  const rowFillPercents = React.useMemo(
+    () => rowPlan.map((r) => r.fillPercent),
+    [rowPlan],
+  );
+  const columnLabel = `COL ${layout.columnIndex + 1}`;
+
+  const texture = React.useMemo(
+    () =>
+      getColumnHeaderTexture({
+        productName: product?.name ?? null,
+        columnLabel,
+        priceText: product ? formatMoney(product.price) : undefined,
+        quantity: effectiveQuantity,
+        maximumCapacity: pos.maximumCapacity,
+        filledRows: rowsFilled,
+        rowFillPercents,
+        categoryName: product?.categoryName ?? null,
+        isOverflowContinuation,
+      }),
+    [
+      product,
+      columnLabel,
+      effectiveQuantity,
+      pos.maximumCapacity,
+      rowsFilled,
+      rowFillPercents,
+      isOverflowContinuation,
+    ],
+  );
+
+  if (!texture) return null;
+
+  const plaqueW = Math.max(0.54, Math.min(1.18, layout.columnWidth * 0.86));
+  const plaqueH = plaqueW * 0.3125; // Matches 512x160 aspect ratio cleanly
+
+  return (
+    <group
+      name={`${pos.objectName}_TopHeader`}
+      position={layout.headerLocalPosition}
+      rotation={[0, layout.localRotationY, 0]}
+    >
+      {/* Twin brushed-chrome riser stems anchoring plaque to shelf top fascia */}
+      <mesh position={[-plaqueW * 0.32, -plaqueH * 0.52, -0.015]}>
+        <cylinderGeometry args={[0.008, 0.008, 0.12, 8]} />
+        <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />
+      </mesh>
+      <mesh position={[plaqueW * 0.32, -plaqueH * 0.52, -0.015]}>
+        <cylinderGeometry args={[0.008, 0.008, 0.12, 8]} />
+        <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.2} />
+      </mesh>
+
+      {/* Slightly downward-angled architectural column header sign for aisle legibility */}
+      <group rotation={[0.1, 0, 0]}>
+        <mesh
+          onClick={(e) => {
+            e.stopPropagation();
+            if (product) onSelectProduct(pos);
+          }}
+          castShadow
+        >
+          <boxGeometry args={[plaqueW + 0.024, plaqueH + 0.024, 0.026]} />
+          <meshStandardMaterial
+            color={isSelected ? "#0f766e" : "#1e293b"}
+            metalness={0.55}
+            roughness={0.32}
+            emissive={isSelected ? "#0f766e" : "#000000"}
+            emissiveIntensity={isSelected ? 0.35 : 0}
+          />
+        </mesh>
+
+        {/* Crisp 512x160 HD Product Name + 4-Row Status face */}
+        <mesh
+          position={[0, 0, 0.0145]}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (product) onSelectProduct(pos);
+          }}
+        >
+          <planeGeometry args={[plaqueW, plaqueH]} />
+          <meshStandardMaterial
+            map={texture}
+            roughness={0.34}
+            metalness={0.04}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // HD Electronic Shelf Label (ESL) mounted inside physical rail clip housing
 // ---------------------------------------------------------------------------
 function ShelfEslTag({
   shelf,
   pos,
+  totalColumns,
   effectiveQuantity,
   onSelectProduct,
 }: {
   shelf: TwinShelfNode;
   pos: TwinShelfPositionNode;
+  totalColumns: number;
   effectiveQuantity: number;
   onSelectProduct: (pos: TwinShelfPositionNode) => void;
 }) {
   const layout = React.useMemo(
-    () => shelfSlotLocalLayout(shelf, pos.slotIndex),
-    [shelf, pos.slotIndex],
+    () => shelfSlotLocalLayout(shelf, pos.slotIndex, totalColumns),
+    [shelf, pos.slotIndex, totalColumns],
   );
 
   const product = pos.product;
@@ -654,11 +784,32 @@ export function Shelf({
     [isDoorRefrigerator, shelf],
   );
 
+  const totalColumns = Math.max(
+    isDoubleSided ? shelf.slotsPerTier * 2 : shelf.slotsPerTier,
+    shelf.positions.length,
+  );
+  const columnsPerSide = isDoubleSided
+    ? Math.max(shelf.slotsPerTier, Math.ceil(totalColumns / 2))
+    : Math.max(shelf.slotsPerTier, totalColumns);
+
+  // Detect overflow continuation columns (2nd+ column for the exact same product on this shelf)
+  const overflowContinuationIds = React.useMemo(() => {
+    const seen = new Set<string>();
+    const cont = new Set<string>();
+    const sorted = [...shelf.positions].sort((a, b) => a.slotIndex - b.slotIndex);
+    for (const p of sorted) {
+      if (!p.product) continue;
+      if (seen.has(p.product.id)) cont.add(p.id);
+      else seen.add(p.product.id);
+    }
+    return cont;
+  }, [shelf.positions]);
+
   const openDoorIndices = React.useMemo(() => {
     const set = new Set<number>();
     if (!isDoorRefrigerator || doorCount <= 0) return set;
     if (selectedSlotNode) {
-      set.add(shelfSlotDoorIndex(shelf, selectedSlotNode.slotIndex));
+      set.add(shelfSlotDoorIndex(shelf, selectedSlotNode.slotIndex, totalColumns));
     } else if (isSelected) {
       // Open the central paired doors when the entire chiller is inspected
       const mid = Math.floor(doorCount / 2);
@@ -666,7 +817,7 @@ export function Shelf({
       set.add(Math.min(doorCount - 1, mid));
     }
     return set;
-  }, [isDoorRefrigerator, doorCount, selectedSlotNode, shelf, isSelected]);
+  }, [isDoorRefrigerator, doorCount, selectedSlotNode, shelf, isSelected, totalColumns]);
 
   const hasSearchMatch = React.useMemo(() => {
     if (!searchActive || !searchMatchedProductIds) return false;
@@ -1127,6 +1278,39 @@ export function Shelf({
                     />
                   </mesh>
                 )}
+
+                {/* Frosted acrylic vertical column dividers separating each 1-product column */}
+                {!isProduce &&
+                  columnsPerSide > 1 &&
+                  Array.from({ length: columnsPerSide - 1 }).map((_, divIdx) => {
+                    const usableSpan = (isZLong ? d : w) * 0.86;
+                    const divPos =
+                      -usableSpan / 2 +
+                      ((divIdx + 1) / columnsPerSide) * usableSpan;
+                    return (
+                      <mesh
+                        key={`cdiv-${divIdx}`}
+                        position={
+                          isZLong ? [0, 0.075, divPos] : [divPos, 0.075, 0]
+                        }
+                      >
+                        <boxGeometry
+                          args={
+                            isZLong
+                              ? [w * 0.9, 0.1, 0.008]
+                              : [0.008, 0.1, d * 0.86]
+                          }
+                        />
+                        <meshPhysicalMaterial
+                          color="#e2f1f5"
+                          transparent
+                          opacity={0.42}
+                          roughness={0.18}
+                          clearcoat={0.7}
+                        />
+                      </mesh>
+                    );
+                  })}
               </group>
 
               {/* Profiled Brushed Aluminum Price-Rail C-Channel Strip holding ESLs */}
@@ -1518,7 +1702,31 @@ export function Shelf({
         />
       )}
 
-      {/* HD Electronic Shelf Labels (ESL) mounted on every tier front aluminum rail */}
+      {/* Top-of-Column Product Name Header Signs mounted above every 4-row column */}
+      {viewMode !== "heatmap" &&
+        shelf.positions.map((pos) => {
+          const inBasket =
+            pos.product && basketQuantities
+              ? (basketQuantities[pos.product.id] ?? 0)
+              : 0;
+          const visualQty = shopperMode
+            ? Math.max(0, pos.quantity - inBasket)
+            : pos.quantity;
+          return (
+            <ShelfColumnTopHeader
+              key={`col-hdr-${pos.id}`}
+              shelf={shelf}
+              pos={pos}
+              totalColumns={totalColumns}
+              effectiveQuantity={visualQty}
+              isOverflowContinuation={overflowContinuationIds.has(pos.id)}
+              isSelected={selectedPositionId === pos.id}
+              onSelectProduct={onSelectProduct}
+            />
+          );
+        })}
+
+      {/* HD Electronic Shelf Labels (ESL) mounted on every column's front aluminum rail */}
       {viewMode !== "heatmap" &&
         shelf.positions.map((pos) => {
           const inBasket =
@@ -1533,6 +1741,7 @@ export function Shelf({
               key={`esl-${pos.id}`}
               shelf={shelf}
               pos={pos}
+              totalColumns={totalColumns}
               effectiveQuantity={visualQty}
               onSelectProduct={onSelectProduct}
             />

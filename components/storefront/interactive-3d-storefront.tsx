@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
+import { computeColumnRowPlan } from "@/lib/digital-twin/product-layout";
 import {
   BUILDING_DIMENSIONS,
   CAMERA_PRESETS,
@@ -302,7 +303,12 @@ export function Interactive3DStorefront({
       });
       const fixture = findFixtureByCode(pos.shelfCode);
       if (fixture) {
-        const framing = shelfSlotWorldCamera(fixture, pos.slotIndex, 1.95);
+        const framing = shelfSlotWorldCamera(
+          fixture,
+          pos.slotIndex,
+          2.2,
+          shelf?.positions.length,
+        );
         flyTo(framing.position, framing.target);
       }
     },
@@ -1132,16 +1138,42 @@ export function Interactive3DStorefront({
                   </p>
                 )}
 
-                <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-subtle p-3">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">
-                      Choose from this shelf
-                    </p>
-                    <p className="text-[11px] text-muted">
-                      Slot {selectedPos.positionCode} · {selectedPos.shelfCode}
-                    </p>
+                <div className="space-y-2 rounded-md border border-border bg-surface-subtle p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">
+                        Choose from this 4-row column
+                      </p>
+                      <p className="text-[11px] text-muted">
+                        Column {selectedPos.positionCode} · {selectedPos.shelfCode}
+                      </p>
+                    </div>
+                    {renderBasketControl(selectedPos)}
                   </div>
-                  {renderBasketControl(selectedPos)}
+                  <div className="grid grid-cols-4 gap-1 pt-1">
+                    {computeColumnRowPlan(
+                      Math.max(
+                        0,
+                        selectedPos.quantity -
+                          (basketQuantities[selectedPos.product.id] ?? 0),
+                      ),
+                      selectedPos.maximumCapacity,
+                      4,
+                    ).map((row) => (
+                      <div
+                        key={row.rowIndex}
+                        className={`rounded border px-1.5 py-1 text-center font-mono text-[10px] ${
+                          row.isFull
+                            ? "border-teal-300 bg-teal-50 font-semibold text-teal-900"
+                            : row.quantity > 0
+                              ? "border-border bg-white font-medium text-foreground"
+                              : "border-dashed border-border bg-white/60 text-muted"
+                        }`}
+                      >
+                        R{row.rowIndex + 1}: {row.quantity}/{row.capacity}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Pack / Carton Variants from ProductBarcode */}

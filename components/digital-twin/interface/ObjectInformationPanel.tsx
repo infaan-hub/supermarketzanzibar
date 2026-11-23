@@ -25,6 +25,7 @@ export function ObjectInformationPanel({
   onSelectShelf,
   onSelectProduct,
   onRestockShelfPosition,
+  onAddShelfColumn,
   onTransferFromWarehouse,
   onClose,
 }: {
@@ -33,7 +34,15 @@ export function ObjectInformationPanel({
   canRestock: boolean;
   onSelectShelf: (shelf: TwinShelfNode) => void;
   onSelectProduct: (pos: TwinShelfPositionNode) => void;
-  onRestockShelfPosition: (positionId: string, quantity: number) => Promise<void>;
+  onRestockShelfPosition: (
+    positionId: string,
+    quantity: number,
+    allowAddColumn?: boolean,
+  ) => Promise<void>;
+  onAddShelfColumn?: (
+    shelfId: string,
+    sourcePositionId?: string,
+  ) => Promise<void>;
   onTransferFromWarehouse: (
     warehouseLocationId: string,
     targetShelfPositionId: string,
@@ -52,14 +61,33 @@ export function ObjectInformationPanel({
     setActionError(null);
   }, [selection]);
 
-  const handleRestock = async (positionId: string, quantity: number) => {
+  const handleRestock = async (
+    positionId: string,
+    quantity: number,
+    allowAddColumn = false,
+  ) => {
     setBusy(true);
     setActionError(null);
     try {
-      await onRestockShelfPosition(positionId, quantity);
+      await onRestockShelfPosition(positionId, quantity, allowAddColumn);
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Restock transfer failed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAddCol = async (shelfId: string, sourcePositionId?: string) => {
+    if (!onAddShelfColumn) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await onAddShelfColumn(shelfId, sourcePositionId);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Unable to add shelf column.",
       );
     } finally {
       setBusy(false);
@@ -306,9 +334,24 @@ export function ObjectInformationPanel({
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold">
-                  Shelf Positions ({shelf.positions.length})
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold">
+                    4-Row Columns ({shelf.positions.length})
+                  </p>
+                  {canRestock &&
+                    onAddShelfColumn &&
+                    shelf.positions.length < 12 && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-6 px-2 text-[10px]"
+                        isLoading={busy}
+                        onClick={() => void handleAddCol(shelf.id)}
+                      >
+                        + Add Column
+                      </Button>
+                    )}
+                </div>
                 {shelf.positions.map((pos) => (
                   <button
                     key={pos.id}
@@ -318,10 +361,10 @@ export function ObjectInformationPanel({
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">
-                        {pos.product?.name ?? "Empty Slot"}
+                        {pos.product?.name ?? "Empty Column (4 Rows)"}
                       </p>
                       <p className="font-mono text-[10px] text-muted">
-                        {pos.positionCode} · WH: {pos.warehouseQuantity}
+                        {pos.positionCode} · 4 rows · WH: {pos.warehouseQuantity}
                       </p>
                     </div>
                     <Badge
@@ -355,6 +398,9 @@ export function ObjectInformationPanel({
               position={pos}
               canRestock={canRestock}
               onRestock={handleRestock}
+              onAddSameProductColumn={
+                onAddShelfColumn ? handleAddCol : undefined
+              }
               restocking={busy}
             />
           );
