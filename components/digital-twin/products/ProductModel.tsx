@@ -39,6 +39,31 @@ export {
   type SlotFacingPlacement,
 };
 
+function ActiveProductAnimator({
+  isSelected,
+  isEmpty,
+  isSearchMatch,
+  heroUnitRef,
+  spotlightConeRef,
+}: {
+  isSelected: boolean;
+  isEmpty: boolean;
+  isSearchMatch: boolean;
+  heroUnitRef: React.RefObject<THREE.Group | null>;
+  spotlightConeRef: React.RefObject<THREE.Mesh | null>;
+}) {
+  useFrame(({ clock }, delta) => {
+    if (isSelected && heroUnitRef.current && !isEmpty) {
+      heroUnitRef.current.rotation.y += Math.min(delta, 0.05) * 0.65;
+    }
+    if (isSearchMatch && spotlightConeRef.current) {
+      const mat = spotlightConeRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.18 + Math.sin(clock.getElapsedTime() * 4.2) * 0.07;
+    }
+  });
+  return null;
+}
+
 export interface GltfMeshPart {
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
@@ -635,7 +660,8 @@ export function ProductModel({
     frontRowFacings.length > 0 &&
     (isNearShelf || isSelected || isSearchMatch || hovered);
 
-  // Per-product Ultra-HD 1024x1024 FRONT & BACK retail packaging textures.
+  // Per-product FRONT & lazy BACK retail packaging textures (512px on shelf floor,
+  // 1024px when selected/inspected, and back label only synthesized when selected).
   const frontLabelTexture = React.useMemo(() => {
     if (!product || viewMode === "heatmap" || !renderInteractiveRows) return null;
     return getProductLabelTexture({
@@ -646,11 +672,19 @@ export function ProductModel({
       barcode: product.barcode,
       imageUrl: product.imageUrl,
       description: product.description,
+      highRes: isSelected,
     });
-  }, [product, viewMode, renderInteractiveRows]);
+  }, [product, viewMode, renderInteractiveRows, isSelected]);
 
   const backLabelTexture = React.useMemo(() => {
-    if (!product || viewMode === "heatmap" || !renderInteractiveRows) return null;
+    if (
+      !product ||
+      viewMode === "heatmap" ||
+      !renderInteractiveRows ||
+      !isSelected
+    ) {
+      return null;
+    }
     return getProductBackLabelTexture({
       productId: product.id,
       name: product.name,
@@ -660,8 +694,9 @@ export function ProductModel({
       sku: product.sku,
       imageUrl: product.imageUrl,
       description: product.description,
+      highRes: true,
     });
-  }, [product, viewMode, renderInteractiveRows]);
+  }, [product, viewMode, renderInteractiveRows, isSelected]);
 
   const accentPalette = React.useMemo(
     () =>
@@ -768,16 +803,6 @@ export function ProductModel({
       );
   }, [pickNonce, isSelected]);
 
-  useFrame(({ clock }, delta) => {
-    if (isSelected && heroUnitRef.current && !isEmpty) {
-      heroUnitRef.current.rotation.y += Math.min(delta, 0.05) * 0.65;
-    }
-    if (isSearchMatch && spotlightConeRef.current) {
-      const mat = spotlightConeRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.18 + Math.sin(clock.getElapsedTime() * 4.2) * 0.07;
-    }
-  });
-
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     onSelect(positionNode);
@@ -814,6 +839,16 @@ export function ProductModel({
         document.body.style.cursor = "auto";
       }}
     >
+      {(isSelected || isSearchMatch) && (
+        <ActiveProductAnimator
+          isSelected={isSelected}
+          isEmpty={isEmpty}
+          isSearchMatch={isSearchMatch}
+          heroUnitRef={heroUnitRef}
+          spotlightConeRef={spotlightConeRef}
+        />
+      )}
+
       {/* Generous vertical column hit box spanning all 4 rows for easy clicking */}
       <group position={baseRowPos} rotation={[0, localRotationY, 0]}>
         <mesh position={[0, columnHeightSpan * 0.48, -0.05]}>

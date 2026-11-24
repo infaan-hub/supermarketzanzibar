@@ -41,19 +41,20 @@ export function PostProcessingEffects({
   return (
     <PostProcessGuard>
       <React.Suspense fallback={null}>
-        <EffectComposer multisampling={4} enableNormalPass>
+        <EffectComposer multisampling={0} enableNormalPass={false}>
           <N8AO
+            halfRes
             aoRadius={0.44}
             distanceFalloff={1.0}
-            intensity={1.25}
-            quality="high"
+            intensity={1.15}
+            quality="medium"
             color="#102126"
           />
           <Bloom
             mipmapBlur
             luminanceThreshold={1.12}
             luminanceSmoothing={0.22}
-            intensity={0.22}
+            intensity={0.2}
           />
           <Vignette eskil={false} offset={0.38} darkness={0.1} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />

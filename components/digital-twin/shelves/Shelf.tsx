@@ -688,8 +688,8 @@ export function Shelf({
     if (lodTickRef.current !== 0 || !shelfGroupRef.current) return;
     shelfGroupRef.current.getWorldPosition(SHELF_WORLD_POS);
     const dist = camera.position.distanceTo(SHELF_WORLD_POS);
-    const nextNear = dist < 24.0;
-    const nextHtml = dist < 18.0;
+    const nextNear = dist < 17.5;
+    const nextHtml = dist < 13.5;
     if (nextNear !== isNearShelf) setIsNearShelf(nextNear);
     if (nextHtml !== isHtmlRange) setIsHtmlRange(nextHtml);
   });

@@ -14,7 +14,7 @@ export function StoreEnvironment({ quality }: { quality: GraphicsQuality }) {
           linear overhead luminaire strips reflect softly along the clearcoated terrazzo aisles,
           while cool coastal daylight enters through the south glass facade. */}
       {quality !== "low" && (
-        <Environment resolution={quality === "high" ? 256 : 128}>
+        <Environment frames={1} resolution={quality === "high" ? 128 : 64}>
           {/* Linear ceiling luminaire reflection banks down the retail hall */}
           {[-10, -3.5, 3.5, 10].map((x) => (
             <Lightformer
@@ -72,12 +72,13 @@ export function StoreEnvironment({ quality }: { quality: GraphicsQuality }) {
 
       {quality === "high" && (
         <ContactShadows
+          frames={1}
           position={[0, 0.01, -4]}
           opacity={0.26}
           scale={56}
           blur={1.9}
           far={7.5}
-          resolution={512}
+          resolution={256}
           color="#102a2e"
         />
       )}

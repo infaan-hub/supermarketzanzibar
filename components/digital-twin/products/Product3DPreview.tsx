@@ -74,7 +74,10 @@ function PreviewStudioScene({
   const turntableRef = React.useRef<THREE.Group>(null);
   const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
 
-  const safeName = name.trim() || "New Supermarket Product";
+  const deferredName = React.useDeferredValue(name.trim() || "New Supermarket Product");
+  const deferredPriceText = React.useDeferredValue(priceText);
+  const deferredBarcode = React.useDeferredValue(barcode || "ZN00000001");
+  const deferredDescription = React.useDeferredValue(description);
   const previewId = React.useMemo(
     () => `preview-${assetKey}`,
     [assetKey],
@@ -84,34 +87,52 @@ function PreviewStudioScene({
     () =>
       getProductLabelTexture({
         productId: previewId,
-        name: safeName,
+        name: deferredName,
         categoryName,
-        priceText,
-        barcode: barcode || "ZN00000001",
+        priceText: deferredPriceText,
+        barcode: deferredBarcode,
         imageUrl,
-        description,
+        description: deferredDescription,
+        highRes: true,
       }),
-    [previewId, safeName, categoryName, priceText, barcode, imageUrl, description],
+    [
+      previewId,
+      deferredName,
+      categoryName,
+      deferredPriceText,
+      deferredBarcode,
+      imageUrl,
+      deferredDescription,
+    ],
   );
 
   const backLabelTexture = React.useMemo(
     () =>
       getProductBackLabelTexture({
         productId: previewId,
-        name: safeName,
+        name: deferredName,
         categoryName,
-        priceText,
-        barcode: barcode || "ZN00000001",
-        sku: barcode || "PREVIEW",
+        priceText: deferredPriceText,
+        barcode: deferredBarcode,
+        sku: deferredBarcode || "PREVIEW",
         imageUrl,
-        description,
+        description: deferredDescription,
+        highRes: true,
       }),
-    [previewId, safeName, categoryName, priceText, barcode, imageUrl, description],
+    [
+      previewId,
+      deferredName,
+      categoryName,
+      deferredPriceText,
+      deferredBarcode,
+      imageUrl,
+      deferredDescription,
+    ],
   );
 
   const accent = React.useMemo(
-    () => categoryAccentPalette(categoryName, safeName),
-    [categoryName, safeName],
+    () => categoryAccentPalette(categoryName, deferredName),
+    [categoryName, deferredName],
   );
 
   React.useEffect(() => {
@@ -167,7 +188,7 @@ function PreviewStudioScene({
       />
 
       {/* Offline procedural softbox environment */}
-      <Environment resolution={128}>
+      <Environment frames={1} resolution={64}>
         <Lightformer
           form="rect"
           intensity={2.6}
@@ -213,6 +234,7 @@ function PreviewStudioScene({
         />
       </mesh>
       <ContactShadows
+        frames={1}
         position={[0, 0.002, 0]}
         opacity={0.32}
         scale={1.3}

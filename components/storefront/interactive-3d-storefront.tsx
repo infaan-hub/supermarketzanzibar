@@ -134,7 +134,7 @@ export function Interactive3DStorefront({
   });
 
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("overview");
-  const [quality, setQuality] = React.useState<GraphicsQuality>("high");
+  const [quality, setQuality] = React.useState<GraphicsQuality>("balanced");
   const [showMinimap, setShowMinimap] = React.useState(true);
   const [showRoute, setShowRoute] = React.useState(false);
 

@@ -21,7 +21,10 @@ import {
   resolveProductAsset,
 } from "@/lib/digital-twin/asset-manifest";
 import { classifyInventoryState } from "@/lib/digital-twin/inventory-state";
-import { publishInventoryEvent } from "@/lib/realtime/event-bus";
+import {
+  publishInventoryEvent,
+  subscribeInventoryEvents,
+} from "@/lib/realtime/event-bus";
 import { recordAuditLog } from "@/lib/audit";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory";
 import { ensureDigitalTwinSchema } from "@/lib/digital-twin/ensure-schema";
@@ -298,7 +301,15 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
   const [products, emptySlots] = await Promise.all([
     prisma.product.findMany({
       where: { isActive: true },
-      include: { category: true, shelfPositions: true, inventoryRecords: true },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        quantity: true,
+        category: { select: { name: true } },
+        shelfPositions: { select: { id: true } },
+        inventoryRecords: { select: { id: true } },
+      },
       orderBy: { id: "asc" },
     }),
     prisma.shelfPosition.findMany({
@@ -428,11 +439,60 @@ export async function initializeDigitalTwinLayout(actorId?: bigint | null) {
     summary: `Digital Twin synchronized (${products.length} products mapped).`,
   });
 
-  return getDigitalTwinSnapshot();
+  return getDigitalTwinSnapshot(true);
 }
 
-/** Build the complete live Digital Twin state directly from PostgreSQL. */
-export async function getDigitalTwinSnapshot(): Promise<DigitalTwinSnapshot> {
+const TWIN_SNAPSHOT_TTL_MS = 4_000;
+const globalForTwinCache = globalThis as unknown as {
+  __szTwinSnapshotCache?: { expiresAt: number; data: DigitalTwinSnapshot } | null;
+  __szTwinSnapshotInFlight?: Promise<DigitalTwinSnapshot> | null;
+  __szTwinCacheSubscribed?: boolean;
+};
+
+export function invalidateDigitalTwinSnapshotCache() {
+  globalForTwinCache.__szTwinSnapshotCache = null;
+}
+
+if (!globalForTwinCache.__szTwinCacheSubscribed) {
+  globalForTwinCache.__szTwinCacheSubscribed = true;
+  subscribeInventoryEvents(() => {
+    globalForTwinCache.__szTwinSnapshotCache = null;
+  });
+}
+
+/** Build the complete live Digital Twin state directly from PostgreSQL (with fast in-flight deduplication & 4s cache). */
+export async function getDigitalTwinSnapshot(
+  bypassCache = false,
+): Promise<DigitalTwinSnapshot> {
+  if (!bypassCache) {
+    const cached = globalForTwinCache.__szTwinSnapshotCache;
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+    if (globalForTwinCache.__szTwinSnapshotInFlight) {
+      return globalForTwinCache.__szTwinSnapshotInFlight;
+    }
+  }
+
+  const run = buildDigitalTwinSnapshotFromDb()
+    .then((snapshot) => {
+      if (snapshot.initialized) {
+        globalForTwinCache.__szTwinSnapshotCache = {
+          expiresAt: Date.now() + TWIN_SNAPSHOT_TTL_MS,
+          data: snapshot,
+        };
+      }
+      return snapshot;
+    })
+    .finally(() => {
+      globalForTwinCache.__szTwinSnapshotInFlight = null;
+    });
+
+  globalForTwinCache.__szTwinSnapshotInFlight = run;
+  return run;
+}
+
+async function buildDigitalTwinSnapshotFromDb(): Promise<DigitalTwinSnapshot> {
   const now = new Date();
   const soonThreshold = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -1019,7 +1079,13 @@ export async function transferWarehouseToShelf(input: {
             },
           },
         },
-        product: { include: { category: { select: { name: true } } } },
+        product: {
+          select: {
+            id: true,
+            name: true,
+            category: { select: { name: true } },
+          },
+        },
       },
     });
     if (!position) {

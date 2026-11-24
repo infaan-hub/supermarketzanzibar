@@ -48,6 +48,7 @@ function CloseUpStudioRig({
         barcode: product.barcode,
         imageUrl: product.imageUrl,
         description: product.description,
+        highRes: true,
       }),
     [product],
   );
@@ -63,6 +64,7 @@ function CloseUpStudioRig({
         sku: product.sku,
         imageUrl: product.imageUrl,
         description: product.description,
+        highRes: true,
       }),
     [product],
   );
@@ -127,7 +129,7 @@ function CloseUpStudioRig({
       />
 
       {/* Offline procedural softbox environment for glossy retail laminate reflections */}
-      <Environment resolution={256}>
+      <Environment frames={1} resolution={128}>
         <Lightformer
           form="rect"
           intensity={2.8}
@@ -173,12 +175,13 @@ function CloseUpStudioRig({
         />
       </mesh>
       <ContactShadows
+        frames={1}
         position={[0, 0.002, 0]}
         opacity={0.35}
         scale={1.4}
         blur={2.1}
         far={1.2}
-        resolution={512}
+        resolution={256}
         color="#0f2329"
       />
 

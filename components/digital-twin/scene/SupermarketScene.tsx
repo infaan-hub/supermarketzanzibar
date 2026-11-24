@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Canvas } from "@react-three/fiber";
+import { AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import {
@@ -102,10 +103,10 @@ export function SupermarketScene({
 
   const dpr: [number, number] =
     quality === "high"
-      ? [1.25, 2.25]
+      ? [1, 1.75]
       : quality === "balanced"
-        ? [1, 1.75]
-        : [0.85, 1.1];
+        ? [1, 1.35]
+        : [0.8, 1.0];
 
   const showRetail = sceneScope !== "warehouse";
   const showWarehouse = sceneScope !== "supermarket";
@@ -140,6 +141,8 @@ export function SupermarketScene({
       onPointerMissed={onClearSelection}
       className="h-full w-full"
     >
+      <AdaptiveDpr pixelated />
+      <AdaptiveEvents />
       <StoreEnvironment quality={quality} />
       <LightingSystem quality={quality} />
       <CameraSystem

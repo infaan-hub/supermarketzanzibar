@@ -37,6 +37,48 @@ const chalkboardCache = new Map<string, THREE.CanvasTexture>();
 const tempGaugeCache = new Map<string, THREE.CanvasTexture>();
 const floorDecalCache = new Map<string, THREE.CanvasTexture>();
 
+// Shared decoded HTMLImageElement cache so front, back, shelf, and close-up
+// textures never fetch or decode the same product photo more than once.
+const decodedImageCache = new Map<string, HTMLImageElement>();
+const pendingImageCallbacks = new Map<
+  string,
+  Array<(img: HTMLImageElement) => void>
+>();
+
+function loadSharedProductImage(
+  imageUrl: string,
+  onReady: (img: HTMLImageElement) => void,
+) {
+  if (typeof Image === "undefined") return;
+  const cached = decodedImageCache.get(imageUrl);
+  if (cached && cached.complete && cached.naturalWidth > 0) {
+    onReady(cached);
+    return;
+  }
+
+  const waiting = pendingImageCallbacks.get(imageUrl);
+  if (waiting) {
+    waiting.push(onReady);
+    return;
+  }
+
+  pendingImageCallbacks.set(imageUrl, [onReady]);
+  const img = new Image();
+  if (!imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
+    img.crossOrigin = "anonymous";
+  }
+  img.onload = () => {
+    decodedImageCache.set(imageUrl, img);
+    const list = pendingImageCallbacks.get(imageUrl) ?? [];
+    pendingImageCallbacks.delete(imageUrl);
+    for (const cb of list) cb(img);
+  };
+  img.onerror = () => {
+    pendingImageCallbacks.delete(imageUrl);
+  };
+  img.src = imageUrl;
+}
+
 function makeCanvas(
   w: number,
   h: number,
@@ -142,7 +184,7 @@ export function getTerrazzoTextures(): TerrazzoPbrSet | null {
     "#c2cbc7",
   ];
 
-  for (let i = 0; i < 1450; i += 1) {
+  for (let i = 0; i < 650; i += 1) {
     const cx = rand() * size;
     const cy = rand() * size;
     const rad = 2.0 + Math.pow(rand(), 1.8) * 9.5;
@@ -794,6 +836,7 @@ export function getProductLabelTexture({
   barcode,
   imageUrl,
   description,
+  highRes = false,
 }: {
   productId: string;
   name: string;
@@ -802,14 +845,20 @@ export function getProductLabelTexture({
   barcode?: string;
   imageUrl?: string | null;
   description?: string | null;
+  highRes?: boolean;
 }): THREE.CanvasTexture | null {
-  const key = `front1024|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 40)}`;
+  const resTag = highRes ? "1024" : "512";
+  const key = `front${resTag}|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 40)}`;
   const existing = productLabelCache.get(key);
   if (existing) return existing;
 
-  const pair = makeCanvas(1024, 1024);
+  const canvasSize = highRes ? 1024 : 512;
+  const pair = makeCanvas(canvasSize, canvasSize);
   if (!pair) return null;
   const [canvas, ctx] = pair;
+  if (!highRes) {
+    ctx.scale(0.5, 0.5);
+  }
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
@@ -1003,27 +1052,23 @@ export function getProductLabelTexture({
     ctx.fillRect(0, 0, 1024, 1024);
   };
 
-  paintFront();
+  const cachedImg = imageUrl ? decodedImageCache.get(imageUrl) : undefined;
+  paintFront(cachedImg);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = highRes ? 16 : 8;
   tex.generateMipmaps = true;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
 
   // Asynchronously paint real uploaded product image onto front face when available.
-  if (imageUrl && typeof Image !== "undefined") {
-    const img = new Image();
-    if (!imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
-      img.crossOrigin = "anonymous";
-    }
-    img.onload = () => {
+  if (imageUrl && !cachedImg) {
+    loadSharedProductImage(imageUrl, (img) => {
       paintFront(img);
       tex.needsUpdate = true;
-    };
-    img.src = imageUrl;
+    });
   }
 
   if (productLabelCache.size > 260) {
@@ -1038,7 +1083,7 @@ export function getProductLabelTexture({
 }
 
 /**
- * 1024x1024 Ultra-HD Per-Product BACK-OF-PACKAGE CanvasTexture.
+ * 1024x1024 / 512x512 Ultra-HD Per-Product BACK-OF-PACKAGE CanvasTexture.
  * Renders the product image alongside complete back-of-pack retail details:
  * product info, description, SKU, storage & quality seal, and scannable barcode
  * so spinning or walking around any 3D shelf item feels genuinely real.
@@ -1052,6 +1097,7 @@ export function getProductBackLabelTexture({
   sku,
   imageUrl,
   description,
+  highRes = false,
 }: {
   productId: string;
   name: string;
@@ -1061,14 +1107,20 @@ export function getProductBackLabelTexture({
   sku?: string;
   imageUrl?: string | null;
   description?: string | null;
+  highRes?: boolean;
 }): THREE.CanvasTexture | null {
-  const key = `back1024|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${sku ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 60)}`;
+  const resTag = highRes ? "1024" : "512";
+  const key = `back${resTag}|${productId}|${name}|${categoryName ?? ""}|${priceText}|${barcode ?? ""}|${sku ?? ""}|${imageUrl ?? ""}|${(description ?? "").slice(0, 60)}`;
   const existing = productBackLabelCache.get(key);
   if (existing) return existing;
 
-  const pair = makeCanvas(1024, 1024);
+  const canvasSize = highRes ? 1024 : 512;
+  const pair = makeCanvas(canvasSize, canvasSize);
   if (!pair) return null;
   const [canvas, ctx] = pair;
+  if (!highRes) {
+    ctx.scale(0.5, 0.5);
+  }
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
@@ -1240,26 +1292,22 @@ export function getProductBackLabelTexture({
     drawRetailBarcode(ctx, barcode || productId, 560, 848, 428, 148);
   };
 
-  paintBack();
+  const cachedImg = imageUrl ? decodedImageCache.get(imageUrl) : undefined;
+  paintBack(cachedImg);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = highRes ? 16 : 8;
   tex.generateMipmaps = true;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
 
-  if (imageUrl && typeof Image !== "undefined") {
-    const img = new Image();
-    if (!imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
-      img.crossOrigin = "anonymous";
-    }
-    img.onload = () => {
+  if (imageUrl && !cachedImg) {
+    loadSharedProductImage(imageUrl, (img) => {
       paintBack(img);
       tex.needsUpdate = true;
-    };
-    img.src = imageUrl;
+    });
   }
 
   if (productBackLabelCache.size > 260) {

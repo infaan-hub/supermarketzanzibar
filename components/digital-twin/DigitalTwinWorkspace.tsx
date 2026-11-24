@@ -118,7 +118,7 @@ export function DigitalTwinWorkspace({
   const [sceneScope, setSceneScope] =
     React.useState<TwinSceneScope>(initialScope);
   const [viewMode, setViewMode] = React.useState<TwinViewMode>("realistic");
-  const [quality, setQuality] = React.useState<GraphicsQuality>("high");
+  const [quality, setQuality] = React.useState<GraphicsQuality>("balanced");
   const [showCeiling, setShowCeiling] = React.useState(false);
   const [is2DMode, setIs2DMode] = React.useState(false);
   const [webglSupported, setWebglSupported] = React.useState(true);
