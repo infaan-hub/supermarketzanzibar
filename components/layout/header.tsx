@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import {
+  isCustomerRole,
   isPosRole,
   isSupplierRole,
   portalHref,
@@ -15,7 +16,10 @@ import { CART_CHANGE_EVENT, readCartItemCount } from "@/hooks/usePosCart";
 
 function pageLabelForPath(pathname: string): string {
   const clean = pathname.replace(/^\/(?:admin|manager|market)(?=\/|$)/, "") || "/";
-  if (clean === "/" || clean === "/dashboard") return "Overview";
+  if (clean === "/" || clean === "/dashboard") return "Dashboard";
+  if (clean.startsWith("/orders")) return "My Orders";
+  if (clean.startsWith("/history")) return "Purchase History";
+  if (clean.startsWith("/3d-store") || clean.startsWith("/store-3d")) return "3D Store";
   if (clean.startsWith("/digital-twin")) return "3D Digital Twin";
   if (clean.startsWith("/pos")) return "Point of Sale";
   if (clean.startsWith("/shopping-cart")) return "Shopping Cart";
@@ -90,7 +94,11 @@ export function Header({
 
           {/* Pill Search / Workspace Bar matching the top of the reference design */}
           <Link
-            href={portalHref(user?.role, "/products")}
+            href={
+              isCustomerRole(user?.role)
+                ? "/dashboard"
+                : portalHref(user?.role, "/products")
+            }
             className="flex h-10 max-w-md flex-1 items-center justify-between gap-2 rounded-full border border-white/10 bg-[#141416] pl-4 pr-1.5 text-xs text-muted transition-colors hover:border-white/20"
           >
             <span className="truncate">
@@ -107,10 +115,10 @@ export function Header({
 
         <div className="flex items-center gap-2">
           <Link
-            href="/"
+            href={isCustomerRole(user?.role) ? "/3d-store" : "/"}
             className="hidden h-9 items-center rounded-full border border-white/10 bg-[#2a2a2e] px-3.5 text-xs font-semibold text-[#e4e4e7] transition-colors hover:border-white/20 hover:bg-[#38383f] sm:inline-flex"
           >
-            Marketplace
+            {isCustomerRole(user?.role) ? "3D Store" : "Marketplace"}
           </Link>
 
           {isPosRole(user?.role) && (

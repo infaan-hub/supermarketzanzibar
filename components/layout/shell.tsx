@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   isAuthUtilityPath,
   isPublicPath,
-  isStorefrontPath,
 } from "@/lib/auth/roles";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
@@ -17,17 +17,26 @@ export interface ShellProps {
 
 export function Shell({ title, children }: ShellProps) {
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [isDesktop, setIsDesktop] = React.useState(false);
 
-  const storefront = isStorefrontPath(pathname);
+  const isPublic3DPath =
+    pathname === "/3d-store" ||
+    pathname.startsWith("/3d-store/") ||
+    pathname === "/store-3d" ||
+    pathname.startsWith("/store-3d/");
+  const storefront =
+    pathname === "/" || (isPublic3DPath && !isAuthenticated);
   const authUtility = isAuthUtilityPath(pathname);
-  const hideChrome = isPublicPath(pathname);
+  const hideChrome =
+    isPublicPath(pathname) && !(isPublic3DPath && isAuthenticated);
   const isFullViewportCanvas =
     pathname === "/digital-twin" ||
     pathname === "/admin/digital-twin" ||
     pathname === "/manager/digital-twin" ||
-    pathname === "/market/digital-twin";
+    pathname === "/market/digital-twin" ||
+    (isPublic3DPath && isAuthenticated);
 
   React.useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");

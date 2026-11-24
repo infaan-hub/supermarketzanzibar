@@ -56,6 +56,20 @@ export const EXPLORE_ROLES: readonly string[] = [
   "supplier",
   "viewer",
 ];
+export const CUSTOMER_PORTAL_ROLES: readonly string[] = [
+  "customer",
+  "admin",
+  "manager",
+  "marketmaster",
+];
+export const DASHBOARD_ROLES: readonly string[] = [
+  "admin",
+  "manager",
+  "marketmaster",
+  "supplier",
+  "viewer",
+  "customer",
+];
 export const WAREHOUSE_VIEW_ROLES: readonly string[] = [
   "admin",
   "manager",
@@ -71,6 +85,7 @@ export const SUPPLIER_PORTAL_ROLES: readonly string[] = [
 /** Paths accessible without signing in. */
 export const PUBLIC_PATHS = [
   "/",
+  "/3d-store",
   "/store-3d",
   "/login",
   "/register",
@@ -121,6 +136,10 @@ export function isSupplierRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === "supplier";
 }
 
+export function isCustomerRole(role: string | null | undefined): boolean {
+  return normalizeRole(role) === "customer";
+}
+
 export function isPublicPath(pathname: string): boolean {
   if (pathname === "/") return true;
   return PUBLIC_PATHS.some(
@@ -134,6 +153,8 @@ export function isPublicPath(pathname: string): boolean {
 export function isStorefrontPath(pathname: string): boolean {
   return (
     pathname === "/" ||
+    pathname === "/3d-store" ||
+    pathname.startsWith("/3d-store/") ||
     pathname === "/store-3d" ||
     pathname.startsWith("/store-3d/")
   );
@@ -158,6 +179,7 @@ export function defaultHomeForRole(role: string | null | undefined): string {
   if (normalized === "manager") return "/manager";
   if (normalized === "marketmaster") return "/market";
   if (normalized === "supplier") return "/supplier";
+  if (normalized === "customer") return "/dashboard";
   if (EXPLORE_ROLES.includes(normalized)) return "/dashboard";
   return "/";
 }
@@ -176,6 +198,8 @@ export function portalHref(
   if (!path.startsWith("/")) return path;
   if (
     path === "/" ||
+    path === "/3d-store" ||
+    path.startsWith("/3d-store?") ||
     path === "/store-3d" ||
     path.startsWith("/store-3d?") ||
     path.startsWith("/login") ||
@@ -232,6 +256,8 @@ export function portalHref(
 export function adminCanonicalRedirect(pathname: string): string | null {
   if (
     pathname === "/" ||
+    pathname === "/3d-store" ||
+    pathname.startsWith("/3d-store/") ||
     pathname === "/store-3d" ||
     pathname.startsWith("/store-3d/") ||
     pathname === "/admin" ||
@@ -269,6 +295,8 @@ export function adminCanonicalRedirect(pathname: string): string | null {
 export function managerCanonicalRedirect(pathname: string): string | null {
   if (
     pathname === "/" ||
+    pathname === "/3d-store" ||
+    pathname.startsWith("/3d-store/") ||
     pathname === "/store-3d" ||
     pathname.startsWith("/store-3d/") ||
     pathname === "/manager" ||
@@ -302,6 +330,8 @@ export function managerCanonicalRedirect(pathname: string): string | null {
 export function marketCanonicalRedirect(pathname: string): string | null {
   if (
     pathname === "/" ||
+    pathname === "/3d-store" ||
+    pathname.startsWith("/3d-store/") ||
     pathname === "/store-3d" ||
     pathname.startsWith("/store-3d/") ||
     pathname === "/market" ||
@@ -412,8 +442,19 @@ export function requiredRolesForPath(
   }
 
   if (
-    pathname === "/dashboard" ||
-    pathname.startsWith("/dashboard/") ||
+    pathname === "/orders" ||
+    pathname.startsWith("/orders/") ||
+    pathname === "/history" ||
+    pathname.startsWith("/history/")
+  ) {
+    return CUSTOMER_PORTAL_ROLES;
+  }
+
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+    return DASHBOARD_ROLES;
+  }
+
+  if (
     pathname === "/digital-twin" ||
     pathname.startsWith("/digital-twin/") ||
     pathname === "/departments" ||

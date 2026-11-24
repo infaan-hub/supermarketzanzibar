@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import {
   canAccessPath,
   isAdminRole,
+  isCustomerRole,
   isSupplierRole,
   portalHref,
   roleLabel,
@@ -100,6 +101,24 @@ const SUPPLIER_SECTIONS: NavSection[] = [
   },
 ];
 
+const CUSTOMER_SECTIONS: NavSection[] = [
+  {
+    title: "Marketplace",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: <LayoutIcon />, exact: true },
+      { href: "/orders", label: "Orders", icon: <ReceiptIcon /> },
+      { href: "/3d-store", label: "3D Store", icon: <CubeIcon /> },
+      { href: "/history", label: "History", icon: <HistoryIcon /> },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/profile", label: "My Profile", icon: <ProfileIcon /> },
+    ],
+  },
+];
+
 function isActive(item: NavItem, pathname: string) {
   if (
     item.exact ||
@@ -139,26 +158,29 @@ export function Sidebar({
 
   const isSupplier = isSupplierRole(user?.role);
   const isAdmin = isAdminRole(user?.role);
+  const isCustomer = isCustomerRole(user?.role);
 
   const visibleSections = isSupplier
     ? SUPPLIER_SECTIONS
-    : NAV_SECTIONS.map((section) => ({
-        ...section,
-        items: section.items
-          .filter((item) => {
-            if (
-              isAdmin &&
-              (item.href === "/stock" || item.href === "/goods-received")
-            ) {
-              return false;
-            }
-            return canAccessPath(user?.role, item.href);
-          })
-          .map((item) => ({
-            ...item,
-            href: portalHref(user?.role, item.href),
-          })),
-      })).filter((section) => section.items.length > 0);
+    : isCustomer
+      ? CUSTOMER_SECTIONS
+      : NAV_SECTIONS.map((section) => ({
+          ...section,
+          items: section.items
+            .filter((item) => {
+              if (
+                isAdmin &&
+                (item.href === "/stock" || item.href === "/goods-received")
+              ) {
+                return false;
+              }
+              return canAccessPath(user?.role, item.href);
+            })
+            .map((item) => ({
+              ...item,
+              href: portalHref(user?.role, item.href),
+            })),
+        })).filter((section) => section.items.length > 0);
 
   const profileHref = isSupplier
     ? "/supplier/profile"

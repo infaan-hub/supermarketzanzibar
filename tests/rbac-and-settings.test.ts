@@ -62,13 +62,17 @@ describe("RBAC path and role guards", () => {
 
   it("allows guest public storefront and auth paths without any role", () => {
     expect(isPublicPath("/")).toBe(true);
+    expect(isPublicPath("/3d-store")).toBe(true);
     expect(isPublicPath("/store-3d")).toBe(true);
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/register")).toBe(true);
     expect(isPublicPath("/unauthorized")).toBe(true);
     expect(isPublicPath("/dashboard")).toBe(false);
+    expect(isPublicPath("/orders")).toBe(false);
+    expect(isPublicPath("/history")).toBe(false);
     expect(isPublicPath("/admin")).toBe(false);
     expect(canAccessPath(null, "/")).toBe(true);
+    expect(canAccessPath(null, "/3d-store")).toBe(true);
     expect(canAccessPath(null, "/store-3d")).toBe(true);
     expect(canAccessPath(null, "/login")).toBe(true);
     expect(canAccessPath(null, "/dashboard")).toBe(false);
@@ -142,11 +146,14 @@ describe("RBAC path and role guards", () => {
     expect(canAccessPath("marketmaster", "/shelves")).toBe(false);
     expect(canAccessPath("marketmaster", "/warehouse")).toBe(false);
 
-    // Supplier portal & storefront access for suppliers and customers.
+    // Supplier portal & customer portal access.
     expect(canAccessPath("supplier", "/supplier")).toBe(true);
     expect(canAccessPath("supplier", "/supplier/orders")).toBe(true);
     expect(canAccessPath("supplier", "/stock/movements")).toBe(true);
-    expect(canAccessPath("customer", "/dashboard")).toBe(false);
+    expect(canAccessPath("customer", "/dashboard")).toBe(true);
+    expect(canAccessPath("customer", "/orders")).toBe(true);
+    expect(canAccessPath("customer", "/history")).toBe(true);
+    expect(canAccessPath("customer", "/3d-store")).toBe(true);
     expect(canAccessPath("customer", "/pos")).toBe(false);
     expect(canAccessPath("customer", "/supplier")).toBe(false);
     expect(canAccessPath("customer", "/")).toBe(true);
@@ -158,7 +165,7 @@ describe("RBAC path and role guards", () => {
     expect(defaultHomeForRole("manager")).toBe("/manager");
     expect(defaultHomeForRole("marketmaster")).toBe("/market");
     expect(defaultHomeForRole("supplier")).toBe("/supplier");
-    expect(defaultHomeForRole("customer")).toBe("/");
+    expect(defaultHomeForRole("customer")).toBe("/dashboard");
 
     expect(portalHref("admin", "/dashboard")).toBe("/admin");
     expect(portalHref("admin", "/products")).toBe("/admin/products");

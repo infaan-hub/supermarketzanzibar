@@ -1025,21 +1025,49 @@ export async function fetchPublicCatalog(options?: {
   if (options?.categoryId) qs.set("categoryId", options.categoryId);
   if (options?.take) qs.set("take", String(options.take));
   const tail = qs.toString() ? `?${qs.toString()}` : "";
-  const res = await fetch(`/api/public/catalog${tail}`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Unable to load storefront products.");
-  }
-  return (await res.json()) as import("@/types/api").PublicCatalogResponse;
+  return request<import("@/types/api").PublicCatalogResponse>(
+    `/api/public/catalog${tail}`,
+    { skipAuth: true },
+  );
 }
 
 export async function fetchPublicDigitalTwin(): Promise<
   import("@/types/digital-twin").DigitalTwinSnapshot
 > {
-  const res = await fetch("/api/public/digital-twin", { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Unable to load public 3D store view.");
-  }
-  return (await res.json()) as import("@/types/digital-twin").DigitalTwinSnapshot;
+  return request<import("@/types/digital-twin").DigitalTwinSnapshot>(
+    "/api/public/digital-twin",
+    { skipAuth: true },
+  );
+}
+
+export async function fetchCustomerOrders(): Promise<
+  import("@/types/api").CustomerOrdersResponse
+> {
+  return request<import("@/types/api").CustomerOrdersResponse>(
+    "/api/customer/orders",
+  );
+}
+
+export async function createCustomerOrder(input: {
+  items: Array<{ productId: string; quantity: number }>;
+  fulfillmentMode?: "delivery" | "dine_in" | "takeaway";
+  paymentMethod?: "cash" | "mobile_money" | "card" | "bank_transfer";
+  deliveryAddress?: string;
+}): Promise<{
+  order: {
+    id: string;
+    orderNumber: string;
+    controlNumber: string;
+    grandTotal: number;
+    itemsCount: number;
+    createdAt: string;
+  };
+}> {
+  return request("/api/customer/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function fetchSupplierPortal(

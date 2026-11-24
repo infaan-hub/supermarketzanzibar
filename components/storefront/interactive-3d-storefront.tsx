@@ -357,13 +357,17 @@ export function Interactive3DStorefront({
     [cameraPose, flyTo],
   );
 
-  // External focus request from catalog ("Show on shelf" button).
+  // External focus request from catalog ("3D Shelf" button / `?product=<id>`).
+  const appliedFocusKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!focusProductRequest || !snapshot) return;
+    const key = `${focusProductRequest.productId}:${focusProductRequest.nonce}`;
+    if (appliedFocusKeyRef.current === key) return;
     const match = snapshot.shelves
       .flatMap((s) => s.positions)
       .find((p) => p.product?.id === focusProductRequest.productId);
     if (match) {
+      appliedFocusKeyRef.current = key;
       setViewPreset((prev) => (prev === "2d" && webglOk ? "walk" : prev));
       handleSelectProduct(match);
     }
@@ -809,7 +813,7 @@ export function Interactive3DStorefront({
             Sync
           </Button>
           {!fullHeight && (
-            <Link href="/store-3d">
+            <Link href="/3d-store">
               <Button size="sm" variant="secondary" className="h-7 text-xs">
                 Full screen
               </Button>

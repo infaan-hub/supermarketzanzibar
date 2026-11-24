@@ -7,27 +7,31 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useGuestBasket, type GuestCartItem } from "@/hooks/useGuestBasket";
 import {
-  applyPublicShelfEventToSnapshot,
-  usePublicStorefrontRealtime,
-  type PublicShelfEvent,
-} from "@/hooks/usePublicStorefrontRealtime";
-import { defaultHomeForRole, roleLabel } from "@/lib/auth/roles";
-import { fetchPublicCatalog, fetchPublicDigitalTwin } from "@/lib/api";
+  defaultHomeForRole,
+  isCustomerRole,
+  roleLabel,
+} from "@/lib/auth/roles";
+import {
+  createCustomerOrder,
+  fetchCustomerOrders,
+  fetchPublicCatalog,
+} from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { encodePickupCode } from "@/lib/storefront/pickup-code";
-import { Interactive3DStorefront } from "@/components/storefront/interactive-3d-storefront";
 import { cn } from "@/lib/utils";
-import type { PublicCatalogProduct, PublicCatalogResponse } from "@/types/api";
-import type { DigitalTwinSnapshot } from "@/types/digital-twin";
+import type {
+  CustomerOrdersResponse,
+  PublicCatalogResponse,
+} from "@/types/api";
 
 export function StorefrontHeader({
   cartCount = 0,
   onOpenCart,
-  activePage = "shop",
+  activePage = "home",
 }: {
   cartCount?: number;
   onOpenCart?: () => void;
-  activePage?: "shop" | "3d";
+  activePage?: "home" | "3d";
 }) {
   const { user, isAuthenticated } = useAuth();
   const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
@@ -45,27 +49,27 @@ export function StorefrontHeader({
                 Marketplace
               </span>
               <span className="block text-[10px] font-medium text-[#4CAF50]">
-                Live 3D &amp; Express Order
+                Fresh &amp; 3D Store
               </span>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1.5 md:flex" aria-label="Marketplace">
+          <nav className="flex items-center gap-1.5" aria-label="Marketplace">
             <Link
-              href="/"
+              href={isAuthenticated && isCustomerRole(user?.role) ? "/dashboard" : "/"}
               className={cn(
-                "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
-                activePage === "shop"
+                "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                activePage === "home"
                   ? "bg-[#4CAF50] text-white shadow-sm"
                   : "text-muted hover:bg-white/[0.06] hover:text-white",
               )}
             >
-              Dashboard
+              {isAuthenticated && isCustomerRole(user?.role) ? "Dashboard" : "Home"}
             </Link>
             <Link
-              href="/store-3d"
+              href="/3d-store"
               className={cn(
-                "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+                "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
                 activePage === "3d"
                   ? "bg-[#4CAF50] text-white shadow-sm"
                   : "text-muted hover:bg-white/[0.06] hover:text-white",
@@ -96,23 +100,214 @@ export function StorefrontHeader({
 
           {isAuthenticated && user ? (
             <Link href={portalUrl}>
-              <Button size="sm">{roleLabel(user.role)} Portal</Button>
+              <Button size="sm">
+                {isCustomerRole(user.role) ? "Dashboard" : `${roleLabel(user.role)} Portal`}
+              </Button>
             </Link>
           ) : (
-            <>
-              <Link href="/login">
-                <Button size="sm" variant="secondary">
-                  Sign in
-                </Button>
-              </Link>
-              <Link href="/register" className="hidden sm:inline-flex">
-                <Button size="sm">Register</Button>
-              </Link>
-            </>
+            <Link href="/login">
+              <Button size="sm">Login</Button>
+            </Link>
           )}
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * Real-page Marketplace curved-rail sidebar used on `/` (Home) and on `/3d-store`
+ * before login. Before login, shows ONLY the real public pages:
+ * - Home (`/`)
+ * - 3D Store (`/3d-store`)
+ * - Login (`/login`)
+ */
+export function GuestPublicSidebar({
+  activePage,
+}: {
+  activePage: "home" | "3d";
+}) {
+  const { user, isAuthenticated, logout } = useAuth();
+  const isCustomer = isCustomerRole(user?.role);
+  const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
+
+  const navItems: Array<{
+    href: string;
+    label: string;
+    active: boolean;
+    icon: React.ReactNode;
+  }> = !isAuthenticated
+    ? [
+        {
+          href: "/",
+          label: "Home",
+          active: activePage === "home",
+          icon: <HomeGridIcon className="h-4.5 w-4.5" />,
+        },
+        {
+          href: "/3d-store",
+          label: "3D Store",
+          active: activePage === "3d",
+          icon: <CubeStoreIcon className="h-4.5 w-4.5" />,
+        },
+        {
+          href: "/login",
+          label: "Login",
+          active: false,
+          icon: <LoginIcon className="h-4.5 w-4.5" />,
+        },
+      ]
+    : isCustomer
+      ? [
+          {
+            href: "/dashboard",
+            label: "Dashboard",
+            active: activePage === "home",
+            icon: <HomeGridIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: "/orders",
+            label: "Orders",
+            active: false,
+            icon: <OrdersIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: "/3d-store",
+            label: "3D Store",
+            active: activePage === "3d",
+            icon: <CubeStoreIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: "/history",
+            label: "History",
+            active: false,
+            icon: <HistoryClockIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: "/profile",
+            label: "My Profile",
+            active: false,
+            icon: <UserCircleIcon className="h-4.5 w-4.5" />,
+          },
+        ]
+      : [
+          {
+            href: "/",
+            label: "Home",
+            active: activePage === "home",
+            icon: <HomeGridIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: "/3d-store",
+            label: "3D Store",
+            active: activePage === "3d",
+            icon: <CubeStoreIcon className="h-4.5 w-4.5" />,
+          },
+          {
+            href: portalUrl,
+            label: `${roleLabel(user?.role)} Portal`,
+            active: false,
+            icon: <UserCircleIcon className="h-4.5 w-4.5" />,
+          },
+        ];
+
+  return (
+    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.06] bg-[#252528] lg:flex">
+      {/* Supermarket Emblem Header */}
+      <Link href="/" className="flex h-24 items-center gap-3 px-6">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#4CAF50] text-white shadow-[0_8px_20px_rgba(76,175,80,0.4)]">
+          <SupermarketLogoIcon className="h-6 w-6" />
+        </div>
+        <div>
+          <span className="block font-display text-lg font-extrabold tracking-tight text-white">
+            Marketplace
+          </span>
+          <span className="block text-[11px] font-medium text-[#4CAF50]">
+            Fresh &amp; 3D Store
+          </span>
+        </div>
+      </Link>
+
+      {/* Curved Grey Left Icon Rail + Real Page Links */}
+      <div className="relative flex flex-1 items-center py-6">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-4 bottom-4 left-0 w-[62px] rounded-r-[36px] bg-[#505056] shadow-[inset_-1px_0_0_rgba(255,255,255,0.12),4px_0_16px_rgba(0,0,0,0.3)]"
+        />
+
+        <nav
+          className="relative z-10 w-full space-y-5 pr-4"
+          aria-label="Marketplace Sidebar"
+        >
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group relative flex w-full items-center py-1 text-left text-xs font-semibold transition-colors"
+            >
+              <span className="relative flex w-[62px] shrink-0 items-center justify-center">
+                <span
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                    item.active
+                      ? "bg-[#252528] text-[#4CAF50] shadow-md"
+                      : "text-white/90 group-hover:bg-white/10",
+                  )}
+                >
+                  {item.icon}
+                </span>
+                {item.active && (
+                  <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#4CAF50] ring-2 ring-[#252528]" />
+                )}
+              </span>
+              <span
+                className={cn(
+                  "ml-4 truncate",
+                  item.active
+                    ? "font-bold text-[#4CAF50]"
+                    : "text-[#a1a1aa] group-hover:text-white",
+                )}
+              >
+                {item.label}
+              </span>
+            </Link>
+          ))}
+
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="group relative flex w-full items-center py-1 text-left text-xs font-semibold text-[#a1a1aa] hover:text-[#4CAF50] cursor-pointer"
+            >
+              <span className="flex w-[62px] shrink-0 items-center justify-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 group-hover:bg-white/10 group-hover:text-[#4CAF50]">
+                  <LoginIcon className="h-4.5 w-4.5" />
+                </span>
+              </span>
+              <span className="ml-4 truncate">Logout</span>
+            </button>
+          )}
+        </nav>
+      </div>
+
+      {/* Bottom Circular Utility Buttons */}
+      <div className="flex items-center gap-3 px-6 py-5">
+        <Link
+          href={isAuthenticated ? portalUrl : "/login"}
+          title={isAuthenticated ? "Account Portal" : "Sign In"}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
+        >
+          <SettingsIcon className="h-4.5 w-4.5" />
+        </Link>
+        <Link
+          href="/3d-store"
+          title="Open 3D Store"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
+        >
+          <CubeStoreIcon className="h-4.5 w-4.5" />
+        </Link>
+      </div>
+    </aside>
   );
 }
 
@@ -124,6 +319,7 @@ export function GuestBasketDrawer({
   subtotal,
   onAdjustItem,
   onClear,
+  onOrderSuccess,
 }: {
   open: boolean;
   onClose: () => void;
@@ -132,6 +328,7 @@ export function GuestBasketDrawer({
   subtotal: number;
   onAdjustItem: (productId: string, delta: number) => void;
   onClear: () => void;
+  onOrderSuccess?: () => void;
 }) {
   if (!open) return null;
 
@@ -152,30 +349,52 @@ export function GuestBasketDrawer({
           subtotal={subtotal}
           onAdjustItem={onAdjustItem}
           onClear={onClear}
+          onOrderSuccess={onOrderSuccess}
         />
       </div>
     </div>
   );
 }
 
-function MarketplaceOrderTicket({
+export function MarketplaceOrderTicket({
   cart,
   count,
   subtotal,
   onAdjustItem,
   onClear,
+  onOrderSuccess,
 }: {
   cart: GuestCartItem[];
   count: number;
   subtotal: number;
   onAdjustItem: (productId: string, delta: number) => void;
   onClear: () => void;
+  onOrderSuccess?: () => void;
 }) {
+  const { user, isAuthenticated } = useAuth();
   const [mode, setMode] = React.useState<"delivery" | "dine_in" | "takeaway">(
     "delivery",
   );
+  const [paymentMethod, setPaymentMethod] = React.useState<
+    "mobile_money" | "cash" | "card" | "bank_transfer"
+  >("mobile_money");
+  const [deliveryAddress, setDeliveryAddress] = React.useState("");
+  const [editingAddress, setEditingAddress] = React.useState(false);
   const [showQr, setShowQr] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [orderError, setOrderError] = React.useState<string | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = React.useState<{
+    orderNumber: string;
+    controlNumber: string;
+    grandTotal: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (user?.address && !deliveryAddress) {
+      setDeliveryAddress(user.address);
+    }
+  }, [user?.address, deliveryAddress]);
 
   const pickupCode = React.useMemo(
     () =>
@@ -206,26 +425,108 @@ function MarketplaceOrderTicket({
       .catch(() => undefined);
   };
 
+  const handlePlaceOrder = async () => {
+    if (!isAuthenticated || cart.length === 0 || submitting) return;
+    setSubmitting(true);
+    setOrderError(null);
+    try {
+      const res = await createCustomerOrder({
+        items: cart.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+        })),
+        fulfillmentMode: mode,
+        paymentMethod,
+        deliveryAddress:
+          deliveryAddress.trim() ||
+          user?.address ||
+          "Stone Town Main Road, Zanzibar",
+      });
+      setConfirmedOrder({
+        orderNumber: res.order.orderNumber,
+        controlNumber: res.order.controlNumber,
+        grandTotal: res.order.grandTotal,
+      });
+      onClear();
+      onOrderSuccess?.();
+    } catch (err) {
+      setOrderError(
+        err instanceof Error ? err.message : "Unable to confirm order.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#3c3c42] p-5 text-white shadow-[0_24px_48px_-12px_rgba(0,0,0,0.75)]">
-      {/* Top Delivery Address Card matching reference */}
+      {/* Top Delivery Address Card */}
       <div className="rounded-2xl bg-[#54545c] p-4 shadow-inner">
-        <p className="font-display text-xs font-bold tracking-wider uppercase text-white">
-          DELIVERY ADDRESS
-        </p>
-        <p className="mt-2 flex items-center gap-2 text-xs text-white/95">
-          <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
-          <span className="truncate">
-            Po. 1478, Street No. 52, Stone Town, Zanzibar
-          </span>
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-display text-xs font-bold tracking-wider uppercase text-white">
+            DELIVERY ADDRESS
+          </p>
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => setEditingAddress((v) => !v)}
+              className="text-[11px] font-semibold text-[#4CAF50] hover:underline cursor-pointer"
+            >
+              {editingAddress ? "Done" : "Edit"}
+            </button>
+          )}
+        </div>
+        {editingAddress ? (
+          <Input
+            value={deliveryAddress}
+            onChange={(e) => setDeliveryAddress(e.target.value)}
+            placeholder="Enter delivery address…"
+            className="mt-2 h-8 text-xs"
+          />
+        ) : (
+          <p className="mt-2 flex items-center gap-2 text-xs text-white/95">
+            <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
+            <span className="truncate">
+              {deliveryAddress ||
+                user?.address ||
+                "Po. 1478, Street No. 52, Stone Town, Zanzibar"}
+            </span>
+          </p>
+        )}
         <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/80">
           <ClockIcon className="h-3.5 w-3.5 shrink-0 text-[#4CAF50]" />
-          <span>20 min</span>
+          <span>20 min · Express Marketplace Delivery</span>
         </p>
       </div>
 
-      {/* Cart Header & Order ID */}
+      {/* Confirmed Order Receipt Notice */}
+      {confirmedOrder && (
+        <div className="mt-4 rounded-2xl border border-[#4CAF50]/40 bg-[#4CAF50]/15 p-3.5 text-xs">
+          <p className="font-bold text-[#4CAF50]">
+            Order {confirmedOrder.orderNumber} Confirmed!
+          </p>
+          <p className="mt-0.5 text-white/90">
+            Ref: <span className="font-mono">{confirmedOrder.controlNumber}</span> ·{" "}
+            {formatMoney(confirmedOrder.grandTotal)}
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Link
+              href="/orders"
+              className="rounded-full bg-[#4CAF50] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[#43A047]"
+            >
+              View Orders →
+            </Link>
+            <Link
+              href="/history"
+              className="rounded-full bg-[#1c1c1e] px-3 py-1 text-[11px] font-semibold text-white hover:bg-black"
+            >
+              View Bought Products
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Cart Header & Count */}
       <div className="mt-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CartIcon className="h-4.5 w-4.5 text-[#4CAF50]" />
@@ -237,9 +538,6 @@ function MarketplaceOrderTicket({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-white/75">
-            Order ID: #1099
-          </span>
           {cart.length > 0 && (
             <button
               type="button"
@@ -283,9 +581,7 @@ function MarketplaceOrderTicket({
       {/* Express Store Pickup QR Preview */}
       {showQr && pickupCode && (
         <div className="mt-4 rounded-2xl border border-white/15 bg-[#2a2a2e] p-3.5 text-center">
-          <p className="text-xs font-bold text-white">
-            Express POS Pickup QR
-          </p>
+          <p className="text-xs font-bold text-white">Express POS Pickup QR</p>
           <p className="mt-0.5 text-[11px] text-white/70">
             Show at checkout to scan your entire order into POS.
           </p>
@@ -312,8 +608,11 @@ function MarketplaceOrderTicket({
       <div className="mt-4 max-h-[260px] space-y-3.5 overflow-y-auto pr-1">
         {cart.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-6 text-center text-xs text-white/75">
-            Pick items from Popular Products or directly off any 3D shelf to
-            build your Marketplace order.
+            Pick items from Popular Products or walk the{" "}
+            <Link href="/3d-store" className="font-semibold text-[#4CAF50] hover:underline">
+              3D Store
+            </Link>{" "}
+            to build your Marketplace order.
           </div>
         ) : (
           cart.map((item) => (
@@ -390,14 +689,39 @@ function MarketplaceOrderTicket({
         />
       </div>
 
-      {/* Promotion Code Pill */}
-      <div className="flex items-center justify-between gap-2 rounded-full bg-[#4c4c54] py-1.5 pr-1.5 pl-4">
-        <span className="text-xs font-medium text-white/90">
-          Promotion Code
-        </span>
-        <span className="rounded-full bg-[#141416] px-4 py-1.5 text-[11px] font-bold tracking-wider text-white">
-          TRYNEW
-        </span>
+      {/* Payment Method Selector (when signed in) & Promotion Code Pill */}
+      <div className="space-y-2">
+        {isAuthenticated && (
+          <div className="flex items-center justify-between gap-2 rounded-full bg-[#4c4c54] py-1.5 pr-2 pl-4">
+            <span className="text-xs font-medium text-white/90">Payment</span>
+            <select
+              value={paymentMethod}
+              onChange={(e) =>
+                setPaymentMethod(
+                  e.target.value as
+                    | "mobile_money"
+                    | "cash"
+                    | "card"
+                    | "bank_transfer",
+                )
+              }
+              className="h-7 rounded-full bg-[#141416] px-3 text-xs font-semibold text-white focus:outline-none"
+            >
+              <option value="mobile_money">Mobile Money</option>
+              <option value="cash">Cash on Delivery</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
+            </select>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-2 rounded-full bg-[#4c4c54] py-1.5 pr-1.5 pl-4">
+          <span className="text-xs font-medium text-white/90">
+            Promotion Code
+          </span>
+          <span className="rounded-full bg-[#141416] px-4 py-1.5 text-[11px] font-bold tracking-wider text-white">
+            TRYNEW
+          </span>
+        </div>
       </div>
 
       {/* Sub Total, Delivery Charge & TOTAL */}
@@ -420,14 +744,33 @@ function MarketplaceOrderTicket({
         </div>
       </div>
 
+      {orderError && (
+        <div className="mt-3 rounded-xl border border-danger/40 bg-danger/20 p-2.5 text-xs text-white">
+          {orderError}
+        </div>
+      )}
+
       {/* Confirm Order + Pickup QR Buttons */}
       <div className="mt-5 space-y-2">
-        <Link
-          href="/login"
-          className="flex h-12 w-full items-center justify-center rounded-full bg-[#141416] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.5)] transition-all hover:bg-black"
-        >
-          Confirm Order
-        </Link>
+        {isAuthenticated ? (
+          <button
+            type="button"
+            disabled={cart.length === 0 || submitting}
+            onClick={() => void handlePlaceOrder()}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-[#4CAF50] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(76,175,80,0.35)] transition-all hover:bg-[#43A047] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+          >
+            {submitting
+              ? "Placing Order…"
+              : `Confirm Order — ${formatMoney(grandTotal)}`}
+          </button>
+        ) : (
+          <Link
+            href="/login?next=/dashboard"
+            className="flex h-12 w-full items-center justify-center rounded-full bg-[#141416] font-display text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.5)] transition-all hover:bg-black"
+          >
+            Login to Confirm Order
+          </Link>
+        )}
         {cart.length > 0 && (
           <button
             type="button"
@@ -442,35 +785,28 @@ function MarketplaceOrderTicket({
   );
 }
 
-export function GuestStorefront() {
+/**
+ * Shared Marketplace Catalog + Order Ticket workspace rendered on:
+ * - `/` (Home before login, wrapped with `GuestPublicSidebar`)
+ * - `/dashboard` (Customer Dashboard after login, inside the real app `Shell`)
+ */
+export function MarketplaceStorefrontContent({
+  showCustomerSummary = false,
+}: {
+  showCustomerSummary?: boolean;
+}) {
   const { user, isAuthenticated } = useAuth();
-  const portalUrl = user ? defaultHomeForRole(user.role) : "/login";
-  const store3DSectionRef = React.useRef<HTMLDivElement>(null);
-
   const [catalog, setCatalog] = React.useState<PublicCatalogResponse | null>(
     null,
   );
+  const [customerData, setCustomerData] =
+    React.useState<CustomerOrdersResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
-  const [activeSection, setActiveSection] = React.useState<
-    "dashboard" | "orders" | "3d" | "finance"
-  >("dashboard");
-
-  const [twinSnapshot, setTwinSnapshot] =
-    React.useState<DigitalTwinSnapshot | null>(null);
-  const [twinLoading, setTwinLoading] = React.useState(true);
-  const [twinRefreshing, setTwinRefreshing] = React.useState(false);
-  const [twinError, setTwinError] = React.useState<string | null>(null);
-  const [show3D, setShow3D] = React.useState(false);
-  const [focusProductRequest, setFocusProductRequest] = React.useState<{
-    productId: string;
-    nonce: number;
-  } | null>(null);
 
   const basket = useGuestBasket();
-  const [cartOpen, setCartOpen] = React.useState(false);
 
   const loadCatalog = React.useCallback(async () => {
     setLoading(true);
@@ -491,88 +827,26 @@ export function GuestStorefront() {
     }
   }, [search, selectedCategory]);
 
-  const loadTwin = React.useCallback(async (silent = false) => {
-    if (silent) setTwinRefreshing(true);
-    else setTwinLoading(true);
-    setTwinError(null);
+  const loadCustomerSummary = React.useCallback(async () => {
+    if (!showCustomerSummary || !isAuthenticated) return;
     try {
-      const data = await fetchPublicDigitalTwin();
-      setTwinSnapshot(data);
-    } catch (err) {
-      setTwinError(
-        err instanceof Error ? err.message : "Unable to load 3D shelves.",
-      );
-    } finally {
-      setTwinLoading(false);
-      setTwinRefreshing(false);
+      const res = await fetchCustomerOrders();
+      setCustomerData(res);
+    } catch {
+      // non-fatal
     }
-  }, []);
+  }, [showCustomerSummary, isAuthenticated]);
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadCatalog();
-    }, 180);
+    }, 150);
     return () => window.clearTimeout(timer);
   }, [loadCatalog]);
 
-  const reconcileTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
-    return () => {
-      if (reconcileTimerRef.current)
-        window.clearTimeout(reconcileTimerRef.current);
-    };
-  }, []);
-
-  const { connected: realtimeConnected } = usePublicStorefrontRealtime(
-    React.useCallback(
-      (event: PublicShelfEvent) => {
-        setTwinSnapshot((prev) => applyPublicShelfEventToSnapshot(prev, event));
-        if (reconcileTimerRef.current) {
-          window.clearTimeout(reconcileTimerRef.current);
-        }
-        reconcileTimerRef.current = window.setTimeout(() => {
-          void loadTwin(true);
-          void loadCatalog();
-        }, 450);
-      },
-      [loadTwin, loadCatalog],
-    ),
-    true,
-  );
-
-  React.useEffect(() => {
-    void loadTwin(false);
-  }, [loadTwin]);
-
-  const catalogById = React.useMemo(() => {
-    const map = new Map<string, PublicCatalogProduct>();
-    for (const p of catalog?.products ?? []) {
-      map.set(p.id, p);
-    }
-    return map;
-  }, [catalog]);
-
-  const placedProductIds = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const shelf of twinSnapshot?.shelves ?? []) {
-      for (const pos of shelf.positions) {
-        if (pos.product) set.add(pos.product.id);
-      }
-    }
-    return set;
-  }, [twinSnapshot]);
-
-  const handleViewOnShelf = (productId: string) => {
-    setShow3D(true);
-    setActiveSection("3d");
-    setFocusProductRequest({ productId, nonce: Date.now() });
-    window.setTimeout(() => {
-      store3DSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 80);
-  };
+    void loadCustomerSummary();
+  }, [loadCustomerSummary]);
 
   const categories = React.useMemo(
     () => catalog?.categories ?? [],
@@ -580,34 +854,402 @@ export function GuestStorefront() {
   );
   const products = React.useMemo(() => catalog?.products ?? [], [catalog]);
 
-  // Build live Order Reports rows from active basket + top catalog products
-  const orderReportRows = React.useMemo(() => {
-    const sampleCustomers = [
-      "Jamsed Jhon",
-      "Peter Parker",
-      "Amina Hassan",
-      "Salim Bakari",
-      "Fatma Said",
-    ];
-    const sampleLocations = [
-      "Korangi Road, Stone Town",
-      "City Center, Zanzibar",
-      "Michenzani Avenue",
-      "Shangani Waterfront",
-      "Forodhani Gardens",
-    ];
-    return products.slice(0, 5).map((p, idx) => ({
-      id: p.id,
-      customer: sampleCustomers[idx % sampleCustomers.length],
-      orderNumber: `01845732005${73 + idx}`,
-      address: p.category?.name
-        ? `${p.category.name} · ${sampleLocations[idx % sampleLocations.length]}`
-        : sampleLocations[idx % sampleLocations.length],
-      amount: p.price * (idx % 2 === 0 ? 2 : 1),
-      completed: p.inStock && idx % 3 !== 1,
-      productName: p.name,
-    }));
-  }, [products]);
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-6 xl:flex-row xl:items-start">
+      {/* CENTER MAIN COLUMN */}
+      <div className="min-w-0 flex-1 space-y-7">
+        {/* Welcome KPI Strip for Signed-In Customer Dashboard */}
+        {showCustomerSummary && user && (
+          <div className="rounded-[24px] border border-white/[0.07] bg-[#2a2a2e] p-5 shadow-card">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="font-display text-xl font-bold text-white">
+                  Welcome back, {user.full_name || user.username}
+                </h1>
+                <p className="mt-0.5 text-xs text-muted">
+                  <span className="font-semibold text-[#4CAF50]">
+                    Marketplace Customer Dashboard ·{" "}
+                  </span>
+                  Shop products, walk the 3D Store, track your orders, and review
+                  your purchase history.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/3d-store">
+                  <Button size="sm">Open 3D Store</Button>
+                </Link>
+                <Link href="/orders">
+                  <Button size="sm" variant="secondary">
+                    My Orders ({customerData?.summary.totalOrders ?? 0})
+                  </Button>
+                </Link>
+                <Link href="/history">
+                  <Button size="sm" variant="secondary">
+                    History ({customerData?.summary.uniqueProductsBought ?? 0})
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {customerData && (
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl bg-[#1c1c1e] px-3.5 py-2.5">
+                  <span className="block text-[10px] text-muted">Total Orders</span>
+                  <span className="font-display text-base font-bold text-white tabular-nums">
+                    {customerData.summary.totalOrders}
+                  </span>
+                </div>
+                <div className="rounded-2xl bg-[#1c1c1e] px-3.5 py-2.5">
+                  <span className="block text-[10px] text-muted">Products Bought</span>
+                  <span className="font-display text-base font-bold text-[#4CAF50] tabular-nums">
+                    {customerData.summary.totalItemsBought}
+                  </span>
+                </div>
+                <div className="rounded-2xl bg-[#1c1c1e] px-3.5 py-2.5">
+                  <span className="block text-[10px] text-muted">Total Spent</span>
+                  <span className="font-display text-base font-bold text-white tabular-nums">
+                    {formatMoney(customerData.summary.totalSpent)}
+                  </span>
+                </div>
+                <div className="rounded-2xl bg-[#1c1c1e] px-3.5 py-2.5">
+                  <span className="block text-[10px] text-muted">Loyalty Points</span>
+                  <span className="font-display text-base font-bold text-[#4CAF50] tabular-nums">
+                    {customerData.customer.loyaltyPoints} pts
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Top Pill Search Bar + Dedicated 3D Store Page Button */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex flex-1 items-center">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search Marketplace products, categories, or shelf aisle…"
+              aria-label="Search Marketplace products"
+              className="h-11 w-full rounded-full border-white/10 bg-[#141416] pr-12 pl-5 text-sm text-white placeholder:text-[#71717a]"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#48484f] text-white"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/3d-store">
+              <Button size="sm" variant="default">
+                3D Store →
+              </Button>
+            </Link>
+            {!isAuthenticated && (
+              <Link href="/login">
+                <Button size="sm" variant="secondary">
+                  Login
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* CATEGORIES SECTION */}
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-bold text-white">
+                Categories
+              </h2>
+              <p className="text-xs text-muted">
+                <span className="font-semibold text-[#4CAF50]">
+                  {Math.max(10, categories.length)}+ New
+                </span>{" "}
+                Categories added this week
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("")}
+              className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50] cursor-pointer"
+            >
+              <span>View All</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
+                ›
+              </span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 overflow-x-auto pb-1.5">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("")}
+              className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+            >
+              <span
+                className={cn(
+                  "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
+                  selectedCategory === ""
+                    ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
+                    : "opacity-85 hover:opacity-100 hover:scale-105",
+                )}
+              >
+                <SupermarketGridIcon className="h-6 w-6" />
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] font-semibold",
+                  selectedCategory === "" ? "text-[#4CAF50]" : "text-[#d4d4d8]",
+                )}
+              >
+                All
+              </span>
+            </button>
+            {categories.map((cat, idx) => {
+              const active = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(active ? "" : cat.id)}
+                  className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
+                >
+                  <span
+                    className={cn(
+                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
+                      active
+                        ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
+                        : "opacity-85 hover:opacity-100 hover:scale-105",
+                    )}
+                  >
+                    <SupermarketCategoryIcon index={idx} className="h-6 w-6" />
+                  </span>
+                  <span
+                    className={cn(
+                      "max-w-[82px] truncate text-[11px] font-semibold",
+                      active ? "text-[#4CAF50]" : "text-[#d4d4d8]",
+                    )}
+                  >
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* POPULAR PRODUCTS SECTION */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-bold text-white">
+                Popular Products
+              </h2>
+              <p className="text-xs text-muted">
+                <span className="font-semibold text-[#4CAF50]">
+                  {Math.max(20, products.length)}+ New
+                </span>{" "}
+                products available across Marketplace aisles
+              </p>
+            </div>
+            <Link
+              href="/3d-store"
+              className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50]"
+            >
+              <span>Explore 3D Store</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
+                ›
+              </span>
+            </Link>
+          </div>
+
+          {error && (
+            <div className="rounded-2xl border border-danger/30 bg-danger/15 px-4 py-3 text-xs text-danger">
+              {error}
+            </div>
+          )}
+
+          {loading && !catalog ? (
+            <div className="grid grid-cols-1 gap-x-5 gap-y-12 pt-8 sm:grid-cols-2 md:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="h-56 animate-pulse rounded-[26px] bg-[#2a2a2e]"
+                />
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <div className="rounded-[26px] border border-white/10 bg-[#2a2a2e] p-10 text-center">
+              <p className="text-sm font-bold text-white">
+                No matching products found
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Try a different search term or select another category.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-x-5 gap-y-14 pt-10 min-[480px]:grid-cols-2 md:grid-cols-3">
+              {products.map((product, idx) => {
+                const inBasket = basket.basketQuantities[product.id] ?? 0;
+                const rating = (
+                  4.5 +
+                  ((Number(product.id) || idx) % 5) * 0.1
+                ).toFixed(1);
+
+                return (
+                  <article
+                    key={product.id}
+                    className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-18 pb-4 text-center shadow-[0_18px_36px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-[#4CAF50]/40"
+                  >
+                    {/* Floating Pop-Out Top Product Image */}
+                    <div className="absolute -top-11 left-1/2 flex h-26 w-26 -translate-x-1/2 items-center justify-center">
+                      {product.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="max-h-26 max-w-26 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="flex h-22 w-22 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-[0_14px_24px_rgba(0,0,0,0.65)]">
+                          <PhotoPlaceholderIcon className="h-6 w-6 text-[#4CAF50]" />
+                          <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
+                            {product.name.slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Direct 3D Shelf Link navigating to `/3d-store?product=<id>` */}
+                    <Link
+                      href={`/3d-store?product=${encodeURIComponent(product.id)}`}
+                      className="absolute top-3 right-3 rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[10px] font-semibold text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white"
+                    >
+                      3D Shelf
+                    </Link>
+
+                    <h3 className="line-clamp-1 font-display text-base font-bold text-white group-hover:text-[#4CAF50]">
+                      {product.name}
+                    </h3>
+                    <p className="mt-0.5 text-[11px] font-medium text-[#71717a]">
+                      Starting From
+                    </p>
+                    <p className="mt-0.5 font-display text-lg font-extrabold text-white tabular-nums">
+                      {formatMoney(product.price)}
+                    </p>
+
+                    {/* Add to Cart / Quantity Pill */}
+                    <div className="mt-3 flex justify-center">
+                      {inBasket > 0 ? (
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#1c1c1e] px-3 py-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              basket.adjustItem(
+                                product.id,
+                                -1,
+                                product.availableQuantity,
+                              )
+                            }
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-[#38383f] text-xs font-bold text-white hover:bg-[#4CAF50] cursor-pointer"
+                          >
+                            −
+                          </button>
+                          <span className="font-mono text-xs font-bold text-white tabular-nums">
+                            {inBasket}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              basket.addItem({
+                                productId: product.id,
+                                name: product.name,
+                                price: product.price,
+                                maxQuantity: product.availableQuantity,
+                                categoryName: product.category?.name ?? null,
+                              })
+                            }
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4CAF50] text-xs font-bold text-white hover:bg-[#43A047] cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled={!product.inStock}
+                          onClick={() =>
+                            basket.addItem({
+                              productId: product.id,
+                              name: product.name,
+                              price: product.price,
+                              maxQuantity: product.availableQuantity,
+                              categoryName: product.category?.name ?? null,
+                            })
+                          }
+                        >
+                          {product.inStock ? "+ Add to Cart" : "Sold Out"}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Bottom Footer Row */}
+                    <div className="mt-3.5 flex items-end justify-between border-t border-white/[0.06] pt-2.5 text-xs">
+                      <div className="flex items-center gap-1 font-bold text-white">
+                        <span className="text-sm text-[#4CAF50]">★</span>
+                        <span>{rating}</span>
+                      </div>
+                      <div className="text-right leading-tight">
+                        <span className="block font-mono text-xs font-semibold text-[#a1a1aa] tabular-nums">
+                          {product.availableQuantity}
+                        </span>
+                        <span className="text-[11px] font-bold text-white">
+                          In Stock
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* RIGHT: Sticky Perforated Order Ticket & Cart Panel */}
+      <div className="w-full shrink-0 xl:sticky xl:top-6 xl:w-[370px]">
+        <MarketplaceOrderTicket
+          cart={basket.cart}
+          count={basket.count}
+          subtotal={basket.subtotal}
+          onAdjustItem={(productId, delta) =>
+            basket.adjustItem(productId, delta)
+          }
+          onClear={basket.clearBasket}
+          onOrderSuccess={() => {
+            void loadCustomerSummary();
+            void loadCatalog();
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function GuestStorefront() {
+  const basket = useGuestBasket();
+  const [cartOpen, setCartOpen] = React.useState(false);
 
   return (
     <div className="min-h-dvh bg-[#1c1c1e] text-[#f4f4f6]">
@@ -616,636 +1258,19 @@ export function GuestStorefront() {
         <StorefrontHeader
           cartCount={basket.count}
           onOpenCart={() => setCartOpen(true)}
-          activePage={show3D ? "3d" : "shop"}
+          activePage="home"
         />
       </div>
 
-      {/* Main 3-Column Marketplace Frame matching reference image */}
+      {/* Main 3-Column Marketplace Home Frame */}
       <div className="mx-auto flex min-h-dvh max-w-[1600px]">
-        {/* LEFT: Iconic Curved-Rail Marketplace Sidebar */}
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.06] bg-[#252528] lg:flex">
-          {/* Supermarket Emblem Header */}
-          <div className="flex h-24 items-center gap-3 px-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#4CAF50] text-white shadow-[0_8px_20px_rgba(76,175,80,0.4)]">
-              <SupermarketLogoIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <span className="block font-display text-lg font-extrabold tracking-tight text-white">
-                Marketplace
-              </span>
-              <span className="block text-[11px] font-medium text-[#4CAF50]">
-                Fresh &amp; 3D Store
-              </span>
-            </div>
-          </div>
-
-          {/* Curved Grey Left Icon Rail + Menu Labels */}
-          <div className="relative flex flex-1 items-center py-6">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-4 bottom-4 left-0 w-[62px] rounded-r-[36px] bg-[#505056] shadow-[inset_-1px_0_0_rgba(255,255,255,0.12),4px_0_16px_rgba(0,0,0,0.3)]"
-            />
-
-            <nav className="relative z-10 w-full space-y-5 pr-4" aria-label="Marketplace Sidebar">
-              {[
-                {
-                  id: "dashboard" as const,
-                  label: "Dashboard",
-                  icon: (
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                    </svg>
-                  ),
-                  onClick: () => {
-                    setActiveSection("dashboard");
-                    setShow3D(false);
-                  },
-                },
-                {
-                  id: "orders" as const,
-                  label: "Orders",
-                  icon: (
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="4" width="18" height="16" rx="2" />
-                      <path d="M7 8h10M7 12h10M7 16h6" />
-                    </svg>
-                  ),
-                  onClick: () => {
-                    setActiveSection("orders");
-                    document
-                      .getElementById("order-reports")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                  },
-                },
-                {
-                  id: "3d" as const,
-                  label: "3D Store",
-                  icon: (
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
-                      <path d="M3 7l9 5 9-5M12 22V12" />
-                    </svg>
-                  ),
-                  onClick: () => {
-                    setActiveSection("3d");
-                    setShow3D((v) => !v);
-                  },
-                },
-                {
-                  id: "finance" as const,
-                  label: "Finance",
-                  icon: (
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="2" y="5" width="20" height="14" rx="2" />
-                      <line x1="2" y1="10" x2="22" y2="10" />
-                    </svg>
-                  ),
-                  onClick: () => {
-                    setActiveSection("finance");
-                    document
-                      .getElementById("order-reports")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                  },
-                },
-              ].map((item) => {
-                const active = activeSection === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={item.onClick}
-                    className="group relative flex w-full items-center py-1 text-left text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    <span className="relative flex w-[62px] shrink-0 items-center justify-center">
-                      <span
-                        className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                          active
-                            ? "bg-[#252528] text-[#4CAF50] shadow-md"
-                            : "text-white/90 group-hover:bg-white/10",
-                        )}
-                      >
-                        {item.icon}
-                      </span>
-                      {active && (
-                        <span className="absolute -right-1 h-2.5 w-2.5 rounded-full bg-[#4CAF50] ring-2 ring-[#252528]" />
-                      )}
-                    </span>
-                    <span
-                      className={cn(
-                        "ml-4 truncate",
-                        active
-                          ? "font-bold text-[#4CAF50]"
-                          : "text-[#a1a1aa] group-hover:text-white",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Portal / Sign-in or Logout link */}
-              <Link
-                href={portalUrl}
-                className="group relative flex w-full items-center py-1 text-left text-xs font-semibold text-[#a1a1aa] hover:text-white"
-              >
-                <span className="flex w-[62px] shrink-0 items-center justify-center">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white/90 group-hover:bg-white/10">
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                  </span>
-                </span>
-                <span className="ml-4 truncate">
-                  {isAuthenticated && user
-                    ? `${roleLabel(user.role)} Portal`
-                    : "Login"}
-                </span>
-              </Link>
-            </nav>
-          </div>
-
-          {/* Bottom Circular Utility Buttons matching reference */}
-          <div className="flex items-center gap-3 px-6 py-5">
-            <Link
-              href={portalUrl}
-              title="Settings & Portal"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
-            >
-              <SettingsIcon className="h-4.5 w-4.5" />
-            </Link>
-            <Link
-              href="/store-3d"
-              title="Full-Screen 3D Store"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#38383f] text-white shadow-md transition-all hover:bg-[#4CAF50] hover:text-white"
-            >
-              <BellIcon className="h-4.5 w-4.5" />
-            </Link>
-          </div>
-        </aside>
+        {/* LEFT: Real-Pages Marketplace Sidebar (Home, 3D Store /3d-store, Login /login) */}
+        <GuestPublicSidebar activePage="home" />
 
         {/* CENTER + RIGHT CONTENT AREA */}
-        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 sm:p-6 xl:flex-row xl:items-start">
-          {/* CENTER MAIN COLUMN */}
-          <main className="min-w-0 flex-1 space-y-7">
-            {/* Top Pill Search Bar + 3D Store Toggle */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative flex flex-1 items-center">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search Marketplace products, categories, or shelf aisle…"
-                  aria-label="Search Marketplace products"
-                  className="h-11 w-full rounded-full border-white/10 bg-[#141416] pr-12 pl-5 text-sm text-white placeholder:text-[#71717a]"
-                />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#48484f] text-white"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={show3D ? "default" : "secondary"}
-                  onClick={() => setShow3D((v) => !v)}
-                >
-                  {show3D ? "Hide 3D Store" : "Walk 3D Store"}
-                </Button>
-                <Link href="/store-3d">
-                  <Button size="sm" variant="secondary">
-                    Full 3D View →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Interactive 3D Storefront Stage (Collapsible) */}
-            {show3D && (
-              <div ref={store3DSectionRef} className="pt-1">
-                <Interactive3DStorefront
-                  snapshot={twinSnapshot}
-                  loading={twinLoading}
-                  error={twinError}
-                  onRefresh={() => void loadTwin(true)}
-                  refreshing={twinRefreshing}
-                  realtimeConnected={realtimeConnected}
-                  catalogById={catalogById}
-                  basketQuantities={basket.basketQuantities}
-                  basketCount={basket.count}
-                  onAddItem={basket.addItem}
-                  onAdjustItem={basket.adjustItem}
-                  onOpenBasket={() => setCartOpen(true)}
-                  focusProductRequest={focusProductRequest}
-                />
-              </div>
-            )}
-
-            {/* CATEGORIES SECTION matching reference */}
-            <section className="space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-lg font-bold text-white">
-                    Categories
-                  </h2>
-                  <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#4CAF50]">
-                      {Math.max(10, categories.length)}+ New
-                    </span>{" "}
-                    Categories added this week
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("")}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50] cursor-pointer"
-                >
-                  <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
-                    ›
-                  </span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-4 overflow-x-auto pb-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("")}
-                  className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
-                >
-                  <span
-                    className={cn(
-                      "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
-                      selectedCategory === ""
-                        ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
-                        : "opacity-85 hover:opacity-100 hover:scale-105",
-                    )}
-                  >
-                    <SupermarketGridIcon className="h-6 w-6" />
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[11px] font-semibold",
-                      selectedCategory === ""
-                        ? "text-[#4CAF50]"
-                        : "text-[#d4d4d8]",
-                    )}
-                  >
-                    All
-                  </span>
-                </button>
-                {categories.map((cat, idx) => {
-                  const active = selectedCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedCategory(active ? "" : cat.id)
-                      }
-                      className="flex shrink-0 flex-col items-center gap-1.5 cursor-pointer"
-                    >
-                      <span
-                        className={cn(
-                          "flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-lg transition-all",
-                          active
-                            ? "ring-2 ring-[#4CAF50] text-[#4CAF50] scale-105"
-                            : "opacity-85 hover:opacity-100 hover:scale-105",
-                        )}
-                      >
-                        <SupermarketCategoryIcon index={idx} className="h-6 w-6" />
-                      </span>
-                      <span
-                        className={cn(
-                          "max-w-[82px] truncate text-[11px] font-semibold",
-                          active ? "text-[#4CAF50]" : "text-[#d4d4d8]",
-                        )}
-                      >
-                        {cat.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* POPULAR PRODUCTS SECTION matching reference */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-lg font-bold text-white">
-                    Popular Products
-                  </h2>
-                  <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#4CAF50]">
-                      {Math.max(20, products.length)}+ New
-                    </span>{" "}
-                    products added this week
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShow3D(true)}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50] cursor-pointer"
-                >
-                  <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
-                    ›
-                  </span>
-                </button>
-              </div>
-
-              {error && (
-                <div className="rounded-2xl border border-danger/30 bg-danger/15 px-4 py-3 text-xs text-danger">
-                  {error}
-                </div>
-              )}
-
-              {loading && !catalog ? (
-                <div className="grid grid-cols-1 gap-x-5 gap-y-12 pt-8 sm:grid-cols-2 md:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="h-56 animate-pulse rounded-[26px] bg-[#2a2a2e]"
-                    />
-                  ))}
-                </div>
-              ) : products.length === 0 ? (
-                <div className="rounded-[26px] border border-white/10 bg-[#2a2a2e] p-10 text-center">
-                  <p className="text-sm font-bold text-white">
-                    No matching products found
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    Try a different search term or select another category.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-x-5 gap-y-14 pt-10 min-[480px]:grid-cols-2 md:grid-cols-3">
-                  {products.map((product, idx) => {
-                    const inBasket = basket.basketQuantities[product.id] ?? 0;
-                    const onShelfIn3D = placedProductIds.has(product.id);
-                    const rating = (
-                      4.5 +
-                      ((Number(product.id) || idx) % 5) * 0.1
-                    ).toFixed(1);
-
-                    return (
-                      <article
-                        key={product.id}
-                        className="group relative flex flex-col rounded-[28px] border border-white/[0.07] bg-[#2a2a2e] px-5 pt-18 pb-4 text-center shadow-[0_18px_36px_-12px_rgba(0,0,0,0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-[#4CAF50]/40"
-                      >
-                        {/* Floating Pop-Out Top Product Image */}
-                        <div className="absolute -top-11 left-1/2 flex h-26 w-26 -translate-x-1/2 items-center justify-center">
-                          {product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="max-h-26 max-w-26 rounded-2xl object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.68)] transition-transform duration-300 group-hover:scale-110"
-                            />
-                          ) : (
-                            <div className="flex h-22 w-22 flex-col items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#38383f] via-[#2e2e34] to-[#222226] text-white shadow-[0_14px_24px_rgba(0,0,0,0.65)]">
-                              <PhotoPlaceholderIcon className="h-6 w-6 text-[#4CAF50]" />
-                              <span className="mt-0.5 text-[9px] font-semibold text-[#d4d4d8]">
-                                {product.name.slice(0, 2).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Optional 3D Shelf Jump Pill */}
-                        {onShelfIn3D && (
-                          <button
-                            type="button"
-                            onClick={() => handleViewOnShelf(product.id)}
-                            className="absolute top-3 right-3 rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[10px] font-semibold text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white cursor-pointer"
-                          >
-                            3D Shelf
-                          </button>
-                        )}
-
-                        <h3 className="line-clamp-1 font-display text-base font-bold text-white group-hover:text-[#4CAF50]">
-                          {product.name}
-                        </h3>
-                        <p className="mt-0.5 text-[11px] font-medium text-[#71717a]">
-                          Starting From
-                        </p>
-                        <p className="mt-0.5 font-display text-lg font-extrabold text-white tabular-nums">
-                          {formatMoney(product.price)}
-                        </p>
-
-                        {/* Add to Cart / Quantity Pill */}
-                        <div className="mt-3 flex justify-center">
-                          {inBasket > 0 ? (
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#1c1c1e] px-3 py-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  basket.adjustItem(
-                                    product.id,
-                                    -1,
-                                    product.availableQuantity,
-                                  )
-                                }
-                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#38383f] text-xs font-bold text-white hover:bg-[#4CAF50] cursor-pointer"
-                              >
-                                −
-                              </button>
-                              <span className="font-mono text-xs font-bold text-white tabular-nums">
-                                {inBasket}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  basket.addItem({
-                                    productId: product.id,
-                                    name: product.name,
-                                    price: product.price,
-                                    maxQuantity: product.availableQuantity,
-                                    categoryName:
-                                      product.category?.name ?? null,
-                                  })
-                                }
-                                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4CAF50] text-xs font-bold text-white hover:bg-[#43A047] cursor-pointer"
-                              >
-                                +
-                              </button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              disabled={!product.inStock}
-                              onClick={() =>
-                                basket.addItem({
-                                  productId: product.id,
-                                  name: product.name,
-                                  price: product.price,
-                                  maxQuantity: product.availableQuantity,
-                                  categoryName: product.category?.name ?? null,
-                                })
-                              }
-                            >
-                              {product.inStock ? "+ Add to Cart" : "Sold Out"}
-                            </Button>
-                          )}
-                        </div>
-
-                        {/* Bottom Footer Row matching reference: Star rating left, Total Sale right */}
-                        <div className="mt-3.5 flex items-end justify-between border-t border-white/[0.06] pt-2.5 text-xs">
-                          <div className="flex items-center gap-1 font-bold text-white">
-                            <span className="text-sm text-[#4CAF50]">★</span>
-                            <span>{rating}</span>
-                          </div>
-                          <div className="text-right leading-tight">
-                            <span className="block font-mono text-xs font-semibold text-[#a1a1aa] tabular-nums">
-                              {product.availableQuantity}
-                            </span>
-                            <span className="text-[11px] font-bold text-white">
-                              Total Sale
-                            </span>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* ORDER REPORTS SECTION matching reference table */}
-            <section id="order-reports" className="space-y-3.5 pt-2">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-lg font-bold text-white">
-                    Order Reports
-                  </h2>
-                  <p className="text-xs text-muted">
-                    <span className="font-semibold text-[#4CAF50]">
-                      Wow!! 100+ New
-                    </span>{" "}
-                    order got this week
-                  </p>
-                </div>
-                <Link
-                  href={portalUrl}
-                  className="group inline-flex items-center gap-2 text-xs font-semibold text-white hover:text-[#4CAF50]"
-                >
-                  <span>View More</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#48484f] text-white transition-colors group-hover:bg-[#4CAF50]">
-                    ›
-                  </span>
-                </Link>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[540px] border-separate border-spacing-y-2 text-xs">
-                  <thead>
-                    <tr className="bg-[#38383f] text-[#d4d4d8]">
-                      <th className="rounded-l-full px-4 py-2.5 text-left font-medium">
-                        Customer
-                      </th>
-                      <th className="px-3 py-2.5 text-left font-medium">
-                        Order number
-                      </th>
-                      <th className="px-3 py-2.5 text-left font-medium">
-                        Address
-                      </th>
-                      <th className="px-3 py-2.5 text-right font-medium">
-                        Amount
-                      </th>
-                      <th className="rounded-r-full px-4 py-2.5 text-right font-medium">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orderReportRows.map((row, idx) => {
-                      const avatarBg =
-                        idx % 2 === 0
-                          ? "bg-[#4CAF50] text-white"
-                          : "bg-[#38bdf8] text-[#0f172a]";
-                      return (
-                        <tr
-                          key={row.id}
-                          className="transition-colors hover:bg-white/[0.04]"
-                        >
-                          <td className="px-3 py-2">
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-extrabold shadow ${avatarBg}`}
-                              >
-                                {row.customer.slice(0, 2).toUpperCase()}
-                              </span>
-                              <div>
-                                <p className="font-semibold text-white">
-                                  {row.customer}
-                                </p>
-                                <p className="text-[10px] text-muted">
-                                  {row.productName}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 font-mono text-[#d4d4d8]">
-                            {row.orderNumber}
-                          </td>
-                          <td className="px-3 py-2 text-[#d4d4d8]">
-                            {row.address}
-                          </td>
-                          <td className="px-3 py-2 text-right font-semibold text-white tabular-nums">
-                            {formatMoney(row.amount)}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <span
-                              className={cn(
-                                "inline-flex items-center justify-center rounded-full px-3.5 py-1 text-[11px] font-semibold text-white shadow-sm",
-                                row.completed
-                                  ? "bg-[#4CAF50]"
-                                  : "bg-[#4CAF50]/70",
-                              )}
-                            >
-                              {row.completed ? "Completed" : "Pending"}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </main>
-
-          {/* RIGHT: Sticky Perforated Order Ticket & Cart Panel */}
-          <div className="w-full shrink-0 xl:sticky xl:top-6 xl:w-[370px]">
-            <MarketplaceOrderTicket
-              cart={basket.cart}
-              count={basket.count}
-              subtotal={basket.subtotal}
-              onAdjustItem={(productId, delta) =>
-                basket.adjustItem(productId, delta)
-              }
-              onClear={basket.clearBasket}
-            />
-          </div>
-        </div>
+        <main className="flex min-w-0 flex-1 p-4 sm:p-6">
+          <MarketplaceStorefrontContent />
+        </main>
       </div>
 
       <GuestBasketDrawer
@@ -1267,6 +1292,65 @@ function SupermarketLogoIcon({ className }: { className?: string }) {
       <circle cx="9" cy="21" r="1" />
       <circle cx="20" cy="21" r="1" />
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function HomeGridIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function CubeStoreIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" />
+      <path d="M3 7l9 5 9-5M12 22V12" />
+    </svg>
+  );
+}
+
+function OrdersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+      <path d="M8 7h8M8 11h8M8 15h5" />
+    </svg>
+  );
+}
+
+function HistoryClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function UserCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+    </svg>
+  );
+}
+
+function LoginIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   );
 }
@@ -1378,15 +1462,6 @@ function SettingsIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-    </svg>
-  );
-}
-
-function BellIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
     </svg>
   );
 }

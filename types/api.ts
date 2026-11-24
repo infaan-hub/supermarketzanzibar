@@ -902,6 +902,79 @@ export interface PublicCatalogResponse {
   products: PublicCatalogProduct[];
 }
 
+export interface CustomerOrderItemRecord {
+  id: string;
+  productId: string;
+  productName: string;
+  barcode: string;
+  categoryName: string | null;
+  imageUrl: string | null;
+  quantity: number;
+  price: number;
+  lineTotal: number;
+}
+
+export interface CustomerOrderRecord {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  controlNumber: string | null;
+  deliveryLocation: string;
+  subtotal: number;
+  taxAmount: number;
+  discount: number;
+  grandTotal: number;
+  itemsCount: number;
+  items: CustomerOrderItemRecord[];
+  createdAt: string;
+}
+
+export interface CustomerBoughtProductRecord {
+  productId: string;
+  productName: string;
+  barcode: string;
+  categoryName: string | null;
+  imageUrl: string | null;
+  currentPrice: number;
+  currentStock: number;
+  inStock: boolean;
+  totalQuantityBought: number;
+  totalSpent: number;
+  orderCount: number;
+  lastPurchasedAt: string;
+  latestOrderId: string;
+  purchases: Array<{
+    saleId: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    status: string;
+    purchasedAt: string;
+  }>;
+}
+
+export interface CustomerOrdersResponse {
+  customer: {
+    fullName: string;
+    email: string;
+    phone: string;
+    address: string;
+    loyaltyPoints: number;
+  };
+  summary: {
+    totalOrders: number;
+    completedOrders: number;
+    pendingOrders: number;
+    totalSpent: number;
+    totalItemsBought: number;
+    uniqueProductsBought: number;
+  };
+  orders: CustomerOrderRecord[];
+  boughtProducts: CustomerBoughtProductRecord[];
+}
+
 export interface SupplierPortalResponse {
   supplier: {
     id: string;
